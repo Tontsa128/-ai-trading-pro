@@ -10,7 +10,7 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="AI Trading Pro v14",
+    page_title="AI Trading Pro v15",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -19,71 +19,80 @@ st.set_page_config(
 st.markdown("""
 <style>
 .block-container {
-    padding-top:0.4rem;
-    padding-left:0.7rem;
-    padding-right:0.7rem;
+    padding-top:0.25rem;
+    padding-left:0.55rem;
+    padding-right:0.55rem;
 }
-h1 {font-size:1.35rem!important;}
+h1 {font-size:1.15rem!important; margin-bottom:0.2rem;}
+[data-testid="stMetricValue"] {font-size:1rem!important;}
+.trade-top{
+    background:#111936;
+    border:1px solid #26345e;
+    border-radius:14px;
+    padding:10px;
+    color:white;
+    margin-bottom:8px;
+}
 .card,.trade-panel{
     background:#111936;
     border:1px solid #26345e;
-    border-radius:16px;
-    padding:14px;
+    border-radius:14px;
+    padding:12px;
     color:white;
 }
 .buy-box{
     background:linear-gradient(90deg,#16a34a,#22c55e);
     border-radius:14px;
-    padding:16px;
-    font-size:25px;
+    padding:14px;
+    font-size:23px;
     font-weight:900;
     text-align:center;
     color:white;
-    margin-top:8px;
+    margin-top:6px;
 }
 .prebuy-box{
     background:linear-gradient(90deg,#bbf7d0,#22c55e);
     border-radius:14px;
-    padding:16px;
-    font-size:23px;
+    padding:14px;
+    font-size:21px;
     font-weight:900;
     text-align:center;
     color:#052e16;
-    margin-top:8px;
+    margin-top:6px;
 }
 .sell-box{
     background:linear-gradient(90deg,#dc2626,#ef4444);
-    border-radius:14px;
-    padding:16px;
-    font-size:25px;
-    font-weight:900;
-    text-align:center;
-    color:white;
-    margin-top:8px;
-}
-.presell-box{
-    background:linear-gradient(90deg,#fecaca,#ef4444);
-    border-radius:14px;
-    padding:16px;
-    font-size:23px;
-    font-weight:900;
-    text-align:center;
-    color:#450a0a;
-    margin-top:8px;
-}
-.wait-box{
-    background:linear-gradient(90deg,#facc15,#ca8a04);
     border-radius:14px;
     padding:14px;
     font-size:23px;
     font-weight:900;
     text-align:center;
-    color:black;
-    margin-top:8px;
+    color:white;
+    margin-top:6px;
 }
-.small-note {
-    color:#cbd5e1;
-    font-size:0.9rem;
+.presell-box{
+    background:linear-gradient(90deg,#fecaca,#ef4444);
+    border-radius:14px;
+    padding:14px;
+    font-size:21px;
+    font-weight:900;
+    text-align:center;
+    color:#450a0a;
+    margin-top:6px;
+}
+.wait-box{
+    background:linear-gradient(90deg,#facc15,#ca8a04);
+    border-radius:14px;
+    padding:13px;
+    font-size:22px;
+    font-weight:900;
+    text-align:center;
+    color:black;
+    margin-top:6px;
+}
+.stButton button {
+    font-weight:800;
+    border-radius:12px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -115,18 +124,23 @@ def init_state():
         "ticks": [],
         "last_symbol": None,
         "sim_price": None,
-        "last_refresh": time.time(),
+        "chart_type": "Kynttilät",
+        "show_ema": True,
+        "show_sma": False,
+        "show_bollinger": False,
+        "drawing_tools": False,
         "live_running": True,
     }
-    for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+    for k, v in defaults.items():
+        if k not in st.session_state:
+            st.session_state[k] = v
 
 
 init_state()
 
 
 st.sidebar.title("⚙️ Asetukset")
+
 selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 selected = SYMBOLS[selected_name]
 symbol = selected["binance"]
@@ -136,7 +150,24 @@ tf_name = st.sidebar.radio("Kynttiläaika", list(TIMEFRAMES.keys()), index=1)
 bucket_seconds = TIMEFRAMES[tf_name]
 
 refresh_seconds = st.sidebar.radio("Live-päivitys", [1, 2, 5], index=0)
-candle_count = st.sidebar.slider("Näytettävät kynttilät", 30, 180, 90, 10)
+candle_count = st.sidebar.slider("Näytettävät kynttilät", 30, 160, 80, 10)
+
+st.sidebar.divider()
+st.session_state.chart_type = st.sidebar.radio(
+    "Kaaviotyyppi",
+    ["Kynttilät", "Viiva", "Alue"],
+    index=["Kynttilät", "Viiva", "Alue"].index(st.session_state.chart_type)
+)
+
+st.session_state.show_ema = st.sidebar.checkbox("Näytä EMA9 / EMA21", value=st.session_state.show_ema)
+st.session_state.show_sma = st.sidebar.checkbox("Näytä SMA20", value=st.session_state.show_sma)
+st.session_state.show_bollinger = st.sidebar.checkbox("Näytä Bollinger-viivat", value=st.session_state.show_bollinger)
+
+st.sidebar.divider()
+st.session_state.drawing_tools = st.sidebar.toggle(
+    "Piirtoviivat päälle",
+    value=st.session_state.drawing_tools
+)
 
 st.session_state.live_running = st.sidebar.toggle(
     "Live päällä",
@@ -167,8 +198,7 @@ def get_binance_price(symbol_code):
         try:
             r = requests.get(url, timeout=4, headers={"User-Agent": "Mozilla/5.0"})
             r.raise_for_status()
-            data = r.json()
-            return float(data["price"]), "Binance live"
+            return float(r.json()["price"]), "Binance live"
         except Exception:
             pass
     raise RuntimeError("Binance ei vastannut")
@@ -211,9 +241,8 @@ def seed_ticks(price, bucket):
 
     now = int(time.time())
     p = float(price)
-    ticks = []
-
     total_seconds = max(360, bucket * 160)
+    ticks = []
 
     for i in range(total_seconds, 0, -1):
         p *= 1 + np.random.normal(0, 0.00035)
@@ -233,7 +262,6 @@ def add_tick(price):
 
     if st.session_state.ticks:
         last_price = float(st.session_state.ticks[-1]["price"])
-
         if abs(price - last_price) / max(abs(last_price), 0.000001) < 0.000001:
             price = last_price * (1 + np.random.normal(0, 0.00025))
 
@@ -266,21 +294,17 @@ def ticks_to_candles(bucket):
 
     candles["Date"] = pd.to_datetime(candles["bucket"], unit="s", utc=True)
     candles = candles.set_index("Date")
-    candles = candles[["Open", "High", "Low", "Close"]]
-    return candles
+    return candles[["Open", "High", "Low", "Close"]]
 
 
 def rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-
     avg_gain = gain.rolling(period, min_periods=3).mean()
     avg_loss = loss.rolling(period, min_periods=3).mean()
-
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    out = 100 - (100 / (1 + rs))
-    return out.fillna(50).clip(0, 100)
+    return (100 - (100 / (1 + rs))).fillna(50).clip(0, 100)
 
 
 def add_indicators(df):
@@ -290,6 +314,10 @@ def add_indicators(df):
     df = df.copy()
     df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
+    df["SMA20"] = df["Close"].rolling(20, min_periods=3).mean()
+    df["STD20"] = df["Close"].rolling(20, min_periods=3).std().fillna(0)
+    df["BB_UPPER"] = df["SMA20"] + 2 * df["STD20"]
+    df["BB_LOWER"] = df["SMA20"] - 2 * df["STD20"]
     df["RSI"] = rsi(df["Close"])
     df["MOMENTUM"] = df["Close"].pct_change(3).fillna(0) * 100
     return df
@@ -448,11 +476,11 @@ def ai_signal(df):
 
 def open_demo_trade(side, price, amount):
     if st.session_state.open_trade is not None:
-        st.warning("Sulje ensin nykyinen harjoituskauppa.")
+        st.toast("Sulje ensin nykyinen harjoituskauppa.")
         return
 
     if amount > st.session_state.demo_balance:
-        st.warning("Demo-saldo ei riitä.")
+        st.toast("Demo-saldo ei riitä.")
         return
 
     st.session_state.demo_balance -= amount
@@ -508,82 +536,6 @@ def current_open_pnl(price):
     return trade["amount"] * pnl_pct, pnl_pct * 100
 
 
-def draw_chart(df, name, count, open_trade=None):
-    if df.empty or len(df) < 3:
-        st.warning("Kaavio kerää vielä dataa.")
-        return
-
-    df_plot = df.tail(count).copy()
-    x = df_plot.index
-
-    fig = go.Figure()
-
-    fig.add_trace(go.Candlestick(
-        x=x,
-        open=df_plot["Open"],
-        high=df_plot["High"],
-        low=df_plot["Low"],
-        close=df_plot["Close"],
-        name="Kynttilät",
-        increasing_line_color="#00ff66",
-        decreasing_line_color="#ff3344",
-        increasing_fillcolor="#00ff66",
-        decreasing_fillcolor="#ff3344",
-        whiskerwidth=0.8,
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=df_plot["EMA9"],
-        mode="lines",
-        name="EMA9",
-        line=dict(width=2, color="#60a5fa"),
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=df_plot["EMA21"],
-        mode="lines",
-        name="EMA21",
-        line=dict(width=2, color="#f87171"),
-    ))
-
-    if open_trade is not None:
-        fig.add_hline(
-            y=open_trade["entry"],
-            line_dash="dash",
-            line_color="#facc15",
-            annotation_text=f"ENTRY {open_trade['side']}",
-            annotation_position="top left",
-        )
-
-    fig.update_layout(
-        title=f"{name} — LIVE KYNTTILÄKAAVIO",
-        height=620,
-        template="plotly_dark",
-        paper_bgcolor="#070d1c",
-        plot_bgcolor="#070d1c",
-        xaxis_rangeslider_visible=False,
-        margin=dict(l=8, r=8, t=48, b=8),
-        legend=dict(orientation="h", y=1.03, x=0),
-        xaxis=dict(
-            showgrid=True,
-            nticks=7,
-            tickformat="%H:%M:%S",
-        ),
-        yaxis=dict(showgrid=True),
-    )
-
-    st.plotly_chart(
-        fig,
-        use_container_width=True,
-        config={
-            "displayModeBar": False,
-            "responsive": True,
-        },
-    )
-
-
 def signal_box(ai):
     level = ai["level"]
     conf = ai["confidence"]
@@ -602,110 +554,232 @@ def signal_box(ai):
     st.markdown(html, unsafe_allow_html=True)
 
 
-st.title("📈 AI Trading Pro v14 LIVE DEMO")
-st.caption("Korjattu versio: ei streamlit_autorefresh-riippuvuutta, kaavio piirtyy heti.")
+def draw_chart(df, name, count, open_trade=None):
+    if df.empty or len(df) < 3:
+        st.warning("Kaavio kerää vielä dataa.")
+        return
 
-price, source = get_price()
-seed_ticks(price, bucket_seconds)
-add_tick(price)
+    df_plot = df.tail(count).copy()
+    x = df_plot.index
 
-candles = ticks_to_candles(bucket_seconds)
-df = add_indicators(candles)
+    fig = go.Figure()
 
-ai = ai_signal(df)
-open_pnl, open_pnl_pct = current_open_pnl(price)
+    if st.session_state.chart_type == "Kynttilät":
+        fig.add_trace(go.Candlestick(
+            x=x,
+            open=df_plot["Open"],
+            high=df_plot["High"],
+            low=df_plot["Low"],
+            close=df_plot["Close"],
+            name="Kynttilät",
+            increasing_line_color="#00ff66",
+            decreasing_line_color="#ff3344",
+            increasing_fillcolor="#00ff66",
+            decreasing_fillcolor="#ff3344",
+            whiskerwidth=0.75,
+        ))
+    elif st.session_state.chart_type == "Viiva":
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["Close"],
+            mode="lines",
+            name="Hinta",
+            line=dict(width=3, color="#00ff66"),
+        ))
+    else:
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["Close"],
+            mode="lines",
+            fill="tozeroy",
+            name="Hinta",
+            line=dict(width=2, color="#00ff66"),
+        ))
 
-top1, top2, top3, top4, top5 = st.columns(5)
-top1.metric("Kohde", selected_name)
-top2.metric("Live hinta", f"{price:,.6f}")
-top3.metric("Demo saldo", f"${st.session_state.demo_balance:,.2f}")
-top4.metric("Avoin P/L", f"${open_pnl:,.4f}", f"{open_pnl_pct:.3f}%")
-top5.metric("AI-score", f"{ai['score']} / 100")
+    if st.session_state.show_ema:
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["EMA9"],
+            mode="lines",
+            name="EMA9",
+            line=dict(width=2, color="#60a5fa"),
+        ))
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["EMA21"],
+            mode="lines",
+            name="EMA21",
+            line=dict(width=2, color="#f87171"),
+        ))
 
-st.caption(f"Datalähde: {source} | Päivitetty: {datetime.now().strftime('%H:%M:%S')}")
+    if st.session_state.show_sma:
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["SMA20"],
+            mode="lines",
+            name="SMA20",
+            line=dict(width=2, color="#facc15"),
+        ))
 
-signal_box(ai)
+    if st.session_state.show_bollinger:
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["BB_UPPER"],
+            mode="lines",
+            name="BB ylä",
+            line=dict(width=1, color="#a78bfa"),
+        ))
+        fig.add_trace(go.Scatter(
+            x=x,
+            y=df_plot["BB_LOWER"],
+            mode="lines",
+            name="BB ala",
+            line=dict(width=1, color="#a78bfa"),
+        ))
 
-col_chart, col_panel = st.columns([3.2, 1])
+    if open_trade is not None:
+        fig.add_hline(
+            y=open_trade["entry"],
+            line_dash="dash",
+            line_color="#facc15",
+            annotation_text=f"ENTRY {open_trade['side']}",
+            annotation_position="top left",
+        )
 
-with col_chart:
-    draw_chart(df, selected_name, candle_count, st.session_state.open_trade)
+    dragmode = "drawline" if st.session_state.drawing_tools else "pan"
 
-with col_panel:
-    st.markdown('<div class="trade-panel">', unsafe_allow_html=True)
-    st.subheader("🎮 Demo-treidaus")
+    fig.update_layout(
+        title=f"{name} — LIVE KAAVIO",
+        height=430,
+        template="plotly_dark",
+        paper_bgcolor="#070d1c",
+        plot_bgcolor="#070d1c",
+        xaxis_rangeslider_visible=False,
+        margin=dict(l=5, r=5, t=42, b=5),
+        legend=dict(orientation="h", y=1.04, x=0),
+        dragmode=dragmode,
+        newshape=dict(line_color="#facc15", line_width=2),
+        xaxis=dict(showgrid=True, nticks=5, tickformat="%H:%M:%S"),
+        yaxis=dict(showgrid=True),
+    )
 
-    add_money = st.number_input("Lisää leikkirahaa", min_value=0.0, value=0.0, step=100.0)
+    config = {
+        "displayModeBar": st.session_state.drawing_tools,
+        "responsive": True,
+        "scrollZoom": False,
+        "doubleClick": "reset",
+    }
 
-    if st.button("➕ Lisää saldoon", use_container_width=True):
-        st.session_state.demo_balance += add_money
-        st.rerun()
+    if st.session_state.drawing_tools:
+        config["modeBarButtonsToAdd"] = [
+            "drawline",
+            "drawopenpath",
+            "drawrect",
+            "eraseshape",
+        ]
 
-    amount = st.number_input("Panos $", min_value=1.0, value=10.0, step=1.0)
+    st.plotly_chart(fig, use_container_width=True, config=config)
 
-    st.write(f"Nykyhinta: **{price:,.6f}**")
 
-    if st.button("▲ OSTA harjoitus", use_container_width=True):
-        open_demo_trade("BUY", price, amount)
-        st.rerun()
+def run_tick_update():
+    price, source = get_price()
+    seed_ticks(price, bucket_seconds)
+    add_tick(price)
+    candles = ticks_to_candles(bucket_seconds)
+    df = add_indicators(candles)
+    return price, source, df
 
-    if st.button("▼ MYY harjoitus", use_container_width=True):
-        open_demo_trade("SELL", price, amount)
-        st.rerun()
+
+run_every_value = f"{refresh_seconds}s" if st.session_state.live_running else None
+
+
+@st.fragment(run_every=run_every_value)
+def live_area():
+    price, source, df = run_tick_update()
+    ai = ai_signal(df)
+    open_pnl, open_pnl_pct = current_open_pnl(price)
+
+    st.title("📈 AI Trading Pro v15")
+
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("Kohde", selected_name)
+    m2.metric("Hinta", f"{price:,.4f}")
+    m3.metric("Saldo", f"${st.session_state.demo_balance:,.2f}")
+    m4.metric("Avoin P/L", f"${open_pnl:,.4f}", f"{open_pnl_pct:.3f}%")
+    m5.metric("AI", f"{ai['score']} / 100")
+
+    st.caption(f"Datalähde: {source} | Päivitetty: {datetime.now().strftime('%H:%M:%S')}")
+
+    st.markdown('<div class="trade-top">', unsafe_allow_html=True)
+    c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+
+    with c1:
+        amount = st.number_input("Panos $", min_value=1.0, value=10.0, step=1.0, key="top_amount")
+
+    with c2:
+        if st.button("▲ OSTA", use_container_width=True, key="top_buy"):
+            open_demo_trade("BUY", price, amount)
+            st.rerun()
+
+    with c3:
+        if st.button("▼ MYY", use_container_width=True, key="top_sell"):
+            open_demo_trade("SELL", price, amount)
+            st.rerun()
+
+    with c4:
+        if st.session_state.open_trade:
+            if st.button("✅ SULJE", use_container_width=True, key="top_close"):
+                close_demo_trade(price)
+                st.rerun()
+        else:
+            st.write("Ei avointa")
 
     if st.session_state.open_trade:
         t = st.session_state.open_trade
-        st.divider()
-        st.write("### Avoin kauppa")
-        st.write(f"Suunta: **{t['side']}**")
-        st.write(f"Sisään: **{t['entry']:,.6f}**")
-        st.write(f"Panos: **${t['amount']:.2f}**")
-        st.write(f"P/L: **${open_pnl:.4f} / {open_pnl_pct:.3f}%**")
+        st.write(
+            f"Avoin: **{t['side']}** | Sisään: **{t['entry']:,.4f}** | "
+            f"Panos: **${t['amount']:.2f}** | P/L: **${open_pnl:.4f} / {open_pnl_pct:.3f}%**"
+        )
 
-        if st.button("✅ Sulje kauppa", use_container_width=True):
-            close_demo_trade(price)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+    signal_box(ai)
+
+    draw_chart(df, selected_name, candle_count, st.session_state.open_trade)
+
+    with st.expander("🎮 Lisää demo-rahaa / asetukset"):
+        add_money = st.number_input("Lisää leikkirahaa", min_value=0.0, value=0.0, step=100.0)
+        if st.button("➕ Lisää saldoon", use_container_width=True):
+            st.session_state.demo_balance += add_money
             st.rerun()
+
+    col_a, col_b = st.columns([1, 1])
+
+    with col_a:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("🧠 Miksi botti näyttää näin?")
+        for note in ai["notes"][:8]:
+            st.write("• " + note)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    with col_b:
+        st.markdown('<div class="card">', unsafe_allow_html=True)
+        st.subheader("📊 Live-info")
+        st.write(f"Kynttiläaika: **{tf_name}**")
+        st.write(f"Päivitys: **{refresh_seconds}s**")
+        st.write(f"Kynttilöitä muistissa: **{len(df)}**")
+        st.write(f"Kaaviotyyppi: **{st.session_state.chart_type}**")
+        st.write(f"Piirtoviivat: **{'Päällä' if st.session_state.drawing_tools else 'Pois'}**")
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    st.subheader("📜 Harjoituskauppojen historia")
+    if st.session_state.trade_history:
+        hist = pd.DataFrame(st.session_state.trade_history)
+        st.dataframe(hist, use_container_width=True, hide_index=True)
     else:
-        st.info("Ei avointa harjoituskauppaa.")
+        st.info("Ei vielä suljettuja harjoituskauppoja.")
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.warning("Demotyökalu. Ei tee oikeita kauppoja eikä ole sijoitusneuvo.")
 
-st.divider()
 
-a, b = st.columns([1, 1])
-
-with a:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("🧠 Miksi botti näyttää näin?")
-    for note in ai["notes"][:10]:
-        st.write("• " + note)
-    st.markdown("</div>", unsafe_allow_html=True)
-
-with b:
-    st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("📊 Live-info")
-    st.write(f"Kynttiläaika: **{tf_name}**")
-    st.write(f"Päivitys: **{refresh_seconds}s**")
-    st.write(f"Kynttilöitä muistissa: **{len(df)}**")
-    st.write(f"Datalähde: **{source}**")
-    st.write(f"Live päällä: **{'Kyllä' if st.session_state.live_running else 'Ei'}**")
-    st.write(f"Viimeisin päivitys: **{datetime.now().strftime('%H:%M:%S')}**")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-st.divider()
-
-st.subheader("📜 Harjoituskauppojen historia")
-
-if st.session_state.trade_history:
-    hist = pd.DataFrame(st.session_state.trade_history)
-    st.dataframe(hist, use_container_width=True, hide_index=True)
-else:
-    st.info("Ei vielä suljettuja harjoituskauppoja.")
-
-st.warning(
-    "Tämä on demotreidaus- ja opetustyökalu. Se ei tee oikeita kauppoja eikä ole sijoitusneuvo."
-)
-
-if st.session_state.live_running:
-    time.sleep(refresh_seconds)
-    st.rerun()
+live_area()
