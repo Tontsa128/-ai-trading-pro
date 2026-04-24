@@ -1,136 +1,222 @@
 # -*- coding: utf-8 -*-
 
-from datetime import datetime
+from datetime import datetime, timezone
+import time
+import requests
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import yfinance as yf
 from streamlit_autorefresh import st_autorefresh
 
 
+# ============================================================
+# PAGE
+# ============================================================
+
 st.set_page_config(
-    page_title="AI Trading Pro v12",
+    page_title="AI Trading Pro v13 LIVE DEMO",
     page_icon="📈",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed"
 )
 
+
+# ============================================================
+# CSS
+# ============================================================
 
 st.markdown("""
 <style>
 .block-container {
-    padding-top: 0.3rem;
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
+    padding-top: 0.4rem;
+    padding-left: 0.7rem;
+    padding-right: 0.7rem;
+}
+body {
+    background-color: #070d1c;
 }
 h1 {
-    font-size: 1.45rem !important;
-    margin-bottom: 0.1rem !important;
+    font-size: 1.35rem !important;
+    margin-bottom: 0.2rem !important;
 }
-.signal-main {
-    width: 100%;
-    min-height: 58px;
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    font-weight: 950;
-    letter-spacing: 0.5px;
-    box-shadow: 0 0 18px rgba(0,0,0,0.35);
-    margin-top: 6px;
-    margin-bottom: 8px;
-    border: 1px solid rgba(255,255,255,0.35);
-    text-align: center;
-}
-.card {
-    background: #101827;
-    border: 1px solid #273244;
+.topbar {
+    background: #111936;
+    border: 1px solid #26345e;
     border-radius: 14px;
     padding: 12px;
-    color: #e5e7eb;
+    color: white;
+    margin-bottom: 8px;
 }
-.small-text {
-    font-size: 12px;
+.trade-panel {
+    background: #111936;
+    border: 1px solid #26345e;
+    border-radius: 16px;
+    padding: 14px;
+    color: white;
+}
+.buy-box {
+    background: linear-gradient(90deg,#16a34a,#22c55e);
+    border-radius: 14px;
+    padding: 18px;
+    font-size: 28px;
+    font-weight: 900;
+    text-align: center;
+    color: white;
+    margin-top: 10px;
+}
+.sell-box {
+    background: linear-gradient(90deg,#dc2626,#ef4444);
+    border-radius: 14px;
+    padding: 18px;
+    font-size: 28px;
+    font-weight: 900;
+    text-align: center;
+    color: white;
+    margin-top: 10px;
+}
+.wait-box {
+    background: linear-gradient(90deg,#facc15,#ca8a04);
+    border-radius: 14px;
+    padding: 15px;
+    font-size: 24px;
+    font-weight: 900;
+    text-align: center;
+    color: black;
+    margin-top: 8px;
+}
+.card {
+    background: #0f172a;
+    border: 1px solid #26345e;
+    border-radius: 14px;
+    padding: 12px;
+    color: white;
+}
+.small {
     color: #9ca3af;
+    font-size: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 
-SYMBOLIT = {
-    "Bitcoin / USD": "BTC-USD",
-    "Ethereum / USD": "ETH-USD",
-    "EUR / USD": "EURUSD=X",
-    "GBP / USD": "GBPUSD=X",
-    "USD / JPY": "JPY=X",
-    "Kulta": "GC=F",
-    "Hopea": "SI=F",
-    "Öljy WTI": "CL=F",
-    "Nasdaq": "^IXIC",
-    "S&P 500": "^GSPC",
-    "Tesla": "TSLA",
-    "Apple": "AAPL",
-    "Nvidia": "NVDA",
+# ============================================================
+# STATE
+# ============================================================
+
+if "demo_balance" not in st.session_state:
+    st.session_state.demo_balance = 1000.0
+
+if "open_trade" not in st.session_state:
+    st.session_state.open_trade = None
+
+if "trade_history" not in st.session_state:
+    st.session_state.trade_history = []
+
+if "ticks" not in st.session_state:
+    st.session_state.ticks = []
+
+if "last_symbol" not in st.session_state:
+    st.session_state.last_symbol = None
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+
+SYMBOLS = {
+    "BTC / USDT": "BTCUSDT",
+    "ETH / USDT": "ETHUSDT",
+    "SOL / USDT": "SOLUSDT",
+    "BNB / USDT": "BNBUSDT",
+    "XRP / USDT": "XRPUSDT",
+    "DOGE / USDT": "DOGEUSDT",
 }
 
-AIKAVALIT = {
-    "1 minuutti": "1m",
-    "2 minuuttia": "2m",
-    "5 minuuttia": "5m",
-    "15 minuuttia": "15m",
-    "30 minuuttia": "30m",
-    "1 tunti": "1h",
-    "1 päivä": "1d",
+TIMEFRAMES = {
+    "1S": 1,
+    "5S": 5,
+    "15S": 15,
+    "30S": 30,
+    "1M": 60,
 }
 
-PERIODIT = {
-    "1 päivä": "1d",
-    "5 päivää": "5d",
-    "1 kuukausi": "1mo",
-    "3 kuukautta": "3mo",
-    "6 kuukautta": "6mo",
-    "1 vuosi": "1y",
-}
+st.sidebar.title("⚙️ Asetukset")
+
+selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
+symbol = SYMBOLS[selected_name]
+
+tf_name = st.sidebar.radio("Kynttiläaika", list(TIMEFRAMES.keys()), index=1)
+bucket_seconds = TIMEFRAMES[tf_name]
+
+refresh_seconds = st.sidebar.radio("Live-päivitys", [1, 2, 5], index=0)
+
+candle_count = st.sidebar.slider("Näytettävät kynttilät", 30, 160, 80, 10)
+
+if st.sidebar.button("🧹 Tyhjennä kaavio"):
+    st.session_state.ticks = []
+    st.rerun()
+
+if st.session_state.last_symbol != symbol:
+    st.session_state.ticks = []
+    st.session_state.open_trade = None
+    st.session_state.last_symbol = symbol
+
+st_autorefresh(interval=refresh_seconds * 1000, key=f"live_{symbol}_{tf_name}")
 
 
-@st.cache_data(ttl=10, show_spinner=False)
-def hae_data(symboli, periodi, interval):
-    try:
-        df = yf.download(
-            symboli,
-            period=periodi,
-            interval=interval,
-            progress=False,
-            auto_adjust=True,
-            threads=False,
-        )
+# ============================================================
+# LIVE PRICE
+# ============================================================
 
-        if df is None or df.empty:
-            return pd.DataFrame()
+@st.cache_data(ttl=1, show_spinner=False)
+def get_binance_price(symbol_code):
+    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol_code}"
+    r = requests.get(url, timeout=5)
+    r.raise_for_status()
+    data = r.json()
+    return float(data["price"])
 
-        if isinstance(df.columns, pd.MultiIndex):
-            df.columns = df.columns.get_level_values(0)
 
-        pakolliset = ["Open", "High", "Low", "Close"]
-        for col in pakolliset:
-            if col not in df.columns:
-                return pd.DataFrame()
+def add_tick(price):
+    now = int(time.time())
+    st.session_state.ticks.append({
+        "time": now,
+        "datetime": datetime.fromtimestamp(now, tz=timezone.utc),
+        "price": float(price),
+    })
 
-        df = df[pakolliset].copy()
+    max_ticks = 4000
+    if len(st.session_state.ticks) > max_ticks:
+        st.session_state.ticks = st.session_state.ticks[-max_ticks:]
 
-        for col in pakolliset:
-            df[col] = pd.to_numeric(df[col], errors="coerce")
 
-        df = df.dropna()
-        return df
+def ticks_to_candles(bucket):
+    ticks = st.session_state.ticks
 
-    except Exception:
+    if len(ticks) < 2:
         return pd.DataFrame()
 
+    df = pd.DataFrame(ticks)
+    df["bucket"] = (df["time"] // bucket) * bucket
 
-def laske_rsi(close, period=14):
+    candles = df.groupby("bucket").agg(
+        Open=("price", "first"),
+        High=("price", "max"),
+        Low=("price", "min"),
+        Close=("price", "last"),
+    ).reset_index()
+
+    candles["Date"] = pd.to_datetime(candles["bucket"], unit="s", utc=True)
+    candles = candles.set_index("Date")
+    return candles.dropna()
+
+
+# ============================================================
+# INDICATORS
+# ============================================================
+
+def rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
@@ -139,29 +225,25 @@ def laske_rsi(close, period=14):
     avg_loss = loss.rolling(period).mean()
 
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    rsi = 100 - (100 / (1 + rs))
-    return rsi.fillna(50)
+    value = 100 - (100 / (1 + rs))
+    return value.fillna(50)
 
 
-def lisaa_indikaattorit(df):
+def add_indicators(df):
     df = df.copy()
 
     df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
     df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
-
-    df["RSI"] = laske_rsi(df["Close"], 14)
-
-    df["MA20"] = df["Close"].rolling(20).mean()
-    df["STD20"] = df["Close"].rolling(20).std()
-    df["BB_UPPER"] = df["MA20"] + 2 * df["STD20"]
-    df["BB_LOWER"] = df["MA20"] - 2 * df["STD20"]
-
-    df["MOMENTUM"] = df["Close"].pct_change(5) * 100
-    df["VOLATILITY"] = df["Close"].pct_change().rolling(20).std() * 100
+    df["RSI"] = rsi(df["Close"])
+    df["MOMENTUM"] = df["Close"].pct_change(3) * 100
 
     return df.dropna()
 
+
+# ============================================================
+# CANDLE PATTERNS + AI
+# ============================================================
 
 def is_green(row):
     return row["Close"] > row["Open"]
@@ -171,414 +253,442 @@ def is_red(row):
     return row["Close"] < row["Open"]
 
 
-def body(row):
+def candle_body(row):
     return abs(row["Close"] - row["Open"])
 
 
 def candle_range(row):
-    return max(row["High"] - row["Low"], 0.0000001)
+    return max(row["High"] - row["Low"], 0.00000001)
 
 
-def tunnista_kynttilat(df):
+def candle_ai(df):
     score = 0
-    details = []
+    notes = []
 
     if len(df) < 5:
-        return 0, ["Dataa liian vähän kynttiläkuvioihin."]
+        return score, ["Kerätään vielä kynttilädataa..."]
 
     c = df.iloc[-1]
     p = df.iloc[-2]
     p2 = df.iloc[-3]
 
-    b = body(c)
-    r = candle_range(c)
+    body = candle_body(c)
+    rng = candle_range(c)
     upper = c["High"] - max(c["Open"], c["Close"])
     lower = min(c["Open"], c["Close"]) - c["Low"]
 
-    if b / r < 0.12:
-        details.append("Doji: markkina epäröi.")
+    if body / rng < 0.12:
+        notes.append("Doji: markkina epäröi.")
 
-    if lower > b * 2.2 and upper < b * 1.2:
+    if lower > body * 2.2 and is_green(c):
+        score += 18
+        notes.append("Hammer: ostajat puolustavat alhaalla.")
+
+    if upper > body * 2.2 and is_red(c):
+        score -= 18
+        notes.append("Shooting Star: myyjät painavat ylhäällä.")
+
+    if is_red(p) and is_green(c) and c["Close"] > p["Open"]:
+        score += 25
+        notes.append("Bullish Engulfing: BUY-kuvio.")
+
+    if is_green(p) and is_red(c) and c["Close"] < p["Open"]:
+        score -= 25
+        notes.append("Bearish Engulfing: SELL-kuvio.")
+
+    if is_red(p2) and candle_body(p) < candle_body(p2) * 0.7 and is_green(c):
         score += 20
-        details.append("Hammer: BUY-käännös mahdollinen.")
+        notes.append("Morning Star -tyyppinen käännös.")
 
-    if upper > b * 2.2 and lower < b * 1.2 and is_red(c):
+    if is_green(p2) and candle_body(p) < candle_body(p2) * 0.7 and is_red(c):
         score -= 20
-        details.append("Shooting Star: SELL-käännös mahdollinen.")
+        notes.append("Evening Star -tyyppinen käännös.")
 
-    if is_red(p) and is_green(c) and c["Close"] > p["Open"] and c["Open"] < p["Close"]:
-        score += 30
-        details.append("Bullish Engulfing: vahva BUY-kuvio.")
+    if not notes:
+        notes.append("Ei vahvaa kynttiläkuviota juuri nyt.")
 
-    if is_green(p) and is_red(c) and c["Open"] > p["Close"] and c["Close"] < p["Open"]:
-        score -= 30
-        details.append("Bearish Engulfing: vahva SELL-kuvio.")
-
-    if is_red(p2) and body(p) < body(p2) * 0.6 and is_green(c):
-        if c["Close"] > ((p2["Open"] + p2["Close"]) / 2):
-            score += 28
-            details.append("Morning Star: BUY-käännös.")
-
-    if is_green(p2) and body(p) < body(p2) * 0.6 and is_red(c):
-        if c["Close"] < ((p2["Open"] + p2["Close"]) / 2):
-            score -= 28
-            details.append("Evening Star: SELL-käännös.")
-
-    if is_green(df.iloc[-3]) and is_green(df.iloc[-2]) and is_green(df.iloc[-1]):
-        if df.iloc[-1]["Close"] > df.iloc[-2]["Close"] > df.iloc[-3]["Close"]:
-            score += 22
-            details.append("Three White Soldiers: nousu vahvistuu.")
-
-    if is_red(df.iloc[-3]) and is_red(df.iloc[-2]) and is_red(df.iloc[-1]):
-        if df.iloc[-1]["Close"] < df.iloc[-2]["Close"] < df.iloc[-3]["Close"]:
-            score -= 22
-            details.append("Three Black Crows: lasku vahvistuu.")
-
-    if not details:
-        details.append("Ei vahvaa kynttiläkuviota juuri nyt.")
-
-    return score, details
+    return score, notes
 
 
-def tee_ennuste(df):
-    if len(df) < 60:
+def ai_signal(df):
+    if len(df) < 20:
         return {
             "signal": "ODOTA",
-            "level": "ODOTA",
+            "level": "KERÄTÄÄN DATAA",
             "confidence": 50,
             "score": 0,
-            "reason": "Dataa on liian vähän.",
-            "details": ["Valitse historia 5 päivää ja kynttiläväli 1 minuutti tai 5 minuuttia."]
+            "notes": ["Odota hetki, että live-kynttilöitä kertyy."]
         }
 
     last = df.iloc[-1]
     prev = df.iloc[-2]
 
     score = 0
-    details = []
-    confirmations_buy = 0
-    confirmations_sell = 0
+    notes = []
+    buy_conf = 0
+    sell_conf = 0
 
     if prev["EMA9"] <= prev["EMA21"] and last["EMA9"] > last["EMA21"]:
         score += 30
-        confirmations_buy += 1
-        details.append("EMA9 ylitti EMA21:n ylöspäin.")
+        buy_conf += 1
+        notes.append("EMA9 ylitti EMA21:n ylöspäin.")
 
     if prev["EMA9"] >= prev["EMA21"] and last["EMA9"] < last["EMA21"]:
         score -= 30
-        confirmations_sell += 1
-        details.append("EMA9 alitti EMA21:n alaspäin.")
+        sell_conf += 1
+        notes.append("EMA9 alitti EMA21:n alaspäin.")
 
-    if last["EMA9"] > last["EMA21"] > last["EMA50"]:
-        score += 28
-        confirmations_buy += 1
-        details.append("EMA-trendi on nouseva.")
+    if last["EMA9"] > last["EMA21"]:
+        score += 15
+        buy_conf += 1
+        notes.append("EMA9 on EMA21:n yläpuolella.")
 
-    elif last["EMA9"] < last["EMA21"] < last["EMA50"]:
-        score -= 28
-        confirmations_sell += 1
-        details.append("EMA-trendi on laskeva.")
-    else:
-        details.append("EMA-trendi on vielä epäselvä.")
+    if last["EMA9"] < last["EMA21"]:
+        score -= 15
+        sell_conf += 1
+        notes.append("EMA9 on EMA21:n alapuolella.")
 
     if last["Close"] > last["EMA9"] and last["Close"] > last["EMA21"]:
         score += 12
-        confirmations_buy += 1
-        details.append("Hinta on EMA9 ja EMA21 yläpuolella.")
+        buy_conf += 1
+        notes.append("Hinta on EMA9/EMA21 yläpuolella.")
 
-    elif last["Close"] < last["EMA9"] and last["Close"] < last["EMA21"]:
+    if last["Close"] < last["EMA9"] and last["Close"] < last["EMA21"]:
         score -= 12
-        confirmations_sell += 1
-        details.append("Hinta on EMA9 ja EMA21 alapuolella.")
+        sell_conf += 1
+        notes.append("Hinta on EMA9/EMA21 alapuolella.")
 
     if last["RSI"] < 30:
-        score += 14
-        confirmations_buy += 1
-        details.append("RSI alle 30: ylimyyty.")
-    elif last["RSI"] > 70:
-        score -= 14
-        confirmations_sell += 1
-        details.append("RSI yli 70: yliostettu.")
-    elif 45 <= last["RSI"] <= 62:
-        score += 4
-        details.append("RSI on terveellä alueella.")
+        score += 12
+        buy_conf += 1
+        notes.append("RSI alle 30: ylimyyty.")
 
-    if last["MOMENTUM"] > 0.20:
-        score += 14
-        confirmations_buy += 1
-        details.append("Momentum on positiivinen.")
-    elif last["MOMENTUM"] < -0.20:
-        score -= 14
-        confirmations_sell += 1
-        details.append("Momentum on negatiivinen.")
-    else:
-        details.append("Momentum neutraali.")
+    if last["RSI"] > 70:
+        score -= 12
+        sell_conf += 1
+        notes.append("RSI yli 70: yliostettu.")
 
-    candle_score, candle_details = tunnista_kynttilat(df)
-    score += candle_score
+    if last["MOMENTUM"] > 0:
+        score += 8
+        buy_conf += 1
+        notes.append("Momentum positiivinen.")
 
-    if candle_score > 0:
-        confirmations_buy += 1
-    elif candle_score < 0:
-        confirmations_sell += 1
+    if last["MOMENTUM"] < 0:
+        score -= 8
+        sell_conf += 1
+        notes.append("Momentum negatiivinen.")
 
-    details.extend(candle_details)
+    c_score, c_notes = candle_ai(df)
+    score += c_score
+    notes.extend(c_notes)
+
+    if c_score > 0:
+        buy_conf += 1
+    elif c_score < 0:
+        sell_conf += 1
 
     score = int(max(-100, min(100, score)))
-    confidence = int(min(96, max(45, 50 + abs(score) * 0.46)))
+    confidence = int(min(96, max(45, 50 + abs(score) * 0.5)))
 
-    if score >= 55 and confirmations_buy >= 3:
+    if score >= 50 and buy_conf >= 3:
         signal = "OSTA"
         level = "VAHVA OSTA"
-        reason = "Useampi BUY-vahvistus on samaan aikaan päällä."
-    elif score >= 25 and confirmations_buy >= 2:
+    elif score >= 25 and buy_conf >= 2:
         signal = "OSTA"
         level = "VALMISTAUTUU OSTOON"
-        reason = "BUY-paine kasvaa, mutta odota vielä vahvistusta."
-    elif score <= -55 and confirmations_sell >= 3:
+    elif score <= -50 and sell_conf >= 3:
         signal = "MYY"
         level = "VAHVA MYY"
-        reason = "Useampi SELL-vahvistus on samaan aikaan päällä."
-    elif score <= -25 and confirmations_sell >= 2:
+    elif score <= -25 and sell_conf >= 2:
         signal = "MYY"
         level = "VALMISTAUTUU MYYNTIIN"
-        reason = "SELL-paine kasvaa, mutta odota vielä vahvistusta."
     else:
         signal = "ODOTA"
         level = "ODOTA"
-        reason = "Ei tarpeeksi varmaa paikkaa."
 
     return {
         "signal": signal,
         "level": level,
         "confidence": confidence,
         "score": score,
-        "reason": reason,
-        "details": details
+        "notes": notes
     }
 
 
-def nayta_signaali(ennuste):
-    signal = ennuste["signal"]
-    level = ennuste["level"]
-    confidence = ennuste["confidence"]
+# ============================================================
+# DEMO TRADING
+# ============================================================
 
-    if level == "VAHVA OSTA":
-        bg = f"linear-gradient(90deg, #86efac 0%, #22c55e 60%, #064e3b 100%)"
-        text = "🟢 VAHVA BUY / OSTA"
-        color = "white"
-    elif level == "VALMISTAUTUU OSTOON":
-        bg = f"linear-gradient(90deg, #dcfce7 0%, #86efac 65%, #22c55e 100%)"
-        text = "🟢 VALMISTAUTUU OSTOON"
-        color = "#052e16"
-    elif level == "VAHVA MYY":
-        bg = f"linear-gradient(90deg, #fca5a5 0%, #ef4444 60%, #7f1d1d 100%)"
-        text = "🔴 VAHVA SELL / MYY"
-        color = "white"
-    elif level == "VALMISTAUTUU MYYNTIIN":
-        bg = f"linear-gradient(90deg, #fee2e2 0%, #fca5a5 65%, #ef4444 100%)"
-        text = "🔴 VALMISTAUTUU MYYNTIIN"
-        color = "#450a0a"
+def open_demo_trade(side, price, amount):
+    if st.session_state.open_trade is not None:
+        st.warning("Sulje ensin nykyinen harjoituskauppa.")
+        return
+
+    if amount <= 0:
+        st.warning("Summa pitää olla yli 0.")
+        return
+
+    if amount > st.session_state.demo_balance:
+        st.warning("Demo-saldo ei riitä.")
+        return
+
+    st.session_state.demo_balance -= amount
+    st.session_state.open_trade = {
+        "side": side,
+        "entry": float(price),
+        "amount": float(amount),
+        "opened": datetime.now().strftime("%H:%M:%S"),
+        "symbol": symbol,
+    }
+
+
+def close_demo_trade(price):
+    trade = st.session_state.open_trade
+
+    if trade is None:
+        return
+
+    entry = trade["entry"]
+    amount = trade["amount"]
+    side = trade["side"]
+
+    if side == "BUY":
+        pnl_pct = (price - entry) / entry
     else:
-        bg = "linear-gradient(90deg, #fef3c7 0%, #facc15 55%, #ca8a04 100%)"
-        text = "🟡 WAIT / ODOTA"
-        color = "black"
+        pnl_pct = (entry - price) / entry
 
-    st.markdown(f"""
-    <div class="signal-main" style="background:{bg}; color:{color};">
-        {text} — {confidence}%
-    </div>
-    """, unsafe_allow_html=True)
+    pnl = amount * pnl_pct
+    returned = amount + pnl
+
+    st.session_state.demo_balance += returned
+
+    st.session_state.trade_history.insert(0, {
+        "Aika": datetime.now().strftime("%H:%M:%S"),
+        "Kohde": trade["symbol"],
+        "Suunta": side,
+        "Sisään": round(entry, 6),
+        "Ulos": round(price, 6),
+        "Panos": round(amount, 2),
+        "Tulos $": round(pnl, 4),
+        "Tulos %": round(pnl_pct * 100, 4),
+    })
+
+    st.session_state.open_trade = None
 
 
-def piirra_kynttilakaavio(df, nimi, kynttilamaara):
-    df_plot = df.tail(kynttilamaara).copy()
+def current_open_pnl(price):
+    trade = st.session_state.open_trade
+
+    if trade is None:
+        return 0.0, 0.0
+
+    entry = trade["entry"]
+
+    if trade["side"] == "BUY":
+        pnl_pct = (price - entry) / entry
+    else:
+        pnl_pct = (entry - price) / entry
+
+    pnl = trade["amount"] * pnl_pct
+    return pnl, pnl_pct * 100
+
+
+# ============================================================
+# CHART
+# ============================================================
+
+def draw_chart(df, name, count, open_trade=None):
+    df_plot = df.tail(count).copy()
+    x = df_plot.index.astype(str)
 
     fig = go.Figure()
 
     fig.add_trace(go.Candlestick(
-        x=df_plot.index.astype(str),
+        x=x,
         open=df_plot["Open"],
         high=df_plot["High"],
         low=df_plot["Low"],
         close=df_plot["Close"],
         name="Kynttilät",
         increasing_line_color="#00ff66",
-        decreasing_line_color="#ff3333",
+        decreasing_line_color="#ff3344",
         increasing_fillcolor="#00ff66",
-        decreasing_fillcolor="#ff3333",
+        decreasing_fillcolor="#ff3344",
         whiskerwidth=0.9,
     ))
 
     fig.add_trace(go.Scatter(
-        x=df_plot.index.astype(str),
+        x=x,
         y=df_plot["EMA9"],
         mode="lines",
-        name="EMA 9",
+        name="EMA9",
         line=dict(width=2, color="#3b82f6")
     ))
 
     fig.add_trace(go.Scatter(
-        x=df_plot.index.astype(str),
+        x=x,
         y=df_plot["EMA21"],
         mode="lines",
-        name="EMA 21",
+        name="EMA21",
         line=dict(width=2, color="#ef4444")
     ))
 
+    if open_trade is not None:
+        fig.add_hline(
+            y=open_trade["entry"],
+            line_dash="dash",
+            annotation_text=f"ENTRY {open_trade['side']}",
+            annotation_position="top left"
+        )
+
     fig.update_layout(
-        title=f"{nimi} — KYNTTILÄKAAVIO",
-        height=520,
+        title=f"{name} — LIVE DEMO KYNTTILÄKAAVIO",
+        height=620,
         template="plotly_dark",
+        paper_bgcolor="#070d1c",
+        plot_bgcolor="#070d1c",
         xaxis_rangeslider_visible=False,
         dragmode="pan",
-        margin=dict(l=5, r=5, t=50, b=10),
-        legend=dict(
-            orientation="h",
-            yanchor="bottom",
-            y=1.02,
-            xanchor="left",
-            x=0,
-            font=dict(size=11)
-        ),
-        xaxis=dict(
-            type="category",
-            showgrid=True,
-            nticks=7
-        ),
-        yaxis=dict(
-            showgrid=True,
-            fixedrange=False
-        )
+        margin=dict(l=8, r=8, t=45, b=8),
+        legend=dict(orientation="h", y=1.03, x=0),
+        xaxis=dict(type="category", nticks=7, showgrid=True),
+        yaxis=dict(showgrid=True),
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 
-def piirra_rsi(df, kynttilamaara):
-    df_plot = df.tail(kynttilamaara).copy()
+def signal_box(ai):
+    level = ai["level"]
+    conf = ai["confidence"]
 
-    fig = go.Figure()
+    if level == "VAHVA OSTA":
+        html = f'<div class="buy-box">▲ VAHVA OSTA — {conf}%</div>'
+    elif level == "VALMISTAUTUU OSTOON":
+        html = f'<div class="buy-box" style="background:linear-gradient(90deg,#bbf7d0,#22c55e);color:#052e16;">▲ VALMISTAUTUU OSTOON — {conf}%</div>'
+    elif level == "VAHVA MYY":
+        html = f'<div class="sell-box">▼ VAHVA MYY — {conf}%</div>'
+    elif level == "VALMISTAUTUU MYYNTIIN":
+        html = f'<div class="sell-box" style="background:linear-gradient(90deg,#fecaca,#ef4444);color:#450a0a;">▼ VALMISTAUTUU MYYNTIIN — {conf}%</div>'
+    else:
+        html = f'<div class="wait-box">● ODOTA — {conf}%</div>'
 
-    fig.add_trace(go.Scatter(
-        x=df_plot.index.astype(str),
-        y=df_plot["RSI"],
-        mode="lines",
-        name="RSI",
-        line=dict(width=2)
-    ))
-
-    fig.add_hline(y=70, line_dash="dash")
-    fig.add_hline(y=50, line_dash="dot")
-    fig.add_hline(y=30, line_dash="dash")
-
-    fig.update_layout(
-        title="RSI",
-        height=190,
-        template="plotly_dark",
-        margin=dict(l=5, r=5, t=38, b=8),
-        xaxis=dict(type="category", nticks=6)
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    st.markdown(html, unsafe_allow_html=True)
 
 
-st.title("📈 AI Trading Pro v12")
-st.caption("Selkeä mobiilinäkymä, isot kynttilät, EMA9/EMA21, BUY/SELL/WAIТ ja kynttiläkuviot.")
+# ============================================================
+# APP
+# ============================================================
 
-st.sidebar.title("⚙️ Asetukset")
+st.title("📈 AI Trading Pro v13 LIVE DEMO")
+st.caption("Crypto-live hinta, harjoituskauppa demorahalla, BUY/SELL-signaali ja oma leikkisaldo.")
 
-valittu_nimi = st.sidebar.selectbox("Kohde", list(SYMBOLIT.keys()), index=0)
-symboli = SYMBOLIT[valittu_nimi]
-
-periodi_nimi = st.sidebar.selectbox("Historia", list(PERIODIT.keys()), index=1)
-interval_nimi = st.sidebar.selectbox("Kynttiläväli", list(AIKAVALIT.keys()), index=0)
-
-kynttilamaara = st.sidebar.slider("Näytettävät kynttilät", 30, 150, 70, 10)
-
-refresh_seconds = st.sidebar.selectbox(
-    "Live-päivitys",
-    [5, 10, 15, 30, 60],
-    index=0
-)
-
-periodi = PERIODIT[periodi_nimi]
-interval = AIKAVALIT[interval_nimi]
-
-st_autorefresh(
-    interval=refresh_seconds * 1000,
-    key=f"live_refresh_{symboli}_{interval}_{periodi}"
-)
-
-if st.sidebar.button("🔄 Tyhjennä välimuisti / päivitä"):
-    st.cache_data.clear()
-    st.rerun()
-
-st.sidebar.warning(
-    "YFinance ei anna oikeaa 1s/5s kynttilädataa. "
-    "Nopein järkevä kynttiläväli on 1 minuutti. "
-    "Sivu voi silti päivittyä 5 sekunnin välein."
-)
-
-with st.spinner("Haetaan markkinadataa..."):
-    raw_df = hae_data(symboli, periodi, interval)
-
-if raw_df.empty:
-    st.error("Dataa ei saatu. Kokeile Bitcoin / 5 päivää / 1 minuutti.")
+try:
+    price = get_binance_price(symbol)
+    add_tick(price)
+except Exception as e:
+    st.error("Binance-live hintaa ei saatu. Kokeile uudelleen hetken päästä.")
     st.stop()
 
-df = lisaa_indikaattorit(raw_df)
+candles = ticks_to_candles(bucket_seconds)
 
-if df.empty or len(df) < 60:
-    st.warning("Dataa on liian vähän. Valitse Historia: 5 päivää ja Kynttiläväli: 1 minuutti tai 5 minuuttia.")
+if candles.empty or len(candles) < 3:
+    st.info("Kerätään live-dataa... Odota muutama sekunti.")
+    st.metric("Live hinta", f"{price:,.6f}")
     st.stop()
 
-ennuste = tee_ennuste(df)
+df = add_indicators(candles)
 
-last = df.iloc[-1]
-prev = df.iloc[-2]
-muutos = ((last["Close"] - prev["Close"]) / prev["Close"]) * 100
+if df.empty:
+    st.info("Kerätään indikaattoreita... Odota hetki.")
+    st.stop()
 
-c1, c2, c3, c4 = st.columns(4)
-c1.metric("Kohde", valittu_nimi)
-c2.metric("Hinta", f"{last['Close']:,.4f}")
-c3.metric("Viime kynttilä", f"{muutos:.3f} %")
-c4.metric("AI-score", f"{ennuste['score']} / 100")
+ai = ai_signal(df)
+open_pnl, open_pnl_pct = current_open_pnl(price)
 
-nayta_signaali(ennuste)
+top1, top2, top3, top4, top5 = st.columns(5)
+top1.metric("Kohde", selected_name)
+top2.metric("Live hinta", f"{price:,.6f}")
+top3.metric("Demo saldo", f"${st.session_state.demo_balance:,.2f}")
+top4.metric("Avoin P/L", f"${open_pnl:,.4f}", f"{open_pnl_pct:.3f}%")
+top5.metric("AI-score", f"{ai['score']} / 100")
 
-st.caption(f"Viimeisin data: {df.index[-1]} | Päivitetty sivulla: {datetime.now().strftime('%H:%M:%S')}")
+signal_box(ai)
 
-piirra_kynttilakaavio(df, valittu_nimi, kynttilamaara)
+col_chart, col_panel = st.columns([3.2, 1])
 
-st.markdown('<div class="card">', unsafe_allow_html=True)
-st.subheader("🧠 AI-analyysi")
-st.write(f"**{ennuste['reason']}**")
-st.write(f"Varmuus: **{ennuste['confidence']} %**")
-st.write(f"RSI: **{last['RSI']:.1f}**")
-st.write(f"Momentum: **{last['MOMENTUM']:.3f} %**")
-st.write(f"Volatiliteetti: **{last['VOLATILITY']:.3f} %**")
-st.markdown("</div>", unsafe_allow_html=True)
+with col_chart:
+    draw_chart(df, selected_name, candle_count, st.session_state.open_trade)
 
-st.subheader("🕯️ Miksi botti päätyi tähän?")
-for d in ennuste["details"][:12]:
-    st.write("• " + d)
+with col_panel:
+    st.markdown('<div class="trade-panel">', unsafe_allow_html=True)
+    st.subheader("🎮 Demo-treidaus")
 
-piirra_rsi(df, kynttilamaara)
+    add_money = st.number_input("Lisää leikkirahaa", min_value=0.0, value=0.0, step=100.0)
+    if st.button("➕ Lisää demo-saldoon"):
+        st.session_state.demo_balance += add_money
+        st.rerun()
+
+    amount = st.number_input("Panos $", min_value=1.0, value=10.0, step=1.0)
+
+    st.write(f"Nykyhinta: **{price:,.6f}**")
+
+    if st.button("▲ OSTA harjoitus", use_container_width=True):
+        open_demo_trade("BUY", price, amount)
+        st.rerun()
+
+    if st.button("▼ MYY harjoitus", use_container_width=True):
+        open_demo_trade("SELL", price, amount)
+        st.rerun()
+
+    if st.session_state.open_trade:
+        t = st.session_state.open_trade
+        st.divider()
+        st.write("### Avoin kauppa")
+        st.write(f"Suunta: **{t['side']}**")
+        st.write(f"Sisään: **{t['entry']:,.6f}**")
+        st.write(f"Panos: **${t['amount']:.2f}**")
+        st.write(f"P/L: **${open_pnl:.4f} / {open_pnl_pct:.3f}%**")
+
+        if st.button("✅ Sulje kauppa", use_container_width=True):
+            close_demo_trade(price)
+            st.rerun()
+    else:
+        st.info("Ei avointa harjoituskauppaa.")
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
 st.divider()
 
-st.subheader("🎓 Sisäänrakennetut kuviot")
-st.write(
-    "Hammer, Shooting Star, Bullish Engulfing, Bearish Engulfing, Morning Star, "
-    "Evening Star, Three White Soldiers ja Three Black Crows."
-)
+a, b = st.columns([1, 1])
 
-st.info(
-    "Paras aloitusasetus: Bitcoin / USD — Historia 5 päivää — Kynttiläväli 1 minuutti — Näytettävät kynttilät 70."
-)
+with a:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("🧠 Miksi botti näyttää näin?")
+    for note in ai["notes"][:10]:
+        st.write("• " + note)
+    st.markdown("</div>", unsafe_allow_html=True)
+
+with b:
+    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.subheader("📊 Live-info")
+    st.write(f"Kynttiläaika: **{tf_name}**")
+    st.write(f"Päivitys: **{refresh_seconds}s**")
+    st.write(f"Kynttilöitä muistissa: **{len(df)}**")
+    st.write(f"Viimeisin päivitys: **{datetime.now().strftime('%H:%M:%S')}**")
+    st.markdown("</div>", unsafe_allow_html=True)
+
+st.divider()
+
+st.subheader("📜 Harjoituskauppojen historia")
+
+if st.session_state.trade_history:
+    hist = pd.DataFrame(st.session_state.trade_history)
+    st.dataframe(hist, use_container_width=True, hide_index=True)
+else:
+    st.info("Ei vielä suljettuja harjoituskauppoja.")
 
 st.warning(
-    "Tämä on opetukseen ja päätöksenteon tueksi tehty ohjelma. "
-    "Se ei ole sijoitusneuvo eikä takaa voittoa."
+    "Tämä on demotreidaus- ja opetustyökalu. Se ei tee oikeita kauppoja eikä ole sijoitusneuvo. "
+    "Demo-saldo tallentuu vain tähän selainistuntoon."
 )
