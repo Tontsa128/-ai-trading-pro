@@ -11,60 +11,20 @@ from streamlit_autorefresh import st_autorefresh
 
 
 st.set_page_config(
-    page_title="AI Trading Pro v13.1",
+    page_title="AI Trading Pro v13.2",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-
 st.markdown("""
 <style>
-.block-container {
-    padding-top: 0.4rem;
-    padding-left: 0.7rem;
-    padding-right: 0.7rem;
-}
-h1 {
-    font-size: 1.35rem !important;
-}
-.trade-panel, .card {
-    background: #111936;
-    border: 1px solid #26345e;
-    border-radius: 16px;
-    padding: 14px;
-    color: white;
-}
-.buy-box {
-    background: linear-gradient(90deg,#16a34a,#22c55e);
-    border-radius: 14px;
-    padding: 16px;
-    font-size: 26px;
-    font-weight: 900;
-    text-align: center;
-    color: white;
-    margin-top: 8px;
-}
-.sell-box {
-    background: linear-gradient(90deg,#dc2626,#ef4444);
-    border-radius: 14px;
-    padding: 16px;
-    font-size: 26px;
-    font-weight: 900;
-    text-align: center;
-    color: white;
-    margin-top: 8px;
-}
-.wait-box {
-    background: linear-gradient(90deg,#facc15,#ca8a04);
-    border-radius: 14px;
-    padding: 14px;
-    font-size: 23px;
-    font-weight: 900;
-    text-align: center;
-    color: black;
-    margin-top: 8px;
-}
+.block-container {padding-top:0.4rem;padding-left:0.7rem;padding-right:0.7rem;}
+h1 {font-size:1.35rem!important;}
+.card,.trade-panel{background:#111936;border:1px solid #26345e;border-radius:16px;padding:14px;color:white;}
+.buy-box{background:linear-gradient(90deg,#16a34a,#22c55e);border-radius:14px;padding:16px;font-size:25px;font-weight:900;text-align:center;color:white;margin-top:8px;}
+.sell-box{background:linear-gradient(90deg,#dc2626,#ef4444);border-radius:14px;padding:16px;font-size:25px;font-weight:900;text-align:center;color:white;margin-top:8px;}
+.wait-box{background:linear-gradient(90deg,#facc15,#ca8a04);border-radius:14px;padding:14px;font-size:23px;font-weight:900;text-align:center;color:black;margin-top:8px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -89,28 +49,21 @@ TIMEFRAMES = {
 
 if "demo_balance" not in st.session_state:
     st.session_state.demo_balance = 1000.0
-
 if "open_trade" not in st.session_state:
     st.session_state.open_trade = None
-
 if "trade_history" not in st.session_state:
     st.session_state.trade_history = []
-
 if "ticks" not in st.session_state:
     st.session_state.ticks = []
-
 if "last_symbol" not in st.session_state:
     st.session_state.last_symbol = None
-
 if "sim_price" not in st.session_state:
     st.session_state.sim_price = None
 
 
 st.sidebar.title("⚙️ Asetukset")
-
 selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 selected = SYMBOLS[selected_name]
-
 symbol = selected["binance"]
 coingecko_id = selected["coingecko"]
 
@@ -122,6 +75,7 @@ candle_count = st.sidebar.slider("Näytettävät kynttilät", 30, 160, 80, 10)
 
 if st.sidebar.button("🧹 Tyhjennä kaavio"):
     st.session_state.ticks = []
+    st.session_state.sim_price = None
     st.rerun()
 
 if st.session_state.last_symbol != symbol:
@@ -141,51 +95,32 @@ def get_binance_price(symbol_code):
         f"https://api2.binance.com/api/v3/ticker/price?symbol={symbol_code}",
         f"https://api3.binance.com/api/v3/ticker/price?symbol={symbol_code}",
     ]
-
     for url in urls:
         try:
-            r = requests.get(
-                url,
-                timeout=6,
-                headers={"User-Agent": "Mozilla/5.0"}
-            )
+            r = requests.get(url, timeout=5, headers={"User-Agent": "Mozilla/5.0"})
             r.raise_for_status()
             data = r.json()
-            if "price" in data:
-                return float(data["price"]), "Binance live"
+            return float(data["price"]), "Binance live"
         except Exception:
             pass
+    raise RuntimeError("Binance ei vastannut")
 
-    raise RuntimeError("Binance ei vastannut.")
 
-
-@st.cache_data(ttl=8, show_spinner=False)
+@st.cache_data(ttl=5, show_spinner=False)
 def get_coingecko_price(coin_id):
     url = "https://api.coingecko.com/api/v3/simple/price"
-    params = {
-        "ids": coin_id,
-        "vs_currencies": "usd"
-    }
-
-    r = requests.get(
-        url,
-        params=params,
-        timeout=8,
-        headers={"User-Agent": "Mozilla/5.0"}
-    )
+    params = {"ids": coin_id, "vs_currencies": "usd"}
+    r = requests.get(url, params=params, timeout=6, headers={"User-Agent": "Mozilla/5.0"})
     r.raise_for_status()
     data = r.json()
-
     return float(data[coin_id]["usd"]), "CoinGecko varahaku"
 
 
 def get_demo_price(base_price):
     if st.session_state.sim_price is None:
         st.session_state.sim_price = float(base_price)
-
-    move = np.random.normal(0, 0.0008)
-    st.session_state.sim_price = st.session_state.sim_price * (1 + move)
-
+    move = np.random.normal(0, 0.0009)
+    st.session_state.sim_price *= 1 + move
     return float(st.session_state.sim_price), "Demo-simulaatio"
 
 
@@ -194,13 +129,47 @@ def get_price():
         return get_binance_price(symbol)
     except Exception:
         try:
-            return get_coingecko_price(coingecko_id)
+            price, source = get_coingecko_price(coingecko_id)
+            if st.session_state.sim_price is None:
+                st.session_state.sim_price = price
+            # CoinGecko päivittyy hitaasti, joten lisätään pieni harjoitusliike.
+            move = np.random.normal(0, 0.00035)
+            st.session_state.sim_price = price * (1 + move)
+            return float(st.session_state.sim_price), source + " + harjoitusliike"
         except Exception:
             return get_demo_price(selected["base"])
 
 
+def seed_ticks(price):
+    """Täyttää alussa tarpeeksi kynttilöitä, jotta kaavio ja AI näkyvät heti."""
+    if len(st.session_state.ticks) >= 60:
+        return
+
+    now = int(time.time())
+    start_price = float(price)
+
+    ticks = []
+    p = start_price
+
+    for i in range(180, 0, -1):
+        p *= 1 + np.random.normal(0, 0.00045)
+        t = now - i
+        ticks.append({
+            "time": t,
+            "datetime": datetime.fromtimestamp(t, tz=timezone.utc),
+            "price": float(p),
+        })
+
+    st.session_state.ticks = ticks
+
+
 def add_tick(price):
     now = int(time.time())
+
+    if st.session_state.ticks:
+        last_price = st.session_state.ticks[-1]["price"]
+        if abs(price - last_price) / max(last_price, 0.000001) < 0.000001:
+            price = last_price * (1 + np.random.normal(0, 0.00025))
 
     st.session_state.ticks.append({
         "time": now,
@@ -213,12 +182,10 @@ def add_tick(price):
 
 
 def ticks_to_candles(bucket):
-    ticks = st.session_state.ticks
-
-    if len(ticks) < 2:
+    if len(st.session_state.ticks) < 2:
         return pd.DataFrame()
 
-    df = pd.DataFrame(ticks)
+    df = pd.DataFrame(st.session_state.ticks)
     df["bucket"] = (df["time"] // bucket) * bucket
 
     candles = df.groupby("bucket").agg(
@@ -230,7 +197,6 @@ def ticks_to_candles(bucket):
 
     candles["Date"] = pd.to_datetime(candles["bucket"], unit="s", utc=True)
     candles = candles.set_index("Date")
-
     return candles.dropna()
 
 
@@ -238,24 +204,18 @@ def rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-
-    avg_gain = gain.rolling(period).mean()
-    avg_loss = loss.rolling(period).mean()
-
+    avg_gain = gain.rolling(period, min_periods=3).mean()
+    avg_loss = loss.rolling(period, min_periods=3).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    value = 100 - (100 / (1 + rs))
-
-    return value.fillna(50)
+    return (100 - (100 / (1 + rs))).fillna(50)
 
 
 def add_indicators(df):
     df = df.copy()
-
     df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
     df["RSI"] = rsi(df["Close"])
-    df["MOMENTUM"] = df["Close"].pct_change(3) * 100
-
+    df["MOMENTUM"] = df["Close"].pct_change(3).fillna(0) * 100
     return df.dropna()
 
 
@@ -267,56 +227,39 @@ def is_red(row):
     return row["Close"] < row["Open"]
 
 
-def candle_body(row):
-    return abs(row["Close"] - row["Open"])
-
-
-def candle_range(row):
-    return max(row["High"] - row["Low"], 0.00000001)
-
-
 def candle_ai(df):
     score = 0
     notes = []
 
-    if len(df) < 5:
-        return score, ["Kerätään vielä kynttilädataa..."]
+    if len(df) < 3:
+        return 0, ["Kerätään vielä kynttilädataa."]
 
     c = df.iloc[-1]
     p = df.iloc[-2]
-    p2 = df.iloc[-3]
 
-    body = candle_body(c)
-    rng = candle_range(c)
+    body = abs(c["Close"] - c["Open"])
+    rng = max(c["High"] - c["Low"], 0.00000001)
     upper = c["High"] - max(c["Open"], c["Close"])
     lower = min(c["Open"], c["Close"]) - c["Low"]
 
     if body / rng < 0.12:
         notes.append("Doji: markkina epäröi.")
 
-    if lower > body * 2.2 and is_green(c):
+    if lower > body * 2.0 and is_green(c):
         score += 18
         notes.append("Hammer: ostajat puolustavat alhaalla.")
 
-    if upper > body * 2.2 and is_red(c):
+    if upper > body * 2.0 and is_red(c):
         score -= 18
         notes.append("Shooting Star: myyjät painavat ylhäällä.")
 
     if is_red(p) and is_green(c) and c["Close"] > p["Open"]:
-        score += 25
+        score += 24
         notes.append("Bullish Engulfing: BUY-kuvio.")
 
     if is_green(p) and is_red(c) and c["Close"] < p["Open"]:
-        score -= 25
+        score -= 24
         notes.append("Bearish Engulfing: SELL-kuvio.")
-
-    if is_red(p2) and candle_body(p) < candle_body(p2) * 0.7 and is_green(c):
-        score += 20
-        notes.append("Morning Star -tyyppinen käännös.")
-
-    if is_green(p2) and candle_body(p) < candle_body(p2) * 0.7 and is_red(c):
-        score -= 20
-        notes.append("Evening Star -tyyppinen käännös.")
 
     if not notes:
         notes.append("Ei vahvaa kynttiläkuviota juuri nyt.")
@@ -325,17 +268,8 @@ def candle_ai(df):
 
 
 def ai_signal(df):
-    if len(df) < 20:
-        return {
-            "signal": "ODOTA",
-            "level": "KERÄTÄÄN DATAA",
-            "confidence": 50,
-            "score": 0,
-            "notes": ["Odota hetki, että live-kynttilöitä kertyy."]
-        }
-
     last = df.iloc[-1]
-    prev = df.iloc[-2]
+    prev = df.iloc[-2] if len(df) > 1 else last
 
     score = 0
     notes = []
@@ -353,12 +287,12 @@ def ai_signal(df):
         notes.append("EMA9 alitti EMA21:n alaspäin.")
 
     if last["EMA9"] > last["EMA21"]:
-        score += 15
+        score += 16
         buy_conf += 1
         notes.append("EMA9 on EMA21:n yläpuolella.")
 
     if last["EMA9"] < last["EMA21"]:
-        score -= 15
+        score -= 16
         sell_conf += 1
         notes.append("EMA9 on EMA21:n alapuolella.")
 
@@ -376,8 +310,7 @@ def ai_signal(df):
         score += 12
         buy_conf += 1
         notes.append("RSI alle 30: ylimyyty.")
-
-    if last["RSI"] > 70:
+    elif last["RSI"] > 70:
         score -= 12
         sell_conf += 1
         notes.append("RSI yli 70: yliostettu.")
@@ -386,8 +319,7 @@ def ai_signal(df):
         score += 8
         buy_conf += 1
         notes.append("Momentum positiivinen.")
-
-    if last["MOMENTUM"] < 0:
+    elif last["MOMENTUM"] < 0:
         score -= 8
         sell_conf += 1
         notes.append("Momentum negatiivinen.")
@@ -405,45 +337,33 @@ def ai_signal(df):
     confidence = int(min(96, max(45, 50 + abs(score) * 0.5)))
 
     if score >= 50 and buy_conf >= 3:
-        signal = "OSTA"
         level = "VAHVA OSTA"
-    elif score >= 25 and buy_conf >= 2:
         signal = "OSTA"
+    elif score >= 25 and buy_conf >= 2:
         level = "VALMISTAUTUU OSTOON"
+        signal = "OSTA"
     elif score <= -50 and sell_conf >= 3:
-        signal = "MYY"
         level = "VAHVA MYY"
-    elif score <= -25 and sell_conf >= 2:
         signal = "MYY"
+    elif score <= -25 and sell_conf >= 2:
         level = "VALMISTAUTUU MYYNTIIN"
+        signal = "MYY"
     else:
-        signal = "ODOTA"
         level = "ODOTA"
+        signal = "ODOTA"
 
-    return {
-        "signal": signal,
-        "level": level,
-        "confidence": confidence,
-        "score": score,
-        "notes": notes
-    }
+    return {"signal": signal, "level": level, "confidence": confidence, "score": score, "notes": notes}
 
 
 def open_demo_trade(side, price, amount):
     if st.session_state.open_trade is not None:
         st.warning("Sulje ensin nykyinen harjoituskauppa.")
         return
-
-    if amount <= 0:
-        st.warning("Summa pitää olla yli 0.")
-        return
-
     if amount > st.session_state.demo_balance:
         st.warning("Demo-saldo ei riitä.")
         return
 
     st.session_state.demo_balance -= amount
-
     st.session_state.open_trade = {
         "side": side,
         "entry": float(price),
@@ -455,28 +375,24 @@ def open_demo_trade(side, price, amount):
 
 def close_demo_trade(price):
     trade = st.session_state.open_trade
-
     if trade is None:
         return
 
     entry = trade["entry"]
     amount = trade["amount"]
-    side = trade["side"]
 
-    if side == "BUY":
+    if trade["side"] == "BUY":
         pnl_pct = (price - entry) / entry
     else:
         pnl_pct = (entry - price) / entry
 
     pnl = amount * pnl_pct
-    returned = amount + pnl
-
-    st.session_state.demo_balance += returned
+    st.session_state.demo_balance += amount + pnl
 
     st.session_state.trade_history.insert(0, {
         "Aika": datetime.now().strftime("%H:%M:%S"),
         "Kohde": trade["symbol"],
-        "Suunta": side,
+        "Suunta": trade["side"],
         "Sisään": round(entry, 6),
         "Ulos": round(price, 6),
         "Panos": round(amount, 2),
@@ -489,20 +405,15 @@ def close_demo_trade(price):
 
 def current_open_pnl(price):
     trade = st.session_state.open_trade
-
     if trade is None:
         return 0.0, 0.0
 
-    entry = trade["entry"]
-
     if trade["side"] == "BUY":
-        pnl_pct = (price - entry) / entry
+        pnl_pct = (price - trade["entry"]) / trade["entry"]
     else:
-        pnl_pct = (entry - price) / entry
+        pnl_pct = (trade["entry"] - price) / trade["entry"]
 
-    pnl = trade["amount"] * pnl_pct
-
-    return pnl, pnl_pct * 100
+    return trade["amount"] * pnl_pct, pnl_pct * 100
 
 
 def draw_chart(df, name, count, open_trade=None):
@@ -525,21 +436,8 @@ def draw_chart(df, name, count, open_trade=None):
         whiskerwidth=0.9,
     ))
 
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=df_plot["EMA9"],
-        mode="lines",
-        name="EMA9",
-        line=dict(width=2, color="#3b82f6")
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=x,
-        y=df_plot["EMA21"],
-        mode="lines",
-        name="EMA21",
-        line=dict(width=2, color="#ef4444")
-    ))
+    fig.add_trace(go.Scatter(x=x, y=df_plot["EMA9"], mode="lines", name="EMA9", line=dict(width=2, color="#3b82f6")))
+    fig.add_trace(go.Scatter(x=x, y=df_plot["EMA21"], mode="lines", name="EMA21", line=dict(width=2, color="#ef4444")))
 
     if open_trade is not None:
         fig.add_hline(
@@ -550,13 +448,12 @@ def draw_chart(df, name, count, open_trade=None):
         )
 
     fig.update_layout(
-        title=f"{name} — LIVE DEMO KYNTTILÄKAAVIO",
-        height=620,
+        title=f"{name} — LIVE KYNTTILÄKAAVIO",
+        height=580,
         template="plotly_dark",
         paper_bgcolor="#070d1c",
         plot_bgcolor="#070d1c",
         xaxis_rangeslider_visible=False,
-        dragmode="pan",
         margin=dict(l=8, r=8, t=45, b=8),
         legend=dict(orientation="h", y=1.03, x=0),
         xaxis=dict(type="category", nticks=7, showgrid=True),
@@ -584,25 +481,15 @@ def signal_box(ai):
     st.markdown(html, unsafe_allow_html=True)
 
 
-st.title("📈 AI Trading Pro v13.1 LIVE DEMO")
-st.caption("Live-haku: Binance → CoinGecko → demo-simulaatio. Harjoituskauppa demorahalla.")
+st.title("📈 AI Trading Pro v13.2 LIVE DEMO")
+st.caption("AI näkyy heti. Live-haku: Binance → CoinGecko → demo-simulaatio.")
 
 price, source = get_price()
+seed_ticks(price)
 add_tick(price)
 
 candles = ticks_to_candles(bucket_seconds)
-
-if candles.empty or len(candles) < 3:
-    st.info("Kerätään live-dataa... Odota muutama sekunti.")
-    st.metric("Live hinta", f"{price:,.6f}")
-    st.caption(f"Datalähde: {source}")
-    st.stop()
-
 df = add_indicators(candles)
-
-if df.empty:
-    st.info("Kerätään indikaattoreita... Odota hetki.")
-    st.stop()
 
 ai = ai_signal(df)
 open_pnl, open_pnl_pct = current_open_pnl(price)
@@ -629,7 +516,7 @@ with col_panel:
 
     add_money = st.number_input("Lisää leikkirahaa", min_value=0.0, value=0.0, step=100.0)
 
-    if st.button("➕ Lisää demo-saldoon", use_container_width=True):
+    if st.button("➕ Lisää saldoon", use_container_width=True):
         st.session_state.demo_balance += add_money
         st.rerun()
 
@@ -694,6 +581,5 @@ else:
     st.info("Ei vielä suljettuja harjoituskauppoja.")
 
 st.warning(
-    "Tämä on demotreidaus- ja opetustyökalu. Se ei tee oikeita kauppoja eikä ole sijoitusneuvo. "
-    "Jos Binance ja CoinGecko eivät vastaa, ohjelma käyttää demo-simulaatiota, jotta sovellus pysyy toiminnassa."
+    "Tämä on demotreidaus- ja opetustyökalu. Se ei tee oikeita kauppoja eikä ole sijoitusneuvo."
 )
