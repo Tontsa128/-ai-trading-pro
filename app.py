@@ -10,21 +10,13 @@ import streamlit as st
 from streamlit_autorefresh import st_autorefresh
 
 
-# ============================================================
-# PAGE
-# ============================================================
-
 st.set_page_config(
-    page_title="AI Trading Pro v13 LIVE DEMO",
+    page_title="AI Trading Pro v13.1",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-
-# ============================================================
-# CSS
-# ============================================================
 
 st.markdown("""
 <style>
@@ -33,22 +25,10 @@ st.markdown("""
     padding-left: 0.7rem;
     padding-right: 0.7rem;
 }
-body {
-    background-color: #070d1c;
-}
 h1 {
     font-size: 1.35rem !important;
-    margin-bottom: 0.2rem !important;
 }
-.topbar {
-    background: #111936;
-    border: 1px solid #26345e;
-    border-radius: 14px;
-    padding: 12px;
-    color: white;
-    margin-bottom: 8px;
-}
-.trade-panel {
+.trade-panel, .card {
     background: #111936;
     border: 1px solid #26345e;
     border-radius: 16px;
@@ -58,51 +38,54 @@ h1 {
 .buy-box {
     background: linear-gradient(90deg,#16a34a,#22c55e);
     border-radius: 14px;
-    padding: 18px;
-    font-size: 28px;
+    padding: 16px;
+    font-size: 26px;
     font-weight: 900;
     text-align: center;
     color: white;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 .sell-box {
     background: linear-gradient(90deg,#dc2626,#ef4444);
     border-radius: 14px;
-    padding: 18px;
-    font-size: 28px;
+    padding: 16px;
+    font-size: 26px;
     font-weight: 900;
     text-align: center;
     color: white;
-    margin-top: 10px;
+    margin-top: 8px;
 }
 .wait-box {
     background: linear-gradient(90deg,#facc15,#ca8a04);
     border-radius: 14px;
-    padding: 15px;
-    font-size: 24px;
+    padding: 14px;
+    font-size: 23px;
     font-weight: 900;
     text-align: center;
     color: black;
     margin-top: 8px;
 }
-.card {
-    background: #0f172a;
-    border: 1px solid #26345e;
-    border-radius: 14px;
-    padding: 12px;
-    color: white;
-}
-.small {
-    color: #9ca3af;
-    font-size: 12px;
-}
 </style>
 """, unsafe_allow_html=True)
 
 
-# ============================================================
-# STATE
-# ============================================================
+SYMBOLS = {
+    "BTC / USDT": {"binance": "BTCUSDT", "coingecko": "bitcoin", "base": 78000},
+    "ETH / USDT": {"binance": "ETHUSDT", "coingecko": "ethereum", "base": 3500},
+    "SOL / USDT": {"binance": "SOLUSDT", "coingecko": "solana", "base": 150},
+    "BNB / USDT": {"binance": "BNBUSDT", "coingecko": "binancecoin", "base": 600},
+    "XRP / USDT": {"binance": "XRPUSDT", "coingecko": "ripple", "base": 0.55},
+    "DOGE / USDT": {"binance": "DOGEUSDT", "coingecko": "dogecoin", "base": 0.15},
+}
+
+TIMEFRAMES = {
+    "1S": 1,
+    "5S": 5,
+    "15S": 15,
+    "30S": 30,
+    "1M": 60,
+}
+
 
 if "demo_balance" not in st.session_state:
     st.session_state.demo_balance = 1000.0
@@ -119,38 +102,22 @@ if "ticks" not in st.session_state:
 if "last_symbol" not in st.session_state:
     st.session_state.last_symbol = None
 
+if "sim_price" not in st.session_state:
+    st.session_state.sim_price = None
 
-# ============================================================
-# SETTINGS
-# ============================================================
-
-SYMBOLS = {
-    "BTC / USDT": "BTCUSDT",
-    "ETH / USDT": "ETHUSDT",
-    "SOL / USDT": "SOLUSDT",
-    "BNB / USDT": "BNBUSDT",
-    "XRP / USDT": "XRPUSDT",
-    "DOGE / USDT": "DOGEUSDT",
-}
-
-TIMEFRAMES = {
-    "1S": 1,
-    "5S": 5,
-    "15S": 15,
-    "30S": 30,
-    "1M": 60,
-}
 
 st.sidebar.title("⚙️ Asetukset")
 
 selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
-symbol = SYMBOLS[selected_name]
+selected = SYMBOLS[selected_name]
+
+symbol = selected["binance"]
+coingecko_id = selected["coingecko"]
 
 tf_name = st.sidebar.radio("Kynttiläaika", list(TIMEFRAMES.keys()), index=1)
 bucket_seconds = TIMEFRAMES[tf_name]
 
 refresh_seconds = st.sidebar.radio("Live-päivitys", [1, 2, 5], index=0)
-
 candle_count = st.sidebar.slider("Näytettävät kynttilät", 30, 160, 80, 10)
 
 if st.sidebar.button("🧹 Tyhjennä kaavio"):
@@ -161,34 +128,88 @@ if st.session_state.last_symbol != symbol:
     st.session_state.ticks = []
     st.session_state.open_trade = None
     st.session_state.last_symbol = symbol
+    st.session_state.sim_price = None
 
 st_autorefresh(interval=refresh_seconds * 1000, key=f"live_{symbol}_{tf_name}")
 
 
-# ============================================================
-# LIVE PRICE
-# ============================================================
-
 @st.cache_data(ttl=1, show_spinner=False)
 def get_binance_price(symbol_code):
-    url = f"https://api.binance.com/api/v3/ticker/price?symbol={symbol_code}"
-    r = requests.get(url, timeout=5)
+    urls = [
+        f"https://api.binance.com/api/v3/ticker/price?symbol={symbol_code}",
+        f"https://api1.binance.com/api/v3/ticker/price?symbol={symbol_code}",
+        f"https://api2.binance.com/api/v3/ticker/price?symbol={symbol_code}",
+        f"https://api3.binance.com/api/v3/ticker/price?symbol={symbol_code}",
+    ]
+
+    for url in urls:
+        try:
+            r = requests.get(
+                url,
+                timeout=6,
+                headers={"User-Agent": "Mozilla/5.0"}
+            )
+            r.raise_for_status()
+            data = r.json()
+            if "price" in data:
+                return float(data["price"]), "Binance live"
+        except Exception:
+            pass
+
+    raise RuntimeError("Binance ei vastannut.")
+
+
+@st.cache_data(ttl=8, show_spinner=False)
+def get_coingecko_price(coin_id):
+    url = "https://api.coingecko.com/api/v3/simple/price"
+    params = {
+        "ids": coin_id,
+        "vs_currencies": "usd"
+    }
+
+    r = requests.get(
+        url,
+        params=params,
+        timeout=8,
+        headers={"User-Agent": "Mozilla/5.0"}
+    )
     r.raise_for_status()
     data = r.json()
-    return float(data["price"])
+
+    return float(data[coin_id]["usd"]), "CoinGecko varahaku"
+
+
+def get_demo_price(base_price):
+    if st.session_state.sim_price is None:
+        st.session_state.sim_price = float(base_price)
+
+    move = np.random.normal(0, 0.0008)
+    st.session_state.sim_price = st.session_state.sim_price * (1 + move)
+
+    return float(st.session_state.sim_price), "Demo-simulaatio"
+
+
+def get_price():
+    try:
+        return get_binance_price(symbol)
+    except Exception:
+        try:
+            return get_coingecko_price(coingecko_id)
+        except Exception:
+            return get_demo_price(selected["base"])
 
 
 def add_tick(price):
     now = int(time.time())
+
     st.session_state.ticks.append({
         "time": now,
         "datetime": datetime.fromtimestamp(now, tz=timezone.utc),
         "price": float(price),
     })
 
-    max_ticks = 4000
-    if len(st.session_state.ticks) > max_ticks:
-        st.session_state.ticks = st.session_state.ticks[-max_ticks:]
+    if len(st.session_state.ticks) > 5000:
+        st.session_state.ticks = st.session_state.ticks[-5000:]
 
 
 def ticks_to_candles(bucket):
@@ -209,12 +230,9 @@ def ticks_to_candles(bucket):
 
     candles["Date"] = pd.to_datetime(candles["bucket"], unit="s", utc=True)
     candles = candles.set_index("Date")
+
     return candles.dropna()
 
-
-# ============================================================
-# INDICATORS
-# ============================================================
 
 def rsi(close, period=14):
     delta = close.diff()
@@ -226,6 +244,7 @@ def rsi(close, period=14):
 
     rs = avg_gain / avg_loss.replace(0, np.nan)
     value = 100 - (100 / (1 + rs))
+
     return value.fillna(50)
 
 
@@ -234,16 +253,11 @@ def add_indicators(df):
 
     df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
     df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
-    df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
     df["RSI"] = rsi(df["Close"])
     df["MOMENTUM"] = df["Close"].pct_change(3) * 100
 
     return df.dropna()
 
-
-# ============================================================
-# CANDLE PATTERNS + AI
-# ============================================================
 
 def is_green(row):
     return row["Close"] > row["Open"]
@@ -415,10 +429,6 @@ def ai_signal(df):
     }
 
 
-# ============================================================
-# DEMO TRADING
-# ============================================================
-
 def open_demo_trade(side, price, amount):
     if st.session_state.open_trade is not None:
         st.warning("Sulje ensin nykyinen harjoituskauppa.")
@@ -433,12 +443,13 @@ def open_demo_trade(side, price, amount):
         return
 
     st.session_state.demo_balance -= amount
+
     st.session_state.open_trade = {
         "side": side,
         "entry": float(price),
         "amount": float(amount),
         "opened": datetime.now().strftime("%H:%M:%S"),
-        "symbol": symbol,
+        "symbol": selected_name,
     }
 
 
@@ -490,12 +501,9 @@ def current_open_pnl(price):
         pnl_pct = (entry - price) / entry
 
     pnl = trade["amount"] * pnl_pct
+
     return pnl, pnl_pct * 100
 
-
-# ============================================================
-# CHART
-# ============================================================
 
 def draw_chart(df, name, count, open_trade=None):
     df_plot = df.tail(count).copy()
@@ -576,25 +584,18 @@ def signal_box(ai):
     st.markdown(html, unsafe_allow_html=True)
 
 
-# ============================================================
-# APP
-# ============================================================
+st.title("📈 AI Trading Pro v13.1 LIVE DEMO")
+st.caption("Live-haku: Binance → CoinGecko → demo-simulaatio. Harjoituskauppa demorahalla.")
 
-st.title("📈 AI Trading Pro v13 LIVE DEMO")
-st.caption("Crypto-live hinta, harjoituskauppa demorahalla, BUY/SELL-signaali ja oma leikkisaldo.")
-
-try:
-    price = get_binance_price(symbol)
-    add_tick(price)
-except Exception as e:
-    st.error("Binance-live hintaa ei saatu. Kokeile uudelleen hetken päästä.")
-    st.stop()
+price, source = get_price()
+add_tick(price)
 
 candles = ticks_to_candles(bucket_seconds)
 
 if candles.empty or len(candles) < 3:
     st.info("Kerätään live-dataa... Odota muutama sekunti.")
     st.metric("Live hinta", f"{price:,.6f}")
+    st.caption(f"Datalähde: {source}")
     st.stop()
 
 df = add_indicators(candles)
@@ -613,6 +614,8 @@ top3.metric("Demo saldo", f"${st.session_state.demo_balance:,.2f}")
 top4.metric("Avoin P/L", f"${open_pnl:,.4f}", f"{open_pnl_pct:.3f}%")
 top5.metric("AI-score", f"{ai['score']} / 100")
 
+st.caption(f"Datalähde: {source} | Päivitetty: {datetime.now().strftime('%H:%M:%S')}")
+
 signal_box(ai)
 
 col_chart, col_panel = st.columns([3.2, 1])
@@ -625,7 +628,8 @@ with col_panel:
     st.subheader("🎮 Demo-treidaus")
 
     add_money = st.number_input("Lisää leikkirahaa", min_value=0.0, value=0.0, step=100.0)
-    if st.button("➕ Lisää demo-saldoon"):
+
+    if st.button("➕ Lisää demo-saldoon", use_container_width=True):
         st.session_state.demo_balance += add_money
         st.rerun()
 
@@ -675,6 +679,7 @@ with b:
     st.write(f"Kynttiläaika: **{tf_name}**")
     st.write(f"Päivitys: **{refresh_seconds}s**")
     st.write(f"Kynttilöitä muistissa: **{len(df)}**")
+    st.write(f"Datalähde: **{source}**")
     st.write(f"Viimeisin päivitys: **{datetime.now().strftime('%H:%M:%S')}**")
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -690,5 +695,5 @@ else:
 
 st.warning(
     "Tämä on demotreidaus- ja opetustyökalu. Se ei tee oikeita kauppoja eikä ole sijoitusneuvo. "
-    "Demo-saldo tallentuu vain tähän selainistuntoon."
+    "Jos Binance ja CoinGecko eivät vastaa, ohjelma käyttää demo-simulaatiota, jotta sovellus pysyy toiminnassa."
 )
