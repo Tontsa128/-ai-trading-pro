@@ -1,18 +1,13 @@
 # -*- coding: utf-8 -*-
 
-import math
-from datetime import datetime
-
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import yfinance as yf
+from streamlit_autorefresh import st_autorefresh
+from datetime import datetime
 
-
-# ============================================================
-# SIVUN ASETUKSET
-# ============================================================
 
 st.set_page_config(
     page_title="AI Trading Pro",
@@ -22,72 +17,42 @@ st.set_page_config(
 )
 
 
-# ============================================================
-# TYYLIT
-# ============================================================
-
 st.markdown("""
 <style>
-.main {
-    background-color: #0b1020;
-}
 .block-container {
-    padding-top: 1.5rem;
+    padding-top: 0.6rem;
+    padding-bottom: 1rem;
 }
-.big-title {
+h1, h2, h3 {
+    margin-top: 0rem;
+}
+.signal-box {
+    width: 100%;
+    height: 74px;
+    border-radius: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 34px;
-    font-weight: 800;
-    color: #ffffff;
-}
-.subtitle {
-    color: #b8c1d9;
-    font-size: 16px;
-}
-.signal-buy {
-    background: linear-gradient(90deg,#064e3b,#16a34a);
-    padding: 22px;
-    border-radius: 18px;
-    color: white;
-    font-size: 30px;
-    font-weight: 800;
-    text-align: center;
-}
-.signal-sell {
-    background: linear-gradient(90deg,#7f1d1d,#dc2626);
-    padding: 22px;
-    border-radius: 18px;
-    color: white;
-    font-size: 30px;
-    font-weight: 800;
-    text-align: center;
-}
-.signal-wait {
-    background: linear-gradient(90deg,#713f12,#eab308);
-    padding: 22px;
-    border-radius: 18px;
-    color: black;
-    font-size: 30px;
-    font-weight: 800;
-    text-align: center;
+    font-weight: 900;
+    box-shadow: 0 0 25px rgba(0,0,0,0.35);
+    margin-top: 4px;
+    margin-bottom: 12px;
 }
 .info-card {
     background-color: #111827;
     border: 1px solid #263244;
-    padding: 18px;
+    padding: 14px;
     border-radius: 16px;
     color: #e5e7eb;
 }
-.small-text {
-    color: #9ca3af;
+.small {
     font-size: 13px;
+    color: #9ca3af;
 }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ============================================================
-# SYMBOLIT
-# ============================================================
 
 SYMBOLIT = {
     "Bitcoin / USD": "BTC-USD",
@@ -107,6 +72,7 @@ SYMBOLIT = {
 
 AIKAVALIT = {
     "1 minuutti": "1m",
+    "2 minuuttia": "2m",
     "5 minuuttia": "5m",
     "15 minuuttia": "15m",
     "30 minuuttia": "30m",
@@ -124,12 +90,8 @@ PERIODIT = {
 }
 
 
-# ============================================================
-# DATAHAKU
-# ============================================================
-
-@st.cache_data(ttl=30, show_spinner=False)
-def hae_data(symboli: str, periodi: str, interval: str) -> pd.DataFrame:
+@st.cache_data(ttl=20, show_spinner=False)
+def hae_data(symboli, periodi, interval):
     try:
         df = yf.download(
             symboli,
@@ -146,23 +108,14 @@ def hae_data(symboli: str, periodi: str, interval: str) -> pd.DataFrame:
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        tarvittavat = ["Open", "High", "Low", "Close"]
-        for col in tarvittavat:
-            if col not in df.columns:
-                return pd.DataFrame()
-
-        df = df.dropna()
+        df = df[["Open", "High", "Low", "Close"]].dropna()
         return df
 
     except Exception:
         return pd.DataFrame()
 
 
-# ============================================================
-# INDIKAATTORIT
-# ============================================================
-
-def laske_rsi(close: pd.Series, period: int = 14) -> pd.Series:
+def rsi(close, period=14):
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
@@ -171,45 +124,67 @@ def laske_rsi(close: pd.Series, period: int = 14) -> pd.Series:
     avg_loss = loss.rolling(period).mean()
 
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    rsi = 100 - (100 / (1 + rs))
-    return rsi.fillna(50)
+    value = 100 - (100 / (1 + rs))
+    return value.fillna(50)
 
 
-def laske_indikaattorit(df: pd.DataFrame) -> pd.DataFrame:
+def lisaa_indikaattorit(df):
     df = df.copy()
 
-    close = df["Close"]
+    df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
+    df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
+    df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
 
-    df["EMA9"] = close.ewm(span=9, adjust=False).mean()
-    df["EMA21"] = close.ewm(span=21, adjust=False).mean()
-    df["EMA50"] = close.ewm(span=50, adjust=False).mean()
+    df["RSI"] = rsi(df["Close"], 14)
 
-    df["RSI"] = laske_rsi(close, 14)
-
-    df["MA20"] = close.rolling(20).mean()
-    df["STD20"] = close.rolling(20).std()
+    df["MA20"] = df["Close"].rolling(20).mean()
+    df["STD20"] = df["Close"].rolling(20).std()
     df["BB_UPPER"] = df["MA20"] + 2 * df["STD20"]
     df["BB_LOWER"] = df["MA20"] - 2 * df["STD20"]
 
-    df["MOMENTUM"] = close.pct_change(5) * 100
-    df["VOLATILITY"] = close.pct_change().rolling(20).std() * 100
+    df["MOMENTUM"] = df["Close"].pct_change(5) * 100
+    df["VOLATILITY"] = df["Close"].pct_change().rolling(20).std() * 100
 
     return df.dropna()
 
 
-# ============================================================
-# AI-ENNUSTE
-# ============================================================
+def tunnista_kynttilakuvio(df):
+    if len(df) < 3:
+        return "Ei tarpeeksi dataa", 0
 
-def tee_ai_ennuste(df: pd.DataFrame):
-    if df.empty or len(df) < 60:
-        return {
-            "signal": "ODOTA",
-            "confidence": 50,
-            "score": 0,
-            "reason": "Dataa on liian vähän luotettavaan arvioon.",
-            "details": []
-        }
+    c = df.iloc[-1]
+    p = df.iloc[-2]
+
+    body = abs(c["Close"] - c["Open"])
+    candle_range = c["High"] - c["Low"]
+
+    if candle_range == 0:
+        return "Ei selvää kuviota", 0
+
+    upper_shadow = c["High"] - max(c["Close"], c["Open"])
+    lower_shadow = min(c["Close"], c["Open"]) - c["Low"]
+
+    if body / candle_range < 0.12:
+        return "Doji — markkina epäröi", 0
+
+    if lower_shadow > body * 2 and upper_shadow < body:
+        return "Hammer — mahdollinen nousukäännös", 12
+
+    if upper_shadow > body * 2 and lower_shadow < body:
+        return "Shooting Star — mahdollinen laskukäännös", -12
+
+    if p["Close"] < p["Open"] and c["Close"] > c["Open"] and c["Close"] > p["Open"]:
+        return "Bullish Engulfing — vahva ostokuvio", 18
+
+    if p["Close"] > p["Open"] and c["Close"] < c["Open"] and c["Close"] < p["Open"]:
+        return "Bearish Engulfing — vahva myyntikuvio", -18
+
+    return "Ei vahvaa kynttiläkuviota", 0
+
+
+def tee_ennuste(df):
+    if len(df) < 60:
+        return "ODOTA", 50, 0, "Dataa on liian vähän.", []
 
     last = df.iloc[-1]
     prev = df.iloc[-2]
@@ -217,80 +192,92 @@ def tee_ai_ennuste(df: pd.DataFrame):
     score = 0
     details = []
 
-    # Trendisuunta
     if last["EMA9"] > last["EMA21"] > last["EMA50"]:
-        score += 30
-        details.append("EMA-trendi on nouseva.")
+        score += 32
+        details.append("EMA9 > EMA21 > EMA50: nousutrendi vahva.")
     elif last["EMA9"] < last["EMA21"] < last["EMA50"]:
-        score -= 30
-        details.append("EMA-trendi on laskeva.")
+        score -= 32
+        details.append("EMA9 < EMA21 < EMA50: laskutrendi vahva.")
     else:
-        details.append("EMA-trendi on epäselvä.")
+        details.append("EMA-trendi ei ole täysin selvä.")
 
-    # EMA-risteys
     if prev["EMA9"] <= prev["EMA21"] and last["EMA9"] > last["EMA21"]:
-        score += 25
-        details.append("Nopea EMA ylitti hitaan EMA:n ylöspäin.")
+        score += 24
+        details.append("EMA9 ylitti EMA21:n ylöspäin.")
     elif prev["EMA9"] >= prev["EMA21"] and last["EMA9"] < last["EMA21"]:
-        score -= 25
-        details.append("Nopea EMA alitti hitaan EMA:n alaspäin.")
+        score -= 24
+        details.append("EMA9 alitti EMA21:n alaspäin.")
 
-    # RSI
     if last["RSI"] < 30:
-        score += 18
-        details.append("RSI kertoo ylimyydystä tilanteesta.")
+        score += 15
+        details.append("RSI alle 30: ylimyyty, nousukäännös mahdollinen.")
     elif last["RSI"] > 70:
-        score -= 18
-        details.append("RSI kertoo yliostetusta tilanteesta.")
+        score -= 15
+        details.append("RSI yli 70: yliostettu, laskukäännös mahdollinen.")
     elif 45 <= last["RSI"] <= 60:
         score += 5
-        details.append("RSI on terveellä alueella.")
+        details.append("RSI terveellä alueella.")
 
-    # Momentum
-    if last["MOMENTUM"] > 0.35:
-        score += 15
-        details.append("Momentum on vahvasti positiivinen.")
-    elif last["MOMENTUM"] < -0.35:
-        score -= 15
-        details.append("Momentum on vahvasti negatiivinen.")
+    if last["MOMENTUM"] > 0.25:
+        score += 16
+        details.append("Momentum positiivinen.")
+    elif last["MOMENTUM"] < -0.25:
+        score -= 16
+        details.append("Momentum negatiivinen.")
     else:
-        details.append("Momentum on rauhallinen.")
+        details.append("Momentum vielä rauhallinen.")
 
-    # Bollinger
     if last["Close"] < last["BB_LOWER"]:
         score += 10
-        details.append("Hinta on Bollinger-alarajan lähellä.")
+        details.append("Hinta Bollinger-alarajan lähellä.")
     elif last["Close"] > last["BB_UPPER"]:
         score -= 10
-        details.append("Hinta on Bollinger-ylärajan lähellä.")
+        details.append("Hinta Bollinger-ylärajan lähellä.")
+
+    kuvio, kuvio_score = tunnista_kynttilakuvio(df)
+    score += kuvio_score
+    details.append("Kynttiläkuvio: " + kuvio)
 
     score = max(-100, min(100, score))
-    confidence = min(95, max(50, 50 + abs(score) * 0.45))
+    confidence = int(min(95, max(45, 50 + abs(score) * 0.47)))
 
-    if score >= 35:
+    if score >= 25:
         signal = "OSTA"
-        reason = "Nousupaine on teknisesti vahvempi kuin laskupaine."
-    elif score <= -35:
+        reason = "Nousupaine on nyt vahvempi kuin laskupaine."
+    elif score <= -25:
         signal = "MYY"
-        reason = "Laskupaine on teknisesti vahvempi kuin nousupaine."
+        reason = "Laskupaine on nyt vahvempi kuin nousupaine."
     else:
         signal = "ODOTA"
-        reason = "Markkina ei anna vielä tarpeeksi selvää signaalia."
+        reason = "Signaali ei ole vielä tarpeeksi selvä."
 
-    return {
-        "signal": signal,
-        "confidence": round(confidence),
-        "score": round(score),
-        "reason": reason,
-        "details": details
-    }
+    return signal, confidence, int(score), reason, details
 
 
-# ============================================================
-# KAAVIO
-# ============================================================
+def nayta_signaalipalkki(signal, confidence):
+    vahvuus = int(confidence)
 
-def piirra_kaavio(df: pd.DataFrame, nimi: str):
+    if signal == "OSTA":
+        bg = f"linear-gradient(90deg, #bbf7d0 0%, #22c55e {vahvuus}%, #052e16 100%)"
+        text = "🟢 OSTA"
+        color = "white"
+    elif signal == "MYY":
+        bg = f"linear-gradient(90deg, #fecaca 0%, #ef4444 {vahvuus}%, #450a0a 100%)"
+        text = "🔴 MYY"
+        color = "white"
+    else:
+        bg = "linear-gradient(90deg, #fef3c7 0%, #eab308 55%, #713f12 100%)"
+        text = "🟡 ODOTA"
+        color = "black"
+
+    st.markdown(f"""
+    <div class="signal-box" style="background:{bg}; color:{color};">
+        {text} — {vahvuus} %
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def piirra_kaavio(df, nimi):
     fig = go.Figure()
 
     fig.add_trace(go.Candlestick(
@@ -304,59 +291,25 @@ def piirra_kaavio(df: pd.DataFrame, nimi: str):
         decreasing_line_color="#ef4444",
     ))
 
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["EMA9"],
-        mode="lines",
-        name="EMA 9",
-        line=dict(width=1.5)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["EMA21"],
-        mode="lines",
-        name="EMA 21",
-        line=dict(width=1.5)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["EMA50"],
-        mode="lines",
-        name="EMA 50",
-        line=dict(width=1.5)
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["BB_UPPER"],
-        mode="lines",
-        name="Bollinger ylä",
-        line=dict(width=1, dash="dot")
-    ))
-
-    fig.add_trace(go.Scatter(
-        x=df.index,
-        y=df["BB_LOWER"],
-        mode="lines",
-        name="Bollinger ala",
-        line=dict(width=1, dash="dot")
-    ))
+    fig.add_trace(go.Scatter(x=df.index, y=df["EMA9"], mode="lines", name="EMA 9", line=dict(width=1.4)))
+    fig.add_trace(go.Scatter(x=df.index, y=df["EMA21"], mode="lines", name="EMA 21", line=dict(width=1.4)))
+    fig.add_trace(go.Scatter(x=df.index, y=df["EMA50"], mode="lines", name="EMA 50", line=dict(width=1.4)))
+    fig.add_trace(go.Scatter(x=df.index, y=df["BB_UPPER"], mode="lines", name="Bollinger ylä", line=dict(width=1, dash="dot")))
+    fig.add_trace(go.Scatter(x=df.index, y=df["BB_LOWER"], mode="lines", name="Bollinger ala", line=dict(width=1, dash="dot")))
 
     fig.update_layout(
-        title=f"{nimi} — reaaliaikainen kynttiläkaavio",
-        height=700,
+        title=f"{nimi} — kynttiläkaavio",
+        height=460,
         template="plotly_dark",
         xaxis_rangeslider_visible=False,
-        margin=dict(l=20, r=20, t=60, b=20),
-        legend=dict(orientation="h", y=1.02, x=0),
+        margin=dict(l=10, r=10, t=45, b=10),
+        legend=dict(orientation="h", y=1.08, x=0),
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 
-def piirra_rsi(df: pd.DataFrame):
+def piirra_rsi(df):
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(
@@ -371,214 +324,108 @@ def piirra_rsi(df: pd.DataFrame):
     fig.add_hline(y=50, line_dash="dot")
 
     fig.update_layout(
-        title="RSI — yliostettu / ylimyyty",
-        height=260,
+        title="RSI",
+        height=220,
         template="plotly_dark",
-        margin=dict(l=20, r=20, t=50, b=20),
+        margin=dict(l=10, r=10, t=40, b=10),
     )
 
     st.plotly_chart(fig, use_container_width=True)
 
 
-# ============================================================
-# KÄYTTÖLIITTYMÄ
-# ============================================================
-
-st.markdown('<div class="big-title">📈 AI Trading Pro — Ammattimainen treidausavustaja</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="subtitle">Nopea kurssikaavio, tekninen analyysi, AI-signaali ja selkokielinen opastus. Ei automaattitreidausta.</div>',
-    unsafe_allow_html=True
-)
+st.title("📈 AI Trading Pro")
+st.caption("Nopeampi live-päivitys, pienempi kaavio, AI-signaali ja kynttiläkuvioiden tunnistus.")
 
 st.sidebar.title("⚙️ Asetukset")
 
-valittu_nimi = st.sidebar.selectbox(
-    "Valitse kohde",
-    list(SYMBOLIT.keys()),
-    index=0
-)
-
+valittu_nimi = st.sidebar.selectbox("Kohde", list(SYMBOLIT.keys()), index=0)
 symboli = SYMBOLIT[valittu_nimi]
 
-periodi_nimi = st.sidebar.selectbox(
-    "Valitse historia",
-    list(PERIODIT.keys()),
-    index=1
-)
+periodi_nimi = st.sidebar.selectbox("Historia", list(PERIODIT.keys()), index=0)
+interval_nimi = st.sidebar.selectbox("Kynttiläväli", list(AIKAVALIT.keys()), index=0)
 
-interval_nimi = st.sidebar.selectbox(
-    "Valitse kynttiläväli",
-    list(AIKAVALIT.keys()),
-    index=1
+refresh_seconds = st.sidebar.selectbox(
+    "Live-päivitys",
+    [5, 10, 15, 30, 60],
+    index=0
 )
 
 periodi = PERIODIT[periodi_nimi]
 interval = AIKAVALIT[interval_nimi]
 
-st.sidebar.divider()
+st_autorefresh(
+    interval=refresh_seconds * 1000,
+    key="live_refresh"
+)
 
-paivita = st.sidebar.button("🔄 Päivitä nyt")
-
-st.sidebar.markdown("""
-### Vinkki
-Nopeimmat näkymät:
-
-- Bitcoin: 1m / 5m
-- EUR/USD: 5m / 15m
-- Osakkeet: 15m / 1h
-
-Jos data ei näy, vaihda aikaväli pidemmäksi.
-""")
-
-if paivita:
+if st.sidebar.button("🔄 Päivitä / tyhjennä välimuisti"):
     st.cache_data.clear()
+    st.rerun()
 
-
-# ============================================================
-# DATA
-# ============================================================
+st.sidebar.info(
+    "YFinance tukee käytännössä nopeimmillaan 1 minuutin kynttilöitä. "
+    "Sivu voidaan silti päivittää 5 sekunnin välein."
+)
 
 with st.spinner("Haetaan markkinadataa..."):
     raw_df = hae_data(symboli, periodi, interval)
 
 if raw_df.empty:
-    st.error("Dataa ei saatu haettua. Kokeile toista kohdetta, pidempää historiaa tai hitaampaa aikaväliä.")
+    st.error("Dataa ei saatu. Kokeile 5 päivää + 5 minuuttia tai muuta kohdetta.")
     st.stop()
 
-df = laske_indikaattorit(raw_df)
+df = lisaa_indikaattorit(raw_df)
 
 if df.empty or len(df) < 60:
-    st.warning("Dataa on liian vähän indikaattoreihin. Vaihda pidempi historia tai hitaampi kynttiläväli.")
+    st.warning("Dataa on liian vähän. Vaihda historiaksi 5 päivää tai kynttiläväliksi 5 minuuttia.")
     st.stop()
 
-ennuste = tee_ai_ennuste(df)
+signal, confidence, score, reason, details = tee_ennuste(df)
 
 last = df.iloc[-1]
-previous = df.iloc[-2]
-price = last["Close"]
-change = ((last["Close"] - previous["Close"]) / previous["Close"]) * 100
+prev = df.iloc[-2]
+change = ((last["Close"] - prev["Close"]) / prev["Close"]) * 100
 
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Kohde", valittu_nimi)
+c2.metric("Hinta", f"{last['Close']:,.4f}")
+c3.metric("Viime muutos", f"{change:.2f} %")
+c4.metric("AI-pisteet", f"{score} / 100")
 
-# ============================================================
-# YLÄMITTARIT
-# ============================================================
+nayta_signaalipalkki(signal, confidence)
 
-col1, col2, col3, col4 = st.columns(4)
+left, right = st.columns([1.4, 1])
 
-col1.metric("Kohde", valittu_nimi)
-col2.metric("Viimeisin hinta", f"{price:,.4f}")
-col3.metric("Muutos", f"{change:.2f} %")
-col4.metric("AI-varmuus", f"{ennuste['confidence']} %")
+with left:
+    piirra_kaavio(df, valittu_nimi)
 
-
-# ============================================================
-# SIGNAALI
-# ============================================================
-
-st.divider()
-
-if ennuste["signal"] == "OSTA":
-    st.markdown(
-        f'<div class="signal-buy">🟢 AI-SIGNAALI: OSTA / NOUSUVAHVA — {ennuste["confidence"]} %</div>',
-        unsafe_allow_html=True
-    )
-elif ennuste["signal"] == "MYY":
-    st.markdown(
-        f'<div class="signal-sell">🔴 AI-SIGNAALI: MYY / LASKUVAHVA — {ennuste["confidence"]} %</div>',
-        unsafe_allow_html=True
-    )
-else:
-    st.markdown(
-        f'<div class="signal-wait">🟡 AI-SIGNAALI: ODOTA — {ennuste["confidence"]} %</div>',
-        unsafe_allow_html=True
-    )
-
-st.markdown("")
-
-a, b = st.columns([2, 1])
-
-with a:
+with right:
     st.markdown('<div class="info-card">', unsafe_allow_html=True)
-    st.subheader("🧠 AI-analyysi")
-    st.write(ennuste["reason"])
-    st.write(f"Tekninen pistemäärä: **{ennuste['score']} / 100**")
-
-    for kohta in ennuste["details"]:
-        st.write("• " + kohta)
-
-    st.markdown('</div>', unsafe_allow_html=True)
-
-with b:
-    st.markdown('<div class="info-card">', unsafe_allow_html=True)
-    st.subheader("📌 Tärkeät arvot")
+    st.subheader("🧠 Ennuste")
+    st.write(f"**{reason}**")
+    st.write(f"Varmuus: **{confidence} %**")
     st.write(f"RSI: **{last['RSI']:.1f}**")
-    st.write(f"EMA 9: **{last['EMA9']:.4f}**")
-    st.write(f"EMA 21: **{last['EMA21']:.4f}**")
-    st.write(f"EMA 50: **{last['EMA50']:.4f}**")
     st.write(f"Momentum: **{last['MOMENTUM']:.2f} %**")
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.write(f"Volatiliteetti: **{last['VOLATILITY']:.2f} %**")
+    st.markdown("</div>", unsafe_allow_html=True)
 
+    st.markdown("### Selitys")
+    for d in details:
+        st.write("• " + d)
 
-# ============================================================
-# KAAVIOT
-# ============================================================
-
-st.divider()
-
-piirra_kaavio(df, valittu_nimi)
 piirra_rsi(df)
 
-
-# ============================================================
-# OPETUS
-# ============================================================
-
 st.divider()
 
-st.subheader("🎓 Mitä botti katsoo?")
-
-op1, op2, op3 = st.columns(3)
-
-with op1:
-    st.markdown("""
-    ### EMA-trendi
-    Jos EMA 9 on EMA 21:n ja EMA 50:n yläpuolella, lyhyt trendi on vahva.
-
-    **Hyvä ostolle:**  
-    EMA9 > EMA21 > EMA50
-    """)
-
-with op2:
-    st.markdown("""
-    ### RSI
-    RSI kertoo onko markkina yliostettu tai ylimyyty.
-
-    - Alle 30 = ylimyyty
-    - Yli 70 = yliostettu
-    - 45–60 = usein terve alue
-    """)
-
-with op3:
-    st.markdown("""
-    ### Momentum
-    Momentum kertoo onko liike vahvistumassa.
-
-    Jos momentum on positiivinen ja EMA tukee sitä, noususignaali vahvistuu.
-    """)
-
-
-# ============================================================
-# RISKIHUOMAUTUS
-# ============================================================
-
-st.divider()
+st.subheader("🎓 Botti seuraa näitä")
+st.write(
+    "EMA-trendiä, EMA-risteyksiä, RSI:tä, momentumia, Bollinger-rajoja ja kynttiläkuvioita "
+    "kuten Doji, Hammer, Shooting Star, Bullish Engulfing ja Bearish Engulfing."
+)
 
 st.warning(
-    "Tämä ohjelma on treidausavustaja ja opetustyökalu. Se ei ole sijoitusneuvo eikä takaa voittoa. "
-    "Älä koskaan sijoita rahaa, jota et voi menettää."
+    "Tämä on opetukseen ja päätöksenteon tueksi tehty avustaja. "
+    "Se ei ole sijoitusneuvo eikä takaa voittoa."
 )
 
-st.markdown(
-    f'<div class="small-text">Päivitetty: {datetime.now().strftime("%d.%m.%Y %H:%M:%S")}</div>',
-    unsafe_allow_html=True
-)
+st.caption(f"Päivitetty: {datetime.now().strftime('%d.%m.%Y %H:%M:%S')}")
