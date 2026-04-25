@@ -9,7 +9,7 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="AI Trading Pro v21",
+    page_title="AI Trading Pro v21.1",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -60,6 +60,7 @@ def init_state():
         "stable_x_range": None,
         "last_signal": "ODOTA",
         "last_score": 0,
+        "last_data_error": "",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -92,6 +93,7 @@ if st.sidebar.button("🔄 Resetoi näkymä ja data"):
     st.session_state.stable_x_range = None
     st.session_state.last_signal = "ODOTA"
     st.session_state.last_score = 0
+    st.session_state.last_data_error = ""
     st.rerun()
 
 
@@ -103,45 +105,118 @@ if st.session_state.chart_key != current_key:
     st.session_state.stable_x_range = None
     st.session_state.last_signal = "ODOTA"
     st.session_state.last_score = 0
+    st.session_state.last_data_error = ""
 
 
 @st.cache_data(ttl=2, show_spinner=False)
 def get_klines(symbol_code, interval_code, limit_count):
-    url = "https://api.binance.com/api/v3/klines"
-    params = {"symbol": symbol_code, "interval": interval_code, "limit": limit_count}
-    r = requests.get(url, params=params, timeout=7, headers={"User-Agent": "Mozilla/5.0"})
-    r.raise_for_status()
-    raw = r.json()
+    base_urls = [
+        "https://data-api.binance.vision",
+        "https://api.binance.com",
+        "https://api1.binance.com",
+        "https://api2.binance.com",
+        "https://api3.binance.com",
+        "https://api4.binance.com",
+    ]
 
+    last_error = ""
+
+    for base_url in base_urls:
+        try:
+            url = f"{base_url}/api/v3/klines"
+            params = {
+                "symbol": symbol_code,
+                "interval": interval_code,
+                "limit": int(limit_count),
+            }
+
+            r = requests.get(
+                url,
+                params=params,
+                timeout=10,
+                headers={
+                    "User-Agent": "Mozilla/5.0",
+                    "Accept": "application/json",
+                },
+            )
+
+            if r.status_code != 200:
+                last_error = f"{base_url} vastasi {r.status_code}: {r.text[:180]}"
+                continue
+
+            raw = r.json()
+
+            if not isinstance(raw, list) or len(raw) == 0:
+                last_error = f"{base_url} palautti tyhjän datan"
+                continue
+
+            rows = []
+            for k in raw:
+                rows.append({
+                    "Date": pd.to_datetime(k[0], unit="ms", utc=True),
+                    "Open": float(k[1]),
+                    "High": float(k[2]),
+                    "Low": float(k[3]),
+                    "Close": float(k[4]),
+                    "Volume": float(k[5]),
+                })
+
+            df = pd.DataFrame(rows).set_index("Date")
+            return df
+
+        except Exception as e:
+            last_error = f"{base_url}: {str(e)}"
+            continue
+
+    raise RuntimeError(f"Binance-dataa ei saatu. Viimeisin virhe: {last_error}")
+
+
+def make_demo_data(limit_count, base_price):
+    now = pd.Timestamp.utcnow().floor("min")
+    idx = pd.date_range(end=now, periods=limit_count, freq="min")
+    price = float(base_price)
     rows = []
-    for k in raw:
-        rows.append({
-            "Date": pd.to_datetime(k[0], unit="ms", utc=True),
-            "Open": float(k[1]),
-            "High": float(k[2]),
-            "Low": float(k[3]),
-            "Close": float(k[4]),
-            "Volume": float(k[5]),
-        })
 
-    return pd.DataFrame(rows).set_index("Date")
+    for _ in idx:
+        o = price
+        price = price * (1 + np.random.normal(0, 0.0012))
+        c = price
+        h = max(o, c) * (1 + abs(np.random.normal(0, 0.0008)))
+        l = min(o, c) * (1 - abs(np.random.normal(0, 0.0008)))
+        v = abs(np.random.normal(100, 25))
+        rows.append([o, h, l, c, v])
+
+    return pd.DataFrame(rows, index=idx, columns=["Open", "High", "Low", "Close", "Volume"])
 
 
 def load_or_update_chart_data():
-    if st.session_state.chart_df is None:
-        st.session_state.chart_df = get_klines(symbol, entry_tf, max(candle_limit + 150, 240))
+    try:
+        if st.session_state.chart_df is None:
+            st.session_state.chart_df = get_klines(symbol, entry_tf, max(candle_limit + 150, 240))
+            st.session_state.last_data_error = ""
+            return "Binance live OHLC"
+
+        latest = get_klines(symbol, entry_tf, 5)
+        old = st.session_state.chart_df.copy()
+
+        combined = pd.concat([old, latest])
+        combined = combined[~combined.index.duplicated(keep="last")]
+        combined = combined.sort_index()
+        combined = combined.tail(max(candle_limit + 150, 240))
+
+        st.session_state.chart_df = combined
+        st.session_state.last_data_error = ""
         return "Binance live OHLC"
 
-    latest = get_klines(symbol, entry_tf, 5)
-    old = st.session_state.chart_df.copy()
+    except Exception as e:
+        st.session_state.last_data_error = str(e)
 
-    combined = pd.concat([old, latest])
-    combined = combined[~combined.index.duplicated(keep="last")]
-    combined = combined.sort_index()
-    combined = combined.tail(max(candle_limit + 150, 240))
+        if st.session_state.chart_df is None or len(st.session_state.chart_df) < 50:
+            base = 78000 if "BTC" in symbol else 3500
+            st.session_state.chart_df = make_demo_data(max(candle_limit + 150, 240), base)
+            return "Demo-varadata"
 
-    st.session_state.chart_df = combined
-    return "Binance live OHLC"
+        return "Vanha data käytössä"
 
 
 def rsi(close, period=14):
@@ -194,11 +269,15 @@ def trend_of(df):
 @st.cache_data(ttl=20, show_spinner=False)
 def higher_timeframe_bias_cached(symbol_code):
     details = {}
+
     for tf in ["15m", "1h", "4h"]:
-        raw = get_klines(symbol_code, tf, 160)
-        df = add_indicators(raw)
-        closed = df.iloc[:-1].copy() if len(df) > 30 else df.copy()
-        details[tf] = trend_of(closed)
+        try:
+            raw = get_klines(symbol_code, tf, 160)
+            df = add_indicators(raw)
+            closed = df.iloc[:-1].copy() if len(df) > 30 else df.copy()
+            details[tf] = trend_of(closed)
+        except Exception:
+            details[tf] = "?"
 
     bull = sum(1 for v in details.values() if v == "NOUSU")
     bear = sum(1 for v in details.values() if v == "LASKU")
@@ -290,17 +369,14 @@ def apply_signal_hysteresis(raw_level, score):
     last = st.session_state.last_signal
     last_score = st.session_state.last_score
 
-    # Estää ODOTA ↔ TARKKAILU jatkuvaa välkkymistä.
     if raw_level == "ODOTA" and last != "ODOTA" and abs(score) >= 12:
         return last
 
-    # Estää suunnan vaihtumisen liian helposti.
     if "OSTA" in last and "MYY" in raw_level and score > -28:
         return last
     if "MYY" in last and "OSTA" in raw_level and score < 28:
         return last
 
-    # Estää pienen score-heilunnan aiheuttaman tason vaihdon.
     if abs(score - last_score) < 6 and last != "ODOTA":
         return last
 
@@ -392,7 +468,7 @@ def ai_engine(df_closed, live_price, big_bias, details):
         notes.append("Osto isoa laskutrendiä vastaan: varmuutta leikataan.")
 
     score = int(max(-100, min(100, score)))
-    raw_level, raw_direction = raw_signal_from_score(score)
+    raw_level, _ = raw_signal_from_score(score)
     level = apply_signal_hysteresis(raw_level, score)
 
     if "OSTA" in level:
@@ -476,11 +552,9 @@ def update_ranges_if_needed(d):
     low, high = st.session_state.stable_y_range
     height = high - low
 
-    # Y-akselia päivitetään vain jos hinta oikeasti karkaa näkyvästä alueesta.
     if live_price > high - height * 0.06 or live_price < low + height * 0.06:
         initialize_ranges(d)
 
-    # X-akseli siirtyy vain kun oikeasti tulee uusi kynttilä.
     st.session_state.stable_x_range = [d.index[0], d.index[-1]]
 
 
@@ -529,7 +603,7 @@ def draw_chart(df_live, ai):
     fig.add_hline(y=ai["price"], line_dash="dash", line_color="#facc15", annotation_text="NYKYHINTA")
 
     fig.update_layout(
-        title=f"{selected_name} — V21 VAKAA LIVE",
+        title=f"{selected_name} — V21.1 VAKAA LIVE",
         height=430,
         template="plotly_dark",
         paper_bgcolor="#070d1c",
@@ -539,7 +613,7 @@ def draw_chart(df_live, ai):
         legend=dict(orientation="h", y=1.04, x=0),
         dragmode="drawline" if st.session_state.drawing_tools else "pan",
         newshape=dict(line_color="#facc15", line_width=2),
-        uirevision="v21_constant",
+        uirevision="v21_1_constant",
         xaxis=dict(range=st.session_state.stable_x_range, autorange=False),
         yaxis=dict(range=st.session_state.stable_y_range, autorange=False),
     )
@@ -557,26 +631,17 @@ def draw_chart(df_live, ai):
 
 
 def render_app():
-    try:
-        source = load_or_update_chart_data()
-    except Exception as e:
-        st.error(f"Datahaku epäonnistui: {e}")
-        return
+    source = load_or_update_chart_data()
 
     df_live = add_indicators(st.session_state.chart_df)
 
-    # AI käyttää sulkeutuneita kynttilöitä; kaavio näyttää myös elävän viimeisen kynttilän.
     df_closed = df_live.iloc[:-1].copy() if len(df_live) > 30 else df_live.copy()
     live_price = float(df_live["Close"].iloc[-1])
 
-    try:
-        big_bias, details = higher_timeframe_bias_cached(symbol)
-    except Exception:
-        big_bias, details = "EPÄSELVÄ", {"15m": "?", "1h": "?", "4h": "?"}
-
+    big_bias, details = higher_timeframe_bias_cached(symbol)
     ai = ai_engine(df_closed, live_price, big_bias, details)
 
-    st.title("📈 AI Trading Pro v21")
+    st.title("📈 AI Trading Pro v21.1")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Kohde", selected_name)
@@ -585,6 +650,9 @@ def render_app():
     c4.metric("Trend", ai["big_bias"])
 
     st.caption(f"{source} | TF: {entry_tf} | Päivitetty: {datetime.now().strftime('%H:%M:%S')} | Live {refresh_seconds}s")
+
+    if st.session_state.last_data_error:
+        st.warning("Binance-haku ei juuri nyt onnistunut kaikista osoitteista. Ohjelma käyttää vanhaa dataa tai demo-varadataa.")
 
     signal_box(ai)
     draw_chart(df_live, ai)
