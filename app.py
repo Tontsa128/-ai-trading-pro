@@ -9,7 +9,7 @@ import streamlit as st
 
 
 st.set_page_config(
-    page_title="AI Trading Pro v19",
+    page_title="AI Trading Pro v20",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="collapsed",
@@ -35,7 +35,6 @@ h1 {font-size:1.05rem!important;margin-bottom:0.1rem;}
 .presell{background:linear-gradient(90deg,#fecaca,#ef4444);color:#450a0a;}
 .watchsell{background:linear-gradient(90deg,#fee2e2,#fca5a5);color:#450a0a;}
 .wait{background:linear-gradient(90deg,#facc15,#ca8a04);color:#111827;}
-.no{background:linear-gradient(90deg,#64748b,#94a3b8);color:#020617;}
 .card{
     background:#111936;
     border:1px solid #26345e;
@@ -69,6 +68,8 @@ def init_state():
         "show_bollinger": False,
         "drawing_tools": False,
         "live_on": True,
+        "stable_y_range": None,
+        "last_chart_key": "",
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -94,6 +95,11 @@ st.session_state.show_levels = st.sidebar.checkbox("Support / Resistance", value
 st.session_state.show_bollinger = st.sidebar.checkbox("Bollinger", value=st.session_state.show_bollinger)
 st.session_state.drawing_tools = st.sidebar.toggle("Piirtoviivat päälle", value=st.session_state.drawing_tools)
 st.session_state.live_on = st.sidebar.toggle("Live päällä", value=st.session_state.live_on)
+
+chart_key = f"{symbol}_{entry_tf}_{candle_limit}"
+if st.session_state.last_chart_key != chart_key:
+    st.session_state.stable_y_range = None
+    st.session_state.last_chart_key = chart_key
 
 
 @st.cache_data(ttl=2, show_spinner=False)
@@ -186,7 +192,6 @@ def add_indicators(df):
 def trend_of(df):
     last = df.iloc[-1]
     price = float(last.Close)
-
     if price > last.EMA50 and last.EMA50 > last.EMA100:
         return "NOUSU"
     if price < last.EMA50 and last.EMA50 < last.EMA100:
@@ -199,7 +204,8 @@ def higher_timeframe_bias(symbol_code):
     for tf in ["15m", "1h", "4h"]:
         raw, _ = load_data(symbol_code, tf, 160)
         df = add_indicators(raw)
-        details[tf] = trend_of(df)
+        closed = df.iloc[:-1].copy() if len(df) > 10 else df
+        details[tf] = trend_of(closed)
 
     bull = sum(1 for v in details.values() if v == "NOUSU")
     bear = sum(1 for v in details.values() if v == "LASKU")
@@ -223,15 +229,15 @@ def is_range_market(df):
     price = float(df.Close.iloc[-1])
     range_pct = (recent.High.max() - recent.Low.min()) / price
     ema_spread = abs(df.EMA50.iloc[-1] - df.EMA100.iloc[-1]) / price
-
-    if range_pct < 0.0045 and ema_spread < 0.0022:
-        return True
-    return False
+    return range_pct < 0.0045 and ema_spread < 0.0022
 
 
 def candle_score(df):
     score = 0
     notes = []
+
+    if len(df) < 5:
+        return score, ["Kynttilöitä liian vähän."]
 
     c = df.iloc[-1]
     p = df.iloc[-2]
@@ -271,15 +277,15 @@ def candle_score(df):
     return score, notes
 
 
-def ai_engine(df, big_bias, details):
-    last = df.iloc[-1]
-    prev = df.iloc[-2]
+def ai_engine(df_closed, live_price, big_bias, details):
+    last = df_closed.iloc[-1]
+    prev = df_closed.iloc[-2]
 
-    price = float(last.Close)
+    price = float(live_price)
     score = 0
     notes = []
 
-    range_market = is_range_market(df)
+    range_market = is_range_market(df_closed)
 
     if big_bias == "NOUSU":
         score += 12
@@ -311,7 +317,7 @@ def ai_engine(df, big_bias, details):
         score -= 8
         notes.append("EMA9 < EMA21: lyhyt myyntipaine.")
 
-    support, resistance = support_resistance(df)
+    support, resistance = support_resistance(df_closed)
 
     if price > resistance * 0.998:
         score += 10
@@ -336,7 +342,7 @@ def ai_engine(df, big_bias, details):
         score -= 8
         notes.append("MACD myyvä.")
 
-    c_score, c_notes = candle_score(df)
+    c_score, c_notes = candle_score(df_closed)
     score += c_score
     notes.extend(c_notes)
 
@@ -356,7 +362,7 @@ def ai_engine(df, big_bias, details):
         notes.append("Osto isoa laskutrendiä vastaan: varmuutta leikataan.")
 
     score = int(max(-100, min(100, score)))
-    confidence = int(min(92, max(45, 50 + abs(score) * 0.5)))
+    confidence = int(min(88, max(45, 50 + abs(score) * 0.42)))
 
     if score >= 50:
         level = "VAHVA OSTA"
@@ -433,8 +439,39 @@ def signal_box(ai):
     )
 
 
-def draw_chart(df, ai):
-    d = df.tail(candle_limit)
+def get_stable_y_range(d, live_price):
+    y_low = float(d["Low"].min())
+    y_high = float(d["High"].max())
+    pad = max((y_high - y_low) * 0.16, live_price * 0.0015)
+    wanted = [y_low - pad, y_high + pad]
+
+    current = st.session_state.stable_y_range
+
+    if current is None:
+        st.session_state.stable_y_range = wanted
+        return wanted
+
+    low, high = current
+    height = high - low
+
+    near_top = live_price > high - height * 0.12
+    near_bottom = live_price < low + height * 0.12
+    outside = live_price > high or live_price < low
+
+    if outside or near_top or near_bottom:
+        st.session_state.stable_y_range = wanted
+        return wanted
+
+    return current
+
+
+def draw_chart(df_live, ai):
+    d = df_live.tail(candle_limit).copy()
+    live_price = ai["price"]
+
+    y_range = get_stable_y_range(d, live_price)
+    x_range = [d.index[0], d.index[-1]]
+
     fig = go.Figure()
 
     fig.add_trace(go.Candlestick(
@@ -466,17 +503,21 @@ def draw_chart(df, ai):
         fig.add_trace(go.Scatter(x=d.index, y=d.BB_LOWER, mode="lines", name="BB ala", line=dict(width=1, color="#94a3b8")))
 
     if st.session_state.show_levels:
-        fig.add_hline(y=ai["support"], line_dash="dot", line_color="#22c55e", annotation_text="SUPPORT")
-        fig.add_hline(y=ai["resistance"], line_dash="dot", line_color="#ef4444", annotation_text="RESISTANCE")
+        if y_range[0] <= ai["support"] <= y_range[1]:
+            fig.add_hline(y=ai["support"], line_dash="dot", line_color="#22c55e", annotation_text="SUPPORT")
+        if y_range[0] <= ai["resistance"] <= y_range[1]:
+            fig.add_hline(y=ai["resistance"], line_dash="dot", line_color="#ef4444", annotation_text="RESISTANCE")
 
     fig.add_hline(y=ai["price"], line_dash="dash", line_color="#facc15", annotation_text="NYKYHINTA")
 
     if ai["direction"] != "ODOTA":
-        fig.add_hline(y=ai["stop"], line_dash="dash", line_color="#ef4444", annotation_text="STOP")
-        fig.add_hline(y=ai["target"], line_dash="dash", line_color="#22c55e", annotation_text="TARGET")
+        if ai["stop"] is not None and y_range[0] <= ai["stop"] <= y_range[1]:
+            fig.add_hline(y=ai["stop"], line_dash="dash", line_color="#ef4444", annotation_text="STOP")
+        if ai["target"] is not None and y_range[0] <= ai["target"] <= y_range[1]:
+            fig.add_hline(y=ai["target"], line_dash="dash", line_color="#22c55e", annotation_text="TARGET")
 
     fig.update_layout(
-        title=f"{selected_name} — SELKEÄ KYNTTILÄKAAVIO",
+        title=f"{selected_name} — V20 VAKAA LIVE-KYNTTILÄKAAVIO",
         height=430,
         template="plotly_dark",
         paper_bgcolor="#070d1c",
@@ -486,6 +527,9 @@ def draw_chart(df, ai):
         legend=dict(orientation="h", y=1.04, x=0),
         dragmode="drawline" if st.session_state.drawing_tools else "pan",
         newshape=dict(line_color="#facc15", line_width=2),
+        uirevision="stable_v20",
+        xaxis=dict(range=x_range, autorange=False),
+        yaxis=dict(range=y_range, autorange=False),
     )
 
     config = {
@@ -501,13 +545,17 @@ def draw_chart(df, ai):
 
 
 def render_app():
-    raw, source = load_data(symbol, entry_tf, max(candle_limit + 120, 220))
-    df = add_indicators(raw)
+    raw, source = load_data(symbol, entry_tf, max(candle_limit + 140, 240))
+    df_live = add_indicators(raw)
+
+    # AI käyttää sulkeutuneita kynttilöitä, kaavio näyttää myös elävän viimeisen kynttilän.
+    df_closed = df_live.iloc[:-1].copy() if len(df_live) > 30 else df_live.copy()
+    live_price = float(df_live["Close"].iloc[-1])
 
     big_bias, details = higher_timeframe_bias(symbol)
-    ai = ai_engine(df, big_bias, details)
+    ai = ai_engine(df_closed, live_price, big_bias, details)
 
-    st.title("📈 AI Trading Pro v19")
+    st.title("📈 AI Trading Pro v20")
 
     c1, c2, c3, c4 = st.columns(4)
     c1.metric("Kohde", selected_name)
@@ -520,7 +568,7 @@ def render_app():
     )
 
     signal_box(ai)
-    draw_chart(df, ai)
+    draw_chart(df_live, ai)
 
     left, right = st.columns([1, 1])
 
@@ -550,8 +598,10 @@ def render_app():
 
 run_every = f"{refresh_seconds}s" if st.session_state.live_on else None
 
+
 @st.fragment(run_every=run_every)
 def live_fragment():
     render_app()
+
 
 live_fragment()
