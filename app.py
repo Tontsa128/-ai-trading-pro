@@ -9,8 +9,15 @@ from plotly.subplots import make_subplots
 import streamlit as st
 
 
+# =========================================================
+# AI TRADING PRO V24 — DESKTOP PRO
+# =========================================================
+# Opetustyökalu. Ei tee oikeita kauppoja eikä ole sijoitusneuvo.
+# =========================================================
+
+
 st.set_page_config(
-    page_title="AI Trading Pro v22 Desktop",
+    page_title="AI Trading Pro v24",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -18,25 +25,24 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-.block-container {padding-top:0.4rem;padding-left:1rem;padding-right:1rem;}
-h1 {font-size:1.5rem!important;}
+.block-container {padding-top:0.35rem;padding-left:1rem;padding-right:1rem;}
+h1 {font-size:1.55rem!important;}
 .signal{
     border-radius:18px;
     padding:18px;
-    font-size:30px;
+    font-size:31px;
     font-weight:900;
     text-align:center;
     margin:10px 0 14px 0;
 }
 .buy{background:linear-gradient(90deg,#15803d,#22c55e);color:white;}
-.prebuy{background:linear-gradient(90deg,#bbf7d0,#22c55e);color:#052e16;}
-.watchbuy{background:linear-gradient(90deg,#dcfce7,#86efac);color:#052e16;}
 .quickbuy{background:linear-gradient(90deg,#064e3b,#10b981);color:white;}
 .sell{background:linear-gradient(90deg,#991b1b,#ef4444);color:white;}
-.presell{background:linear-gradient(90deg,#fecaca,#ef4444);color:#450a0a;}
-.watchsell{background:linear-gradient(90deg,#fee2e2,#fca5a5);color:#450a0a;}
 .quicksell{background:linear-gradient(90deg,#7f1d1d,#dc2626);color:white;}
+.watchbuy{background:linear-gradient(90deg,#dcfce7,#86efac);color:#052e16;}
+.watchsell{background:linear-gradient(90deg,#fee2e2,#fca5a5);color:#450a0a;}
 .wait{background:linear-gradient(90deg,#facc15,#ca8a04);color:#111827;}
+.notrade{background:linear-gradient(90deg,#334155,#94a3b8);color:white;}
 .card{
     background:#111936;
     border:1px solid #26345e;
@@ -48,6 +54,7 @@ h1 {font-size:1.5rem!important;}
 .good{color:#22c55e;font-weight:900;}
 .bad{color:#ef4444;font-weight:900;}
 .warn{color:#facc15;font-weight:900;}
+.small{font-size:0.9rem;color:#cbd5e1;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -71,12 +78,14 @@ def init_state():
         "last_signal": "ODOTA",
         "last_score": 0,
         "last_data_error": "",
-        "show_ema9_21": True,
-        "show_ema50_100": True,
+        "show_ema": True,
+        "show_vwap": True,
         "show_levels": True,
         "show_bollinger": False,
         "show_macd_rsi": True,
+        "show_volume": True,
         "live_on": True,
+        "signals_memory": [],
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -86,20 +95,25 @@ def init_state():
 init_state()
 
 
-st.sidebar.title("⚙️ AI Trading Pro v22")
+# =========================================================
+# SIDEBAR
+# =========================================================
+
+st.sidebar.title("⚙️ AI Trading Pro v24")
 selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 symbol = SYMBOLS[selected_name]
 
 entry_tf = st.sidebar.radio("Entry-aikaväli", ENTRY_INTERVALS, index=0)
 refresh_seconds = st.sidebar.radio("Live-päivitys", [1, 2, 3, 5, 10], index=1)
-candle_limit = st.sidebar.slider("Kynttilöitä kaaviossa", 80, 350, 180, 10)
+candle_limit = st.sidebar.slider("Kynttilöitä kaaviossa", 100, 400, 220, 10)
 
 st.sidebar.divider()
-st.session_state.show_ema9_21 = st.sidebar.checkbox("EMA9 / EMA21", value=st.session_state.show_ema9_21)
-st.session_state.show_ema50_100 = st.sidebar.checkbox("EMA50 / EMA100", value=st.session_state.show_ema50_100)
+st.session_state.show_ema = st.sidebar.checkbox("EMA9/21/50/100", value=st.session_state.show_ema)
+st.session_state.show_vwap = st.sidebar.checkbox("VWAP", value=st.session_state.show_vwap)
 st.session_state.show_levels = st.sidebar.checkbox("Support / Resistance", value=st.session_state.show_levels)
 st.session_state.show_bollinger = st.sidebar.checkbox("Bollinger", value=st.session_state.show_bollinger)
-st.session_state.show_macd_rsi = st.sidebar.checkbox("MACD + RSI paneelit", value=st.session_state.show_macd_rsi)
+st.session_state.show_macd_rsi = st.sidebar.checkbox("MACD + RSI", value=st.session_state.show_macd_rsi)
+st.session_state.show_volume = st.sidebar.checkbox("Volyymi", value=st.session_state.show_volume)
 st.session_state.live_on = st.sidebar.toggle("Live päällä", value=st.session_state.live_on)
 
 if st.sidebar.button("🔄 Resetoi data"):
@@ -107,6 +121,10 @@ if st.sidebar.button("🔄 Resetoi data"):
     st.session_state.last_signal = "ODOTA"
     st.session_state.last_score = 0
     st.session_state.last_data_error = ""
+    st.rerun()
+
+if st.sidebar.button("🧠 Tyhjennä AI-muisti"):
+    st.session_state.signals_memory = []
     st.rerun()
 
 
@@ -118,6 +136,10 @@ if st.session_state.chart_key != current_key:
     st.session_state.last_score = 0
     st.session_state.last_data_error = ""
 
+
+# =========================================================
+# DATA
+# =========================================================
 
 @st.cache_data(ttl=1, show_spinner=False)
 def get_klines(symbol_code, interval_code, limit_count):
@@ -197,7 +219,7 @@ def make_demo_data(limit_count, base_price):
 def load_or_update_chart_data():
     try:
         if st.session_state.chart_df is None:
-            st.session_state.chart_df = get_klines(symbol, entry_tf, max(candle_limit + 180, 320))
+            st.session_state.chart_df = get_klines(symbol, entry_tf, max(candle_limit + 220, 420))
             st.session_state.last_data_error = ""
             return "Binance live OHLC"
 
@@ -205,7 +227,7 @@ def load_or_update_chart_data():
         combined = pd.concat([st.session_state.chart_df, latest])
         combined = combined[~combined.index.duplicated(keep="last")]
         combined = combined.sort_index()
-        combined = combined.tail(max(candle_limit + 180, 320))
+        combined = combined.tail(max(candle_limit + 220, 420))
 
         st.session_state.chart_df = combined
         st.session_state.last_data_error = ""
@@ -214,13 +236,17 @@ def load_or_update_chart_data():
     except Exception as e:
         st.session_state.last_data_error = str(e)
 
-        if st.session_state.chart_df is None or len(st.session_state.chart_df) < 80:
+        if st.session_state.chart_df is None or len(st.session_state.chart_df) < 100:
             base = 78000 if "BTC" in symbol else 3500
-            st.session_state.chart_df = make_demo_data(max(candle_limit + 180, 320), base)
+            st.session_state.chart_df = make_demo_data(max(candle_limit + 220, 420), base)
             return "Demo-varadata"
 
         return "Vanha data käytössä"
 
+
+# =========================================================
+# INDICATORS
+# =========================================================
 
 def rsi(close, period=14):
     delta = close.diff()
@@ -255,6 +281,12 @@ def add_indicators(df):
     df["ATR"] = df["ATR"].fillna(tr1.mean())
 
     df["VOL_MA"] = df["Volume"].rolling(20, min_periods=5).mean()
+
+    typical = (df["High"] + df["Low"] + df["Close"]) / 3
+    volume_sum = df["Volume"].replace(0, np.nan).cumsum()
+    df["VWAP"] = (typical * df["Volume"]).cumsum() / volume_sum
+    df["VWAP"] = df["VWAP"].ffill().bfill()
+
     df["SMA20"] = df["Close"].rolling(20, min_periods=5).mean()
     df["STD20"] = df["Close"].rolling(20, min_periods=5).std().fillna(0)
     df["BB_UPPER"] = df["SMA20"] + 2 * df["STD20"]
@@ -262,6 +294,10 @@ def add_indicators(df):
 
     return df
 
+
+# =========================================================
+# MARKET CONTEXT
+# =========================================================
 
 def trend_of(df):
     last = df.iloc[-1]
@@ -278,7 +314,7 @@ def trend_of(df):
 def higher_timeframe_bias_cached(symbol_code):
     details = {}
 
-    for tf in ["15m", "1h", "4h"]:
+    for tf in ["5m", "15m", "1h", "4h"]:
         try:
             raw = get_klines(symbol_code, tf, 180)
             df = add_indicators(raw)
@@ -290,6 +326,10 @@ def higher_timeframe_bias_cached(symbol_code):
     bull = sum(1 for v in details.values() if v == "NOUSU")
     bear = sum(1 for v in details.values() if v == "LASKU")
 
+    if bull >= 3:
+        return "VAHVA NOUSU", details
+    if bear >= 3:
+        return "VAHVA LASKU", details
     if bull >= 2:
         return "NOUSU", details
     if bear >= 2:
@@ -297,101 +337,247 @@ def higher_timeframe_bias_cached(symbol_code):
     return "EPÄSELVÄ", details
 
 
-def support_resistance(df, lookback=100):
+def support_resistance(df, lookback=120):
     recent = df.tail(lookback)
     support = float(recent["Low"].quantile(0.08))
     resistance = float(recent["High"].quantile(0.92))
-    return support, resistance
+    midpoint = float(recent["Close"].median())
+    return support, resistance, midpoint
+
+
+def market_structure(df, lookback=40):
+    recent = df.tail(lookback)
+    highs = recent["High"]
+    lows = recent["Low"]
+
+    last_high = highs.iloc[-1]
+    prev_high = highs.iloc[:-1].max()
+    last_low = lows.iloc[-1]
+    prev_low = lows.iloc[:-1].min()
+
+    close = recent["Close"].iloc[-1]
+    close_prev = recent["Close"].iloc[-6]
+
+    if close > close_prev and last_high >= prev_high * 0.999:
+        return "HH / nousurakenne"
+    if close < close_prev and last_low <= prev_low * 1.001:
+        return "LL / laskurakenne"
+    if close > close_prev:
+        return "nouseva korjaus"
+    if close < close_prev:
+        return "laskeva korjaus"
+    return "sivuttaisrakenne"
 
 
 def is_range_market(df):
-    recent = df.tail(35)
+    recent = df.tail(45)
     price = float(df.Close.iloc[-1])
     range_pct = (recent.High.max() - recent.Low.min()) / price
     ema_spread = abs(df.EMA50.iloc[-1] - df.EMA100.iloc[-1]) / price
     return range_pct < 0.0045 and ema_spread < 0.0022
 
 
-def candle_score(df):
-    score = 0
-    notes = []
+# =========================================================
+# PATTERNS
+# =========================================================
 
-    if len(df) < 5:
-        return score, ["Kynttilöitä liian vähän."]
+def candle_power_scale(df_live):
+    c = df_live.iloc[-1]
+    body = abs(c.Close - c.Open)
+    rng = max(c.High - c.Low, 1e-9)
+    body_ratio = body / rng
+
+    if c.Close > c.Open:
+        side = "BUYERS"
+        if body_ratio > 0.80:
+            return side, 1, "Ostajat täysin kontrollissa"
+        if body_ratio > 0.60:
+            return side, 2, "Ostajat vahvoja"
+        if body_ratio > 0.40:
+            return side, 3, "Ostajat niskan päällä"
+        if body_ratio > 0.22:
+            return side, 4, "Ostajat hieman vahvempia"
+        return side, 5, "Epäröinti, mutta vihreä"
+
+    if c.Close < c.Open:
+        side = "SELLERS"
+        if body_ratio > 0.80:
+            return side, 1, "Myyjät täysin kontrollissa"
+        if body_ratio > 0.60:
+            return side, 2, "Myyjät vahvoja"
+        if body_ratio > 0.40:
+            return side, 3, "Myyjät niskan päällä"
+        if body_ratio > 0.22:
+            return side, 4, "Myyjät hieman vahvempia"
+        return side, 5, "Epäröinti, mutta punainen"
+
+    return "NEUTRAL", 6, "Tasapaino / doji"
+
+
+def candle_patterns(df):
+    score = 0
+    found = []
+
+    if len(df) < 6:
+        return score, found
 
     c = df.iloc[-1]
     p = df.iloc[-2]
     p2 = df.iloc[-3]
 
-    body = abs(c.Close - c.Open)
-    rng = max(c.High - c.Low, 1e-9)
-    upper = c.High - max(c.Open, c.Close)
-    lower = min(c.Open, c.Close) - c.Low
+    def green(x): return x.Close > x.Open
+    def red(x): return x.Close < x.Open
+    def body(x): return abs(x.Close - x.Open)
+    def rng(x): return max(x.High - x.Low, 1e-9)
+    def upper(x): return x.High - max(x.Open, x.Close)
+    def lower(x): return min(x.Open, x.Close) - x.Low
 
-    green = c.Close > c.Open
-    red = c.Close < c.Open
-    prev_green = p.Close > p.Open
-    prev_red = p.Close < p.Open
+    if body(c) / rng(c) < 0.10:
+        found.append("Doji / epäröinti")
 
-    if body / rng < 0.12:
-        notes.append("Doji: epäröintiä.")
+    if body(c) / rng(c) < 0.18 and lower(c) > rng(c) * 0.55 and upper(c) < rng(c) * 0.20:
+        score += 10
+        found.append("Dragonfly Doji / bullish käännös")
 
-    if lower > body * 2.0 and green:
+    if body(c) / rng(c) < 0.18 and upper(c) > rng(c) * 0.55 and lower(c) < rng(c) * 0.20:
+        score -= 10
+        found.append("Gravestone Doji / bearish käännös")
+
+    if lower(c) > body(c) * 2.0 and green(c):
         score += 12
-        notes.append("Hammer: ostajat puolustivat pohjaa.")
+        found.append("Hammer / ostajat puolustivat pohjaa")
 
-    if upper > body * 2.0 and red:
+    if upper(c) > body(c) * 2.0 and red(c):
         score -= 12
-        notes.append("Shooting Star: myyjät torjuivat nousun.")
+        found.append("Shooting Star / myyjät torjuivat nousun")
 
-    if prev_red and green and c.Close > p.Open:
-        score += 16
-        notes.append("Bullish Engulfing / vahva ostokynttilä.")
+    if red(p) and green(c) and c.Close > p.Open and c.Open < p.Close:
+        score += 18
+        found.append("Bullish Engulfing")
 
-    if prev_green and red and c.Close < p.Open:
-        score -= 16
-        notes.append("Bearish Engulfing / vahva myyntikynttilä.")
+    if green(p) and red(c) and c.Close < p.Open and c.Open > p.Close:
+        score -= 18
+        found.append("Bearish Engulfing")
 
-    if p2.Close < p2.Open and p.Close < p.Open and green:
+    if red(p) and green(c) and c.Open > p.Close and c.Close < p.Open:
         score += 9
-        notes.append("Mahdollinen käännös ylös.")
+        found.append("Bullish Harami")
 
-    if p2.Close > p2.Open and p.Close > p.Open and red:
+    if green(p) and red(c) and c.Open < p.Close and c.Close > p.Open:
         score -= 9
-        notes.append("Mahdollinen käännös alas.")
+        found.append("Bearish Harami")
+
+    if green(c) and body(c) / rng(c) > 0.82:
+        score += 15
+        found.append("Bullish Marubozu / vahva ostokynttilä")
+
+    if red(c) and body(c) / rng(c) > 0.82:
+        score -= 15
+        found.append("Bearish Marubozu / vahva myyntikynttilä")
+
+    if red(p2) and body(p) / rng(p) < 0.30 and green(c) and c.Close > ((p2.Open + p2.Close) / 2):
+        score += 20
+        found.append("Morning Star / bullish reversal")
+
+    if green(p2) and body(p) / rng(p) < 0.30 and red(c) and c.Close < ((p2.Open + p2.Close) / 2):
+        score -= 20
+        found.append("Evening Star / bearish reversal")
+
+    last3 = df.tail(3)
+    if all(last3["Close"] > last3["Open"]) and last3["Close"].is_monotonic_increasing:
+        score += 18
+        found.append("Three White Soldiers / bullish continuation")
+
+    if all(last3["Close"] < last3["Open"]) and last3["Close"].is_monotonic_decreasing:
+        score -= 18
+        found.append("Three Black Crows / bearish continuation")
+
+    if abs(c.Low - p.Low) / max(c.Close, 1e-9) < 0.001 and green(c):
+        score += 8
+        found.append("Tweezer Bottom -tyyppinen tuki")
+
+    if abs(c.High - p.High) / max(c.Close, 1e-9) < 0.001 and red(c):
+        score -= 8
+        found.append("Tweezer Top -tyyppinen vastus")
+
+    return score, found
+
+
+def smart_money_logic(df):
+    score = 0
+    notes = []
+
+    if len(df) < 30:
+        return score, notes
+
+    c = df.iloc[-1]
+    p = df.iloc[-2]
+
+    prior = df.iloc[-25:-1]
+    recent_high = prior["High"].max()
+    recent_low = prior["Low"].min()
+
+    if c.Low < recent_low and c.Close > p.Close:
+        score += 16
+        notes.append("Liquidity sweep alhaalla → ostajat aktivoitu")
+
+    if c.High > recent_high and c.Close < p.Close:
+        score -= 16
+        notes.append("Liquidity sweep ylhäällä → myyjät aktivoitu")
+
+    if p.Close < recent_high and c.Close > recent_high:
+        score += 12
+        notes.append("Breakout ylös")
+
+    if p.Close > recent_low and c.Close < recent_low:
+        score -= 12
+        notes.append("Breakout alas")
+
+    if c.High > recent_high and c.Close < recent_high:
+        score -= 12
+        notes.append("Fake breakout ylhäällä / trap")
+
+    if c.Low < recent_low and c.Close > recent_low:
+        score += 12
+        notes.append("Fake breakdown alhaalla / trap")
+
+    if len(df) > 4:
+        c2 = df.iloc[-3]
+        if c2.High < c.Low:
+            score += 8
+            notes.append("Bullish FVG / fair value gap")
+
+        if c2.Low > c.High:
+            score -= 8
+            notes.append("Bearish FVG / fair value gap")
 
     return score, notes
 
 
 def live_reaction_score(df_live):
-    """
-    Nopea scalping-varoitus juuri muodostuvasta kynttilästä.
-    Tämä ei korvaa varsinaista sulkeutuneen kynttilän signaalia.
-    """
     if len(df_live) < 30:
         return 0, "EI", []
 
     c = df_live.iloc[-1]
-    p = df_live.iloc[-2]
-
+    prior = df_live.iloc[:-1]
     price = float(c.Close)
-    body = abs(c.Close - c.Open)
-    candle_range = max(c.High - c.Low, 1e-9)
-    atr = max(float(df_live.ATR.iloc[-2]), price * 0.001)
-    volume_ma = max(float(df_live.VOL_MA.iloc[-2]), 1e-9)
 
-    score = 0
-    notes = []
+    body = abs(c.Close - c.Open)
+    atr = max(float(df_live.ATR.iloc[-2]), price * 0.001)
+    vol_ma = max(float(df_live.VOL_MA.iloc[-2]), 1e-9)
 
     red = c.Close < c.Open
     green = c.Close > c.Open
 
     strong_body = body > atr * 0.45
     very_strong_body = body > atr * 0.75
-    volume_boost = c.Volume > volume_ma * 1.15
+    volume_boost = c.Volume > vol_ma * 1.15
 
-    new_lower_low = c.Low < df_live.Low.tail(8).iloc[:-1].min()
-    new_higher_high = c.High > df_live.High.tail(8).iloc[:-1].max()
+    new_lower_low = c.Low < prior.Low.tail(8).min()
+    new_higher_high = c.High > prior.High.tail(8).max()
+
+    score = 0
+    notes = []
 
     if red and strong_body:
         score -= 18
@@ -439,16 +625,20 @@ def live_reaction_score(df_live):
     return score, "EI", notes
 
 
+# =========================================================
+# AI ENGINE
+# =========================================================
+
 def raw_signal_from_score(score):
-    if score >= 50:
+    if score >= 55:
         return "VAHVA OSTA"
-    if score >= 32:
+    if score >= 36:
         return "OSTA"
     if score >= 18:
         return "TARKKAILU OSTA"
-    if score <= -50:
+    if score <= -55:
         return "VAHVA MYY"
-    if score <= -32:
+    if score <= -36:
         return "MYY"
     if score <= -18:
         return "TARKKAILU MYY"
@@ -462,10 +652,10 @@ def apply_signal_hysteresis(raw_level, score):
     if raw_level == "ODOTA" and last != "ODOTA" and abs(score) >= 12:
         return last
 
-    if "OSTA" in last and "MYY" in raw_level and score > -28:
+    if "OSTA" in last and "MYY" in raw_level and score > -30:
         return last
 
-    if "MYY" in last and "OSTA" in raw_level and score < 28:
+    if "MYY" in last and "OSTA" in raw_level and score < 30:
         return last
 
     if abs(score - last_score) < 6 and last != "ODOTA":
@@ -481,97 +671,144 @@ def ai_engine(df_closed, df_live, big_bias, details):
 
     price = float(live.Close)
     score = 0
-    notes = []
+    reasons = []
 
+    support, resistance, midpoint = support_resistance(df_closed)
+    structure = market_structure(df_closed)
     range_market = is_range_market(df_closed)
 
-    if big_bias == "NOUSU":
+    # Multi-timeframe
+    if big_bias == "VAHVA NOUSU":
+        score += 18
+        reasons.append("Moniaikaväli: vahva nousu.")
+    elif big_bias == "NOUSU":
         score += 12
-        notes.append("Iso trendi tukee ostosuuntaa.")
+        reasons.append("Moniaikaväli: nousu.")
+    elif big_bias == "VAHVA LASKU":
+        score -= 18
+        reasons.append("Moniaikaväli: vahva lasku.")
     elif big_bias == "LASKU":
         score -= 12
-        notes.append("Iso trendi tukee myyntisuuntaa.")
+        reasons.append("Moniaikaväli: lasku.")
     else:
-        notes.append("Iso trendi epäselvä.")
+        reasons.append("Moniaikaväli: epäselvä.")
 
+    # Market structure
+    if "nousu" in structure or "HH" in structure:
+        score += 8
+        reasons.append(f"Rakenne: {structure}")
+    elif "lasku" in structure or "LL" in structure:
+        score -= 8
+        reasons.append(f"Rakenne: {structure}")
+    else:
+        reasons.append(f"Rakenne: {structure}")
+
+    # EMA
     if prev.EMA50 <= prev.EMA100 and last.EMA50 > last.EMA100:
         score += 22
-        notes.append("Golden Cross: EMA50 ylitti EMA100:n.")
+        reasons.append("Golden Cross: EMA50 ylitti EMA100:n.")
 
     if prev.EMA50 >= prev.EMA100 and last.EMA50 < last.EMA100:
         score -= 22
-        notes.append("Death Cross: EMA50 alitti EMA100:n.")
+        reasons.append("Death Cross: EMA50 alitti EMA100:n.")
 
     if price > last.EMA50 > last.EMA100:
-        score += 18
-        notes.append("Hinta EMA50/EMA100 yläpuolella.")
+        score += 14
+        reasons.append("Hinta EMA50/EMA100 yläpuolella.")
 
     if price < last.EMA50 < last.EMA100:
-        score -= 18
-        notes.append("Hinta EMA50/EMA100 alapuolella.")
+        score -= 14
+        reasons.append("Hinta EMA50/EMA100 alapuolella.")
 
-    if last.EMA9 > last.EMA21:
+    if price > last.EMA9 > last.EMA21:
         score += 8
-        notes.append("EMA9 > EMA21: lyhyt ostopaine.")
+        reasons.append("Nopea EMA9/21 bullish.")
 
-    if last.EMA9 < last.EMA21:
+    if price < last.EMA9 < last.EMA21:
         score -= 8
-        notes.append("EMA9 < EMA21: lyhyt myyntipaine.")
+        reasons.append("Nopea EMA9/21 bearish.")
 
-    support, resistance = support_resistance(df_closed)
+    # VWAP
+    if price > last.VWAP:
+        score += 7
+        reasons.append("Hinta VWAP yläpuolella.")
+    else:
+        score -= 7
+        reasons.append("Hinta VWAP alapuolella.")
 
+    # Support / resistance
     if price > resistance * 0.998:
-        score += 10
-        notes.append("Hinta lähellä vastusta / breakout-mahdollisuus.")
-
+        score += 8
+        reasons.append("Hinta lähellä vastusta / breakout-mahdollisuus.")
     if price < support * 1.002:
-        score -= 10
-        notes.append("Hinta lähellä tukea / breakdown-riski.")
+        score -= 8
+        reasons.append("Hinta lähellä tukea / breakdown-riski.")
 
+    # RSI
     if last.RSI < 30:
         score += 10
-        notes.append(f"RSI {last.RSI:.1f}: ylimyyty.")
+        reasons.append(f"RSI {last.RSI:.1f}: ylimyyty.")
     elif last.RSI > 70:
         score -= 10
-        notes.append(f"RSI {last.RSI:.1f}: yliostettu.")
+        reasons.append(f"RSI {last.RSI:.1f}: yliostettu.")
     else:
-        notes.append(f"RSI {last.RSI:.1f}: neutraali.")
+        reasons.append(f"RSI {last.RSI:.1f}: neutraali.")
 
-    if last.MACD > last.MACD_SIGNAL:
-        score += 8
-        notes.append("MACD ostava.")
+    # MACD
+    if last.MACD > last.MACD_SIGNAL and last.MACD_HIST > 0:
+        score += 10
+        reasons.append("MACD bullish.")
+    if last.MACD < last.MACD_SIGNAL and last.MACD_HIST < 0:
+        score -= 10
+        reasons.append("MACD bearish.")
 
-    if last.MACD < last.MACD_SIGNAL:
-        score -= 8
-        notes.append("MACD myyvä.")
-
-    c_score, c_notes = candle_score(df_closed)
-    score += c_score
-    notes.extend(c_notes)
-
+    # Volume
     if last.Volume > last.VOL_MA * 1.25:
         score *= 1.08
-        notes.append("Volyymi normaalia suurempi.")
+        reasons.append("Volyymi normaalia suurempi.")
 
-    if range_market:
-        score *= 0.65
-        notes.append("Range-filteri: sivuttaisliike pienentää varmuutta.")
+    # Candles
+    pattern_score, pattern_notes = candle_patterns(df_closed)
+    score += pattern_score
+    reasons.extend(pattern_notes)
 
-    if big_bias == "NOUSU" and score < -25:
-        score *= 0.65
-        notes.append("Myynti isoa nousutrendiä vastaan: varmuutta leikataan.")
+    # Smart money
+    sm_score, sm_notes = smart_money_logic(df_closed)
+    score += sm_score
+    reasons.extend(sm_notes)
 
-    if big_bias == "LASKU" and score > 25:
-        score *= 0.65
-        notes.append("Osto isoa laskutrendiä vastaan: varmuutta leikataan.")
+    # Candle power
+    power_side, power_level, power_text = candle_power_scale(df_live)
+    reasons.append(f"Candle strength {power_level}: {power_text}")
 
+    # Live reaction
     live_score, live_alert, live_notes = live_reaction_score(df_live)
+    score += live_score * 0.55
+    reasons.extend(live_notes)
 
-    final_score = int(max(-100, min(100, score + live_score * 0.55)))
+    # Filters
+    no_trade = False
+    if range_market:
+        score *= 0.62
+        no_trade = True
+        reasons.append("NO TRADE FILTER: markkina on sivuttaisessa rangessa.")
+
+    if big_bias in ["VAHVA NOUSU", "NOUSU"] and score < -28:
+        score *= 0.65
+        reasons.append("Myynti isoa nousutrendiä vastaan: varmuutta leikataan.")
+
+    if big_bias in ["VAHVA LASKU", "LASKU"] and score > 28:
+        score *= 0.65
+        reasons.append("Osto isoa laskutrendiä vastaan: varmuutta leikataan.")
+
+    final_score = int(max(-100, min(100, score)))
+
     raw_level = raw_signal_from_score(final_score)
     level = apply_signal_hysteresis(raw_level, final_score)
 
-    # Live-varoitus saa mennä normaalin signaalin yli, jotta punainen/vihreä nopea liike ei jää huomaamatta.
+    if no_trade and abs(final_score) < 42:
+        level = "EI TREIDIÄ"
+
     if live_alert == "NOPEA MYY-VAROITUS" and final_score <= -12:
         level = "NOPEA MYY-VAROITUS"
 
@@ -588,39 +825,71 @@ def ai_engine(df_closed, df_live, big_bias, details):
     st.session_state.last_signal = level
     st.session_state.last_score = final_score
 
-    confidence = int(min(92, max(45, 50 + abs(final_score) * 0.42)))
+    confidence = int(min(94, max(45, 50 + abs(final_score) * 0.42)))
 
     atr = max(float(last.ATR), price * 0.001)
 
     if direction == "OSTA":
-        stop = price - atr * 1.25
-        target = price + atr * 2.2
+        stop = price - atr * 1.35
+        target = price + atr * 2.4
     elif direction == "MYY":
-        stop = price + atr * 1.25
-        target = price - atr * 2.2
+        stop = price + atr * 1.35
+        target = price - atr * 2.4
     else:
         stop = None
         target = None
 
-    all_notes = notes + live_notes
+    risk_reward = None
+    if stop is not None and target is not None:
+        risk = abs(price - stop)
+        reward = abs(target - price)
+        risk_reward = reward / risk if risk > 0 else None
 
     return {
         "level": level,
         "direction": direction,
         "score": final_score,
-        "closed_score": int(score),
-        "live_score": int(live_score),
         "confidence": confidence,
         "price": price,
         "support": support,
         "resistance": resistance,
+        "midpoint": midpoint,
         "stop": stop,
         "target": target,
+        "rr": risk_reward,
         "big_bias": big_bias,
         "details": details,
-        "notes": all_notes[:18],
+        "structure": structure,
+        "power_side": power_side,
+        "power_level": power_level,
+        "power_text": power_text,
+        "notes": reasons[:22],
     }
 
+
+def remember_signal(ai):
+    if ai["level"] in ["ODOTA", "EI TREIDIÄ"]:
+        return
+
+    memory = st.session_state.signals_memory
+    if memory and memory[-1]["time"] == datetime.now().strftime("%H:%M"):
+        return
+
+    memory.append({
+        "time": datetime.now().strftime("%H:%M"),
+        "symbol": selected_name,
+        "signal": ai["level"],
+        "price": round(ai["price"], 6),
+        "score": ai["score"],
+        "confidence": ai["confidence"],
+    })
+
+    st.session_state.signals_memory = memory[-30:]
+
+
+# =========================================================
+# UI
+# =========================================================
 
 def signal_box(ai):
     level = ai["level"]
@@ -633,15 +902,17 @@ def signal_box(ai):
     elif level == "VAHVA OSTA":
         cls, icon = "buy", "▲"
     elif level == "OSTA":
-        cls, icon = "prebuy", "▲"
+        cls, icon = "buy", "▲"
     elif level == "TARKKAILU OSTA":
         cls, icon = "watchbuy", "▲"
     elif level == "VAHVA MYY":
         cls, icon = "sell", "▼"
     elif level == "MYY":
-        cls, icon = "presell", "▼"
+        cls, icon = "sell", "▼"
     elif level == "TARKKAILU MYY":
         cls, icon = "watchsell", "▼"
+    elif level == "EI TREIDIÄ":
+        cls, icon = "notrade", "■"
     else:
         cls, icon = "wait", "●"
 
@@ -654,14 +925,14 @@ def signal_box(ai):
 def draw_chart(df_live, ai):
     d = df_live.tail(candle_limit).copy()
 
-    rows = 3 if st.session_state.show_macd_rsi else 1
-    row_heights = [0.68, 0.16, 0.16] if st.session_state.show_macd_rsi else [1.0]
+    rows = 4 if st.session_state.show_macd_rsi and st.session_state.show_volume else 1
+    row_heights = [0.58, 0.14, 0.14, 0.14] if rows == 4 else [1.0]
 
     fig = make_subplots(
         rows=rows,
         cols=1,
         shared_xaxes=True,
-        vertical_spacing=0.03,
+        vertical_spacing=0.025,
         row_heights=row_heights,
     )
 
@@ -683,13 +954,14 @@ def draw_chart(df_live, ai):
         col=1,
     )
 
-    if st.session_state.show_ema9_21:
-        fig.add_trace(go.Scatter(x=d.index, y=d.EMA9, mode="lines", name="EMA9", line=dict(width=1.5, color="#38bdf8")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=d.index, y=d.EMA21, mode="lines", name="EMA21", line=dict(width=1.5, color="#fb7185")), row=1, col=1)
+    if st.session_state.show_ema:
+        fig.add_trace(go.Scatter(x=d.index, y=d.EMA9, mode="lines", name="EMA9", line=dict(width=1.3, color="#38bdf8")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.EMA21, mode="lines", name="EMA21", line=dict(width=1.3, color="#fb7185")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.EMA50, mode="lines", name="EMA50", line=dict(width=2.2, color="#facc15")), row=1, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.EMA100, mode="lines", name="EMA100", line=dict(width=2.2, color="#c084fc")), row=1, col=1)
 
-    if st.session_state.show_ema50_100:
-        fig.add_trace(go.Scatter(x=d.index, y=d.EMA50, mode="lines", name="EMA50", line=dict(width=2.5, color="#facc15")), row=1, col=1)
-        fig.add_trace(go.Scatter(x=d.index, y=d.EMA100, mode="lines", name="EMA100", line=dict(width=2.5, color="#c084fc")), row=1, col=1)
+    if st.session_state.show_vwap:
+        fig.add_trace(go.Scatter(x=d.index, y=d.VWAP, mode="lines", name="VWAP", line=dict(width=2.2, color="#22d3ee")), row=1, col=1)
 
     if st.session_state.show_bollinger:
         fig.add_trace(go.Scatter(x=d.index, y=d.BB_UPPER, mode="lines", name="BB ylä", line=dict(width=1, color="#94a3b8")), row=1, col=1)
@@ -698,32 +970,33 @@ def draw_chart(df_live, ai):
     if st.session_state.show_levels:
         fig.add_hline(y=ai["support"], line_dash="dot", line_color="#22c55e", row=1, col=1)
         fig.add_hline(y=ai["resistance"], line_dash="dot", line_color="#ef4444", row=1, col=1)
+        fig.add_hline(y=ai["midpoint"], line_dash="dot", line_color="#64748b", row=1, col=1)
 
     fig.add_hline(y=ai["price"], line_dash="dash", line_color="#facc15", row=1, col=1)
 
-    if ai["direction"] != "ODOTA":
+    if ai["direction"] != "ODOTA" and ai["stop"] is not None and ai["target"] is not None:
         fig.add_hline(y=ai["stop"], line_dash="dash", line_color="#ef4444", row=1, col=1)
         fig.add_hline(y=ai["target"], line_dash="dash", line_color="#22c55e", row=1, col=1)
 
-    if st.session_state.show_macd_rsi:
-        fig.add_trace(go.Scatter(x=d.index, y=d.MACD, mode="lines", name="MACD", line=dict(width=1.5)), row=2, col=1)
-        fig.add_trace(go.Scatter(x=d.index, y=d.MACD_SIGNAL, mode="lines", name="MACD Signal", line=dict(width=1.5)), row=2, col=1)
-        fig.add_trace(go.Bar(x=d.index, y=d.MACD_HIST, name="MACD Hist"), row=2, col=1)
-
-        fig.add_trace(go.Scatter(x=d.index, y=d.RSI, mode="lines", name="RSI", line=dict(width=2)), row=3, col=1)
-        fig.add_hline(y=70, line_dash="dot", line_color="#ef4444", row=3, col=1)
-        fig.add_hline(y=30, line_dash="dot", line_color="#22c55e", row=3, col=1)
+    if rows == 4:
+        fig.add_trace(go.Bar(x=d.index, y=d.Volume, name="Volyymi"), row=2, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.MACD, mode="lines", name="MACD", line=dict(width=1.5)), row=3, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.MACD_SIGNAL, mode="lines", name="MACD Signal", line=dict(width=1.5)), row=3, col=1)
+        fig.add_trace(go.Bar(x=d.index, y=d.MACD_HIST, name="MACD Hist"), row=3, col=1)
+        fig.add_trace(go.Scatter(x=d.index, y=d.RSI, mode="lines", name="RSI", line=dict(width=2)), row=4, col=1)
+        fig.add_hline(y=70, line_dash="dot", line_color="#ef4444", row=4, col=1)
+        fig.add_hline(y=30, line_dash="dot", line_color="#22c55e", row=4, col=1)
 
     fig.update_layout(
-        title=f"{selected_name} — V22 DESKTOP PRO LIVE",
-        height=820 if st.session_state.show_macd_rsi else 650,
+        title=f"{selected_name} — V24 PRO LIVE",
+        height=920 if rows == 4 else 680,
         template="plotly_dark",
         paper_bgcolor="#070d1c",
         plot_bgcolor="#070d1c",
         xaxis_rangeslider_visible=False,
-        margin=dict(l=10, r=10, t=48, b=10),
+        margin=dict(l=10, r=10, t=52, b=10),
         legend=dict(orientation="h", y=1.02, x=0),
-        uirevision="desktop_v22",
+        uirevision="desktop_v24",
     )
 
     fig.update_xaxes(rangeslider_visible=False)
@@ -733,20 +1006,20 @@ def draw_chart(df_live, ai):
 def render_app():
     source = load_or_update_chart_data()
     df_live = add_indicators(st.session_state.chart_df)
-
     df_closed = df_live.iloc[:-1].copy() if len(df_live) > 30 else df_live.copy()
 
     big_bias, details = higher_timeframe_bias_cached(symbol)
     ai = ai_engine(df_closed, df_live, big_bias, details)
+    remember_signal(ai)
 
-    st.title("📈 AI Trading Pro v22 Desktop")
+    st.title("📈 AI Trading Pro v24 PRO")
 
     m1, m2, m3, m4, m5, m6 = st.columns(6)
     m1.metric("Kohde", selected_name)
     m2.metric("Hinta", f"{ai['price']:,.4f}")
     m3.metric("AI-score", f"{ai['score']} / 100")
-    m4.metric("Suljettu score", ai["closed_score"])
-    m5.metric("Live score", ai["live_score"])
+    m4.metric("Varmuus", f"{ai['confidence']}%")
+    m5.metric("Candle power", f"{ai['power_side']} {ai['power_level']}")
     m6.metric("Trend", ai["big_bias"])
 
     st.caption(f"{source} | TF: {entry_tf} | Päivitetty: {datetime.now().strftime('%H:%M:%S')} | Live {refresh_seconds}s")
@@ -755,7 +1028,6 @@ def render_app():
         st.warning("Binance-haku ei juuri nyt onnistunut kaikista osoitteista. Käytetään vanhaa dataa tai demo-varadataa.")
 
     signal_box(ai)
-
     draw_chart(df_live, ai)
 
     left, middle, right = st.columns([1, 1, 1])
@@ -766,20 +1038,24 @@ def render_app():
         st.write(f"Nykyhinta: **{ai['price']:,.4f}**")
         st.write(f"Support: **{ai['support']:,.4f}**")
         st.write(f"Resistance: **{ai['resistance']:,.4f}**")
-        if ai["direction"] != "ODOTA":
+        st.write(f"Rakenne: **{ai['structure']}**")
+
+        if ai["direction"] != "ODOTA" and ai["stop"] is not None:
             st.write(f"Stop: **{ai['stop']:,.4f}**")
             st.write(f"Target: **{ai['target']:,.4f}**")
+            if ai["rr"] is not None:
+                st.write(f"Riski/tuotto: **1:{ai['rr']:.2f}**")
         else:
-            st.write("Ei vielä selkeää paikkaa.")
+            st.write("Ei vielä selkeää entryä.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with middle:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("📊 Moniaikaväli")
-        st.write(f"15m: **{ai['details']['15m']}**")
-        st.write(f"1h: **{ai['details']['1h']}**")
-        st.write(f"4h: **{ai['details']['4h']}**")
-        st.write(f"Iso trendi: **{ai['big_bias']}**")
+        for tf, val in ai["details"].items():
+            st.write(f"{tf}: **{val}**")
+        st.write(f"Iso suunta: **{ai['big_bias']}**")
+        st.write(f"Candle strength: **{ai['power_text']}**")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with right:
@@ -788,6 +1064,39 @@ def render_app():
         for n in ai["notes"]:
             st.write("• " + n)
         st.markdown("</div>", unsafe_allow_html=True)
+
+    with st.expander("🧠 AI-muisti / viimeiset signaalit"):
+        if st.session_state.signals_memory:
+            mem_df = pd.DataFrame(st.session_state.signals_memory)
+            st.dataframe(mem_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Ei vielä tallennettuja signaaleja.")
+
+    with st.expander("📚 AI:n PRO-säännöt"):
+        st.write("""
+V24 käyttää:
+- EMA9/21/50/100
+- VWAP
+- RSI
+- MACD
+- ATR
+- volyymi
+- support/resistance
+- market structure
+- liquidity sweep
+- fake breakout / trap
+- FVG
+- candle strength 1–6
+- Doji, Dragonfly, Gravestone, Hammer, Shooting Star
+- Bullish/Bearish Engulfing
+- Harami
+- Marubozu
+- Morning Star / Evening Star
+- Three White Soldiers / Three Black Crows
+- Tweezer Top / Bottom
+- live reaction -kerros nopeisiin vihreisiin/punaisiin kynttilöihin
+- no-trade filter sivuttaismarkkinaan
+        """)
 
     st.warning("Opetustyökalu. Ei tee oikeita kauppoja eikä ole sijoitusneuvo.")
 
