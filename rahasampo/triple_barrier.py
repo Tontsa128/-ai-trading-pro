@@ -291,12 +291,15 @@ def run_random_entry_baseline(
     seed: int = 42,
     fee_rate: float = 0.0004,
     slippage_bps: float = 2.0,
+    long_probability: float = 0.5,
 ) -> dict:
-    """Randomize entry timing and direction with matching ATR-based barriers.
+    """Randomize entry timing while preserving a configurable direction mix.
 
     ATR is read from the preceding bar and entries are filled at the next open.
-    Within each simulation trades do not overlap. This benchmark is a diagnostic,
-    not a substitute for benchmark portfolios and out-of-sample evaluation.
+    A dynamic-programming sampler chooses exactly the requested number of
+    non-overlapping entry bars, avoiding a greedy sampler's false "not enough
+    bars" failures. Direction is random but matches long_probability. This
+    benchmark is diagnostic, not a substitute for out-of-sample evaluation.
     """
     missing = {"Open", "High", "Low", "Close"}.difference(ohlcv.columns)
     if missing:
@@ -305,6 +308,8 @@ def run_random_entry_baseline(
         raise ValueError("n_trades, simulations, and max_holding_bars must be positive.")
     if stop_atr <= 0 or target_atr <= 0:
         raise ValueError("stop_atr and target_atr must be positive.")
+    if not np.isfinite(float(long_probability)) or not 0.0 <= long_probability <= 1.0:
+        raise ValueError("long_probability must be finite and between 0 and 1.")
     if not ohlcv.index.equals(atr.index):
         raise ValueError("ATR index must exactly match the OHLCV index.")
 
@@ -316,25 +321,48 @@ def run_random_entry_baseline(
     if n_trades > len(candidates):
         raise ValueError(f"Requested {n_trades} trades, but only {len(candidates)} eligible entry bars exist.")
 
+    # ways[i][k] counts valid k-entry combinations from candidates[i:].
+    # The count-based sampler selects an exact-size non-overlapping subset uniformly.
+    count = len(candidates)
+    next_index = [
+        int(np.searchsorted(candidates, candidates[i] + max_holding_bars, side="left"))
+        for i in range(count)
+    ]
+    if (count + 1) * (n_trades + 1) > 5_000_000:
+        raise ValueError("Baseline sampling is too large; reduce history or requested trade count.")
+    ways = [[0] * (n_trades + 1) for _ in range(count + 1)]
+    for i in range(count + 1):
+        ways[i][0] = 1
+    for i in range(count - 1, -1, -1):
+        upper = min(n_trades, count - i)
+        for k in range(1, upper + 1):
+            ways[i][k] = ways[i + 1][k] + ways[next_index[i]][k - 1]
+    if ways[0][n_trades] == 0:
+        raise ValueError("Not enough non-overlapping eligible bars for the requested trade count.")
+
     rng = np.random.default_rng(seed)
     simulation_means: list[float] = []
     pooled_returns: list[float] = []
     for _ in range(simulations):
-        order = rng.permutation(candidates)
         chosen: list[int] = []
-        for candidate in order:
-            position = int(candidate)
-            # Check separation from every selected entry, independent of draw order.
-            if all(abs(position - selected) >= max_holding_bars for selected in chosen):
-                chosen.append(position)
-            if len(chosen) == n_trades:
-                break
-        if len(chosen) < n_trades:
-            raise ValueError("Not enough non-overlapping bars; reduce trades or holding time.")
+        i = 0
+        remaining = n_trades
+        while remaining:
+            take_ways = ways[next_index[i]][remaining - 1]
+            skip_ways = ways[i + 1][remaining]
+            total_ways = take_ways + skip_ways
+            if total_ways <= 0:
+                raise RuntimeError("Random baseline sampler could not complete an eligible subset.")
+            if take_ways and rng.random() < (take_ways / total_ways):
+                chosen.append(int(candidates[i]))
+                i = next_index[i]
+                remaining -= 1
+            else:
+                i += 1
 
         returns: list[float] = []
-        for position in sorted(chosen):
-            side: Side = "long" if rng.integers(0, 2) == 0 else "short"
+        for position in chosen:
+            side: Side = "long" if rng.random() < long_probability else "short"
             entry = float(ohlcv["Open"].iloc[position])
             current_atr = float(atr.iloc[position - 1])
             if side == "long":
@@ -355,11 +383,12 @@ def run_random_entry_baseline(
 
     values = np.asarray(simulation_means, dtype=float)
     return {
-        "method": "seeded random entry and random direction; non-overlapping trades",
+        "method": "seeded uniform random non-overlapping entries; randomized direction mix",
         "seed": seed,
         "simulations": simulations,
         "trades_per_simulation": n_trades,
         "holding_bars": max_holding_bars,
+        "long_probability": float(long_probability),
         "mean_expectancy_pct": float(values.mean()),
         "median_expectancy_pct": float(np.median(values)),
         "p05_expectancy_pct": float(np.quantile(values, 0.05)),
