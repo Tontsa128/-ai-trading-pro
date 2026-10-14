@@ -126,6 +126,29 @@ def triple_barrier_label(
             or low > min(open_price, close, high)
         ):
             raise ValueError(f"Invalid OHLC values at row position {bar_index}.")
+        # The opening price is the first observed price in each OHLC bar.
+        # Resolve gaps before applying the conservative intrabar tie-break.
+        if side == "long" and open_price <= stop_price:
+            return finish(
+                "stop_loss", bar_index, open_price, offset + 1,
+                "Bar opened through the stop; gap-aware fill at open.",
+            )
+        if side == "long" and open_price >= target_price:
+            return finish(
+                "take_profit", bar_index, target_price, offset + 1,
+                "Bar opened beyond the target; target price used without price improvement.",
+            )
+        if side == "short" and open_price >= stop_price:
+            return finish(
+                "stop_loss", bar_index, open_price, offset + 1,
+                "Bar opened through the stop; gap-aware fill at open.",
+            )
+        if side == "short" and open_price <= target_price:
+            return finish(
+                "take_profit", bar_index, target_price, offset + 1,
+                "Bar opened beyond the target; target price used without price improvement.",
+            )
+
         if side == "long":
             stop_hit, target_hit = low <= stop_price, high >= target_price
         else:
