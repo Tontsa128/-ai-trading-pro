@@ -1,6 +1,8 @@
 """Persistent, idempotent journal for closed-candle decisions."""
 from __future__ import annotations
 
+from contextlib import contextmanager
+from collections.abc import Iterator
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -28,9 +30,6 @@ def make_signal_id(symbol: str, timeframe: str, candle_time: Any, strategy_versi
         raise ValueError("Symbol and timeframe must be non-empty.")
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
-
-from contextlib import contextmanager
-from collections.abc import Iterator
 
 
 @contextmanager
