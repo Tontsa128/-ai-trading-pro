@@ -16,7 +16,7 @@ def validate_ohlcv(
     timeframe: str | None = None,
     *,
     now: pd.Timestamp | None = None,
-    max_staleness_intervals: float = 3.0,
+    max_staleness_intervals: float = 1.5,
     max_gap_intervals: float = 2.5,
     min_rows: int = 1,
 ) -> tuple[bool, list[str]]:
