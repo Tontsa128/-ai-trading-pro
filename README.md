@@ -36,6 +36,27 @@ python -m unittest discover -s tests -v
 streamlit run app.py
 ```
 
+## Offline CSV backtest
+
+The current strategy is not yet automatically exported to this research runner. It accepts a historical OHLCV CSV plus a separate candidate-signal CSV so the replay engine and cost model can be tested without using live orders.
+
+OHLCV CSV columns: `timestamp,open,high,low,close,volume`. Timestamps must be candle-open times in UTC and rows must be chronological. Signal CSV columns: `timestamp,side`, where timestamp exactly matches a candle in the OHLCV file and side is `long` or `short`.
+
+```bash
+python -m rahasampo.backtest_cli \
+  --ohlcv data/btcusdt_1m.csv \
+  --signals data/btcusdt_signals.csv \
+  --timeframe 1m \
+  --max-holding-bars 20 \
+  --stop-atr 1.25 \
+  --target-atr 2.2 \
+  --simulations 200 \
+  --trades-out backtest_trades.csv \
+  --report-out backtest_report.json
+```
+
+The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+
 ## Before any live-trading use
 
 The project still needs a full historical backtest engine, walk-forward and untouched out-of-sample validation, ablation testing, automated signal journaling, market-regime filters, risk controls, shadow mode, operational monitoring, and extensive paper trading. Do not enable real-money execution based on this research preview.
