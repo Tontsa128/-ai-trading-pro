@@ -38,6 +38,8 @@ def read_ohlcv_csv(path: str | Path, *, timeframe: str, min_rows: int = 30) -> p
     if parsed_time.isna().any():
         raise ValueError("OHLCV CSV contains invalid timestamps.")
     ohlcv = frame[list(column_map)].rename(columns=column_map)
+    for column in ("Open", "High", "Low", "Close", "Volume"):
+        ohlcv[column] = pd.to_numeric(ohlcv[column], errors="coerce")
     ohlcv.index = pd.DatetimeIndex(parsed_time, name="Date")
     if ohlcv.index.has_duplicates:
         raise ValueError("OHLCV CSV contains duplicate timestamps.")
