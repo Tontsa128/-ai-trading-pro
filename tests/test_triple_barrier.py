@@ -128,6 +128,26 @@ class TripleBarrierTests(unittest.TestCase):
                 entry_price=100, stop_price=98, target_price=103, max_holding_bars=1,
                 fee_rate=0, slippage_bps=0)
 
+    def test_random_baseline_can_match_long_direction_probability(self):
+        count = 120
+        close = np.linspace(100, 105, count)
+        frame = pd.DataFrame({"Open": close, "High": close * 1.02, "Low": close * 0.98,
+            "Close": close, "Volume": 100.0})
+        atr = pd.Series(np.ones(count), index=frame.index)
+        baseline = run_random_entry_baseline(
+            frame, atr, n_trades=4, max_holding_bars=3,
+            simulations=3, seed=5, fee_rate=0, slippage_bps=0,
+            long_probability=0.75,
+        )
+        self.assertEqual(baseline["long_probability"], 0.75)
+
+    def test_random_baseline_rejects_invalid_direction_probability(self):
+        frame = pd.DataFrame({"Open": [100.0] * 40, "High": [101.0] * 40,
+            "Low": [99.0] * 40, "Close": [100.0] * 40, "Volume": [100.0] * 40})
+        atr = pd.Series(np.ones(40), index=frame.index)
+        with self.assertRaises(ValueError):
+            run_random_entry_baseline(frame, atr, n_trades=1, long_probability=1.1)
+
     def test_random_baseline_is_reproducible(self):
         count = 160
         close = np.linspace(100, 120, count)
