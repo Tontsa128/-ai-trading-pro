@@ -67,6 +67,20 @@ class BacktestTests(unittest.TestCase):
         )
         self.assertEqual(first.mean_return_ci95_pct, second.mean_return_ci95_pct)
 
+    def test_unresolved_open_position_blocks_later_entries(self):
+        frame = frame_from_rows([[100, 101, 99, 100]] * 7)
+        atr = pd.Series([10.0] * len(frame), index=frame.index)
+        trades, report = backtest_signal_candidates(
+            frame, atr,
+            [{"signal_index": 0, "side": "long"},
+             {"signal_index": 2, "side": "short"}],
+            max_holding_bars=10, stop_atr=1.0, target_atr=2.0,
+            fee_rate=0, slippage_bps=0,
+        )
+        self.assertEqual(trades.iloc[0]["event"], "unresolved")
+        self.assertEqual(trades.iloc[1]["event"], "rejected_overlap")
+        self.assertEqual(report.skipped_overlapping, 1)
+
     def test_invalid_atr_is_unresolved_not_counted_as_trade(self):
         frame = frame_from_rows([[100, 101, 99, 100]] * 4)
         atr = pd.Series([np.nan, 1.0, 1.0, 1.0], index=frame.index)
