@@ -88,6 +88,18 @@ class TripleBarrierTests(unittest.TestCase):
         self.assertEqual(labels.iloc[0]["event"], "unresolved")
         self.assertTrue(pd.isna(labels.iloc[0]["label"]))
 
+    def test_non_finite_cost_assumptions_are_rejected(self):
+        with self.assertRaises(ValueError):
+            triple_barrier_label(bars([[100, 101, 99, 100]]), entry_index=0, side="long",
+                entry_price=100, stop_price=98, target_price=103, max_holding_bars=1,
+                fee_rate=float("nan"))
+
+    def test_malformed_future_ohlc_is_rejected(self):
+        with self.assertRaises(ValueError):
+            triple_barrier_label(bars([[100, 101, 102, 100]]), entry_index=0, side="long",
+                entry_price=100, stop_price=98, target_price=103, max_holding_bars=1,
+                fee_rate=0, slippage_bps=0)
+
     def test_random_baseline_is_reproducible(self):
         count = 160
         close = np.linspace(100, 120, count)
