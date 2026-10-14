@@ -20,6 +20,7 @@ Rahasampo Radar is a cryptocurrency market-analysis prototype. This branch harde
 - `rahasampo/backtest.py`: replays candidate streams with a single open position, logs overlapping candidates as rejected, and reports net expectancy, win rate, profit factor, compounded return, drawdown, event counts, and a seeded bootstrap interval for mean trade return.
 - `rahasampo/decision.py`: pure score classification with hard no-trade gates. Fast candle alerts cannot force a buy/sell label.
 - `rahasampo/cross_exchange.py`: fail-closed Binance/Bybit spot ticker comparison; stale reference prices, invalid prices, unsupported pairs, API failures, or excessive divergence block the live signal path.
+- `rahasampo/market_data.py`: isolated Binance OHLCV adapter with strict payload parsing and a shared endpoint failover timeout; API behavior is tested independently of Streamlit.
 - The candidate replay uses a circular moving-block bootstrap interval to retain some local dependence in sequential trade outcomes.
 - `run_random_entry_baseline`: reproducible random entry timing and direction with ATR-based barriers and non-overlapping trades.
 - `compare_strategy_to_random`: comparison of observed average net trade return with the simulated random-run distribution.
