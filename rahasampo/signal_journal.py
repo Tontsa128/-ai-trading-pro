@@ -29,43 +29,55 @@ def make_signal_id(symbol: str, timeframe: str, candle_time: Any, strategy_versi
     return hashlib.sha256("|".join(parts).encode("utf-8")).hexdigest()
 
 
-def _connect(path: str | Path | None = None) -> sqlite3.Connection:
-    db_path = Path(path or DEFAULT_JOURNAL_PATH)
-    if str(db_path) != ":memory:":
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(str(db_path), timeout=5.0)
-    connection.execute("PRAGMA busy_timeout = 5000")
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS signal_journal (
-            signal_id TEXT PRIMARY KEY,
-            evaluated_at_utc TEXT NOT NULL,
-            candle_time_utc TEXT NOT NULL,
-            symbol TEXT NOT NULL,
-            timeframe TEXT NOT NULL,
-            strategy_version TEXT NOT NULL,
-            decision_type TEXT NOT NULL,
-            level TEXT NOT NULL,
-            score INTEGER NOT NULL,
-            price REAL,
-            stop REAL,
-            target REAL,
-            rr REAL,
-            bias TEXT,
-            structure TEXT,
-            triangle TEXT,
-            data_source TEXT,
-            rejection_reasons_json TEXT NOT NULL,
-            snapshot_json TEXT NOT NULL,
-            UNIQUE(symbol, timeframe, candle_time_utc, strategy_version)
+from contextlib import contextmanager
+from collections.abc import Iterator
+
+
+@contextmanager
+def _connect(path: str | Path | None = None) -> Iterator[sqlite3.Connection]:
+    db_value = str(path or DEFAULT_JOURNAL_PATH)
+    if db_value != ":memory:":
+        Path(db_value).parent.mkdir(parents=True, exist_ok=True)
+    connection = sqlite3.connect(db_value, timeout=5.0)
+    try:
+        connection.execute("PRAGMA busy_timeout = 5000")
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS signal_journal (
+                signal_id TEXT PRIMARY KEY,
+                evaluated_at_utc TEXT NOT NULL,
+                candle_time_utc TEXT NOT NULL,
+                symbol TEXT NOT NULL,
+                timeframe TEXT NOT NULL,
+                strategy_version TEXT NOT NULL,
+                decision_type TEXT NOT NULL,
+                level TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                price REAL,
+                stop REAL,
+                target REAL,
+                rr REAL,
+                bias TEXT,
+                structure TEXT,
+                triangle TEXT,
+                data_source TEXT,
+                rejection_reasons_json TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                UNIQUE(symbol, timeframe, candle_time_utc, strategy_version)
+            )
+            """
         )
-        """
-    )
-    connection.execute(
-        "CREATE INDEX IF NOT EXISTS idx_signal_journal_day "
-        "ON signal_journal(symbol, timeframe, candle_time_utc, decision_type)"
-    )
-    return connection
+        connection.execute(
+            "CREATE INDEX IF NOT EXISTS idx_signal_journal_day "
+            "ON signal_journal(symbol, timeframe, candle_time_utc, decision_type)"
+        )
+        yield connection
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
 
 
 def decision_type_for_level(level: str) -> str:
