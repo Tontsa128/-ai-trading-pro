@@ -22,8 +22,8 @@ def response(payload, *, status=200, text=""):
 class BinanceMarketDataTests(unittest.TestCase):
     def setUp(self):
         self.payload = [
-            [1791979200000, "100.0", "102.0", "99.0", "101.0", "12.5"],
-            [1791979260000, "101.0", "103.0", "100.0", "102.0", "13.5"],
+            [1767225600000, "100.0", "102.0", "99.0", "101.0", "12.5"],
+            [1767225660000, "101.0", "103.0", "100.0", "102.0", "13.5"],
         ]
 
     @patch("rahasampo.market_data.requests.get")
