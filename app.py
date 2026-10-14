@@ -11,6 +11,7 @@ import streamlit as st
 
 from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
 from rahasampo.decision import classify_score
+from rahasampo.cross_exchange import get_spot_price_check
 
 
 # ============================================================
@@ -87,6 +88,7 @@ def init_state():
         "last_error": "",
         "last_level": "ODOTA",
         "last_score": 0,
+        "cross_exchange_check": None,
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -136,6 +138,23 @@ if st.session_state.key != new_key:
 # ============================================================
 # DATA
 # ============================================================
+
+LIVE_DATA_SOURCE = "Binance live OHLC + Bybit spot price cross-check"
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def cached_spot_price_check(symbol_code):
+    """Cache public cross-exchange tickers briefly to avoid needless API load."""
+    result = get_spot_price_check(symbol_code)
+    return {
+        "ok": result.ok,
+        "primary_price": result.primary_price,
+        "reference_price": result.reference_price,
+        "deviation_pct": result.deviation_pct,
+        "checked_at_utc": result.checked_at_utc,
+        "message": result.message,
+    }
+
 
 @st.cache_data(ttl=2, show_spinner=False)
 def get_klines(symbol_code, interval_code, limit_count):
@@ -202,9 +221,14 @@ def load_data():
         if not valid:
             raise RuntimeError("; ".join(errors))
 
+        cross_check = cached_spot_price_check(symbol)
+        st.session_state.cross_exchange_check = cross_check
+        if not cross_check["ok"]:
+            raise RuntimeError(cross_check["message"])
+
         st.session_state.df = candidate
         st.session_state.last_error = ""
-        return candidate.copy(), "Binance live OHLC"
+        return candidate.copy(), LIVE_DATA_SOURCE
 
     except Exception as exc:
         st.session_state.last_error = str(exc)
@@ -910,11 +934,14 @@ def run_app():
     st.title("💰 Rahasampo Radar V27 PRO — Research Preview")
     raw, source = load_data()
 
-    if source != "Binance live OHLC":
+    if source != LIVE_DATA_SOURCE:
         st.error(source)
         st.warning("NO TRADE — kelvollista live-dataa ei ole vahvistettu. Välimuistia ei käytetä signaalin muodostamiseen.")
         if st.session_state.last_error:
             st.caption(f"Viimeisin datavirhe: {st.session_state.last_error}")
+        cross_check = st.session_state.cross_exchange_check
+        if cross_check:
+            st.caption(f"Ristiintarkistus: {cross_check.get('message', 'ei tietoa')}")
         return
 
     valid, data_errors = validate_ohlcv(raw, timeframe=tf, min_rows=120)
@@ -944,7 +971,10 @@ def run_app():
     c4.metric("Candle", ai["power"])
     c5.metric("Päivitetty", now_local())
 
-    st.caption(f"{source} | TF: {tf} | Päivitys {refresh}s | Signaali perustuu viimeiseen suljettuun kynttilään | ajat Suomen ajassa")
+    cross_check = st.session_state.cross_exchange_check or {}
+    deviation = cross_check.get("deviation_pct")
+    cross_status = f"Binance/Bybit ero {deviation:.3f}%" if deviation is not None else "Binance/Bybit ristiintarkistus OK"
+    st.caption(f"{source} | {cross_status} | TF: {tf} | Päivitys {refresh}s | signaali viimeisestä suljetusta kynttilästä | ajat Suomen ajassa")
 
     if st.session_state.last_error:
         st.warning(f"Datavaroitus: {st.session_state.last_error}")
