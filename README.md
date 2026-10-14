@@ -46,6 +46,7 @@ OHLCV CSV columns: `timestamp,open,high,low,close,volume`. Timestamps must be ca
 python -m rahasampo.backtest_cli \
   --ohlcv data/btcusdt_1m.csv \
   --signals data/btcusdt_signals.csv \
+  --symbol BTCUSDT \
   --timeframe 1m \
   --max-holding-bars 20 \
   --stop-atr 1.25 \
@@ -55,7 +56,7 @@ python -m rahasampo.backtest_cli \
   --report-out backtest_report.json
 ```
 
-The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. The random benchmark matches the accepted strategy trades' long/short ratio and samples an exact number of non-overlapping random entries. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
 
 ## Before any live-trading use
 
