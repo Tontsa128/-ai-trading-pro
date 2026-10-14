@@ -273,8 +273,17 @@ def higher_tf_bias(symbol_code):
 
     for htf in ["5m", "15m", "1h", "4h"]:
         try:
-            d = add_indicators(get_klines(symbol_code, htf, 180))
-            last = d.iloc[-2]
+            raw = get_klines(symbol_code, htf, 180)
+            valid, errors = validate_ohlcv(raw, timeframe=htf, min_rows=110)
+            if not valid:
+                raise RuntimeError("; ".join(errors))
+
+            closed = select_closed_candles(raw, htf)
+            if len(closed) < 110:
+                raise RuntimeError("Not enough verified closed higher-timeframe candles.")
+
+            d = add_indicators(closed)
+            last = d.iloc[-1]
 
             if last.Close > last.EMA50 > last.EMA100:
                 result[htf] = "NOUSU"
@@ -289,13 +298,17 @@ def higher_tf_bias(symbol_code):
     bull = sum(v == "NOUSU" for v in result.values())
     bear = sum(v == "LASKU" for v in result.values())
 
+    # Require three valid, aligned timeframes. Missing feeds count as unknown.
+    valid_count = sum(v in ("NOUSU", "LASKU", "EPÄSELVÄ") for v in result.values())
+    if valid_count < 3:
+        return "EPÄSELVÄ", result
     if bull >= 3:
         return "VAHVA NOUSU", result
     if bear >= 3:
         return "VAHVA LASKU", result
-    if bull >= 2:
+    if bull >= 2 and bear == 0:
         return "NOUSU", result
-    if bear >= 2:
+    if bear >= 2 and bull == 0:
         return "LASKU", result
 
     return "EPÄSELVÄ", result
