@@ -21,6 +21,8 @@ Rahasampo Radar is a cryptocurrency market-analysis prototype. This branch harde
 - `rahasampo/decision.py`: pure score classification with hard no-trade gates. Fast candle alerts cannot force a buy/sell label.
 - `rahasampo/cross_exchange.py`: fail-closed Binance/Bybit spot ticker comparison; stale reference prices, invalid prices, unsupported pairs, API failures, or excessive divergence block the live signal path.
 - `rahasampo/market_data.py`: isolated Binance OHLCV adapter with strict payload parsing and a shared endpoint failover timeout; API behavior is tested independently of Streamlit.
+- `rahasampo/signal_journal.py`: persistent, idempotent SQLite decisions per symbol/timeframe/closed candle, including no-trade reasons.
+- `rahasampo/guardrails.py`: persisted cooldown and UTC-day signal cap; blocks decisive signal candidates if the journal is unavailable or the rate limit is exceeded.
 - The candidate replay uses a circular moving-block bootstrap interval to retain some local dependence in sequential trade outcomes.
 - `run_random_entry_baseline`: reproducible random entry timing and direction with ATR-based barriers and non-overlapping trades.
 - `compare_strategy_to_random`: comparison of observed average net trade return with the simulated random-run distribution.
@@ -58,6 +60,14 @@ python -m rahasampo.backtest_cli \
 ```
 
 The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. The random benchmark matches the accepted strategy trades' long/short ratio and samples an exact number of non-overlapping random entries. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+
+## Persistent signal journal and conservative guardrails
+
+The Streamlit app writes one journal row per symbol, timeframe, and fully closed candle into `signal_journal.sqlite` (override the path with `RAHASAMPO_SIGNAL_JOURNAL`). The journal includes the decision score, label, key prices, trend/structure context, source, and explanatory notes including rejection reasons. Repeated UI refreshes do not create duplicate records for the same candle.
+
+By default, decisive BUY/SELL candidates are subject to a three-bar cooldown and an eight-candidate-per-UTC-day cap per symbol/timeframe. These are conservative engineering defaults, not empirically optimized trading parameters. If the guardrail journal cannot be read, a decisive candidate is blocked. Watch/wait/no-trade decisions are journaled but do not consume the directional-signal cap.
+
+The SQLite file is local and is ignored by Git. Ephemeral deployment platforms may delete local files when instances restart; use a managed persistent database before relying on the journal across restarts or multiple app instances.
 
 ## Before any live-trading use
 
