@@ -11,6 +11,8 @@ import streamlit as st
 from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
 from rahasampo.decision import classify_score
 from rahasampo.cross_exchange import get_spot_price_check
+from rahasampo.guardrails import apply_signal_guardrails
+from rahasampo.signal_journal import journal_counts, record_decision
 from rahasampo.market_data import fetch_binance_klines
 
 
@@ -923,7 +925,28 @@ def run_app():
     df = add_indicators(raw)
     signal_df = add_indicators(closed_raw)
     ai = ai_engine(signal_df)
+    ai, guardrail_reason = apply_signal_guardrails(
+        ai,
+        symbol=symbol,
+        timeframe=tf,
+        candle_time=signal_df.index[-1],
+        cooldown_bars=3,
+        daily_signal_limit=8,
+    )
     remember(ai)
+    try:
+        record_decision(
+            symbol=symbol,
+            timeframe=tf,
+            candle_time=signal_df.index[-1],
+            decision=ai,
+            data_source=source,
+        )
+    except Exception as journal_error:
+        st.warning(
+            "Signaalipäiväkirjan tallennus epäonnistui: "
+            f"{type(journal_error).__name__}. Tarkista paikallinen tallennus."
+        )
 
     signal_box(ai)
 
@@ -992,6 +1015,24 @@ def run_app():
             st.dataframe(pd.DataFrame(st.session_state.memory), use_container_width=True, hide_index=True)
         else:
             st.info("Ei vielä signaaleja.")
+
+    with st.expander("📘 Pysyvä signaalipäiväkirja"):
+        try:
+            counts = journal_counts()
+            if counts:
+                st.dataframe(
+                    pd.DataFrame(
+                        [{"Päätös": decision_type, "Määrä": count}
+                         for decision_type, count in sorted(counts.items())]
+                    ),
+                    use_container_width=True,
+                    hide_index=True,
+                )
+            else:
+                st.info("Päiväkirjassa ei ole vielä päätöksiä.")
+            st.caption("Tallennetaan yksi päätös symboli/aikaväli/suljettu kynttilä -yhdistelmää kohti. Paikallinen SQLite-tiedosto ei välttämättä säily pilvipalvelun uudelleenkäynnistyksissä.")
+        except Exception as journal_error:
+            st.warning(f"Päiväkirjaa ei voi lukea: {type(journal_error).__name__}.")
 
     with st.expander("🧪 Tutkimusmoduulien tila"):
         st.write("Triple-barrier: automaattiset TP/SL/aikaraja-merkinnät; ratkaisematon aikahorisontti jää merkitsemättä.")
