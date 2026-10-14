@@ -50,8 +50,18 @@ def _bootstrap_mean_ci(
         raise ValueError("Use at least 100 bootstrap samples.")
     rng = np.random.default_rng(seed)
     means = np.empty(samples, dtype=float)
+    # Circular moving-block bootstrap retains some local dependence between
+    # consecutive trade outcomes, unlike resampling each trade independently.
+    block_length = max(1, int(np.sqrt(returns.size)))
     for i in range(samples):
-        means[i] = rng.choice(returns, size=returns.size, replace=True).mean()
+        sample_parts: list[float] = []
+        while len(sample_parts) < returns.size:
+            start = int(rng.integers(0, returns.size))
+            for offset in range(block_length):
+                sample_parts.append(float(returns[(start + offset) % returns.size]))
+                if len(sample_parts) >= returns.size:
+                    break
+        means[i] = float(np.mean(sample_parts))
     lo, hi = np.quantile(means, [0.025, 0.975])
     return float(lo), float(hi)
 
