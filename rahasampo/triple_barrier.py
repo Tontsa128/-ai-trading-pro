@@ -143,6 +143,107 @@ def triple_barrier_label(
     raise RuntimeError("Unreachable triple-barrier state.")
 
 
+def label_signal_candidates(
+    ohlcv: pd.DataFrame,
+    atr: pd.Series,
+    candidates: list[dict],
+    *,
+    max_holding_bars: int = 20,
+    stop_atr: float = 1.25,
+    target_atr: float = 2.2,
+    fee_rate: float = 0.0004,
+    slippage_bps: float = 2.0,
+) -> pd.DataFrame:
+    """Automatically label historical signal candidates with triple barriers.
+
+    Each candidate is a mapping with signal_index (the closed candle that
+    generated the signal) and side ('long' or 'short'). The simulated entry is
+    the next candle's open; stop/target distances use ATR known at signal time.
+    This avoids using the signal candle's close as if it were a guaranteed fill.
+    """
+    missing = {"Open", "High", "Low", "Close"}.difference(ohlcv.columns)
+    if missing:
+        raise ValueError(f"Missing OHLC columns: {', '.join(sorted(missing))}.")
+    if not ohlcv.index.equals(atr.index):
+        raise ValueError("ATR index must exactly match the OHLCV index.")
+    if max_holding_bars < 1 or stop_atr <= 0 or target_atr <= 0:
+        raise ValueError("Holding horizon and ATR barrier multipliers must be positive.")
+
+    records: list[dict] = []
+    for candidate in candidates:
+        signal_index = int(candidate["signal_index"])
+        side = candidate["side"]
+        if side not in ("long", "short"):
+            raise ValueError("Each candidate side must be 'long' or 'short'.")
+        if signal_index < 0 or signal_index >= len(ohlcv):
+            raise IndexError("Candidate signal_index is outside the OHLCV frame.")
+
+        record = {
+            "signal_index": signal_index,
+            "signal_time": ohlcv.index[signal_index],
+            "side": side,
+        }
+        entry_index = signal_index + 1
+        if entry_index >= len(ohlcv):
+            records.append({
+                **record,
+                "entry_index": None,
+                "entry_time": None,
+                "event": "unresolved",
+                "label": None,
+                "entry_price": None,
+                "exit_price": None,
+                "gross_return_pct": None,
+                "net_return_pct": None,
+                "bars_held": 0,
+                "reason": "No next candle exists for a realistic next-open entry.",
+            })
+            continue
+
+        atr_value = float(atr.iloc[signal_index])
+        if not np.isfinite(atr_value) or atr_value <= 0:
+            records.append({
+                **record,
+                "entry_index": entry_index,
+                "entry_time": ohlcv.index[entry_index],
+                "event": "unresolved",
+                "label": None,
+                "entry_price": None,
+                "exit_price": None,
+                "gross_return_pct": None,
+                "net_return_pct": None,
+                "bars_held": 0,
+                "reason": "ATR was unavailable or invalid at signal time.",
+            })
+            continue
+
+        entry_price = float(ohlcv["Open"].iloc[entry_index])
+        if side == "long":
+            stop_price = entry_price - atr_value * stop_atr
+            target_price = entry_price + atr_value * target_atr
+        else:
+            stop_price = entry_price + atr_value * stop_atr
+            target_price = entry_price - atr_value * target_atr
+
+        outcome = triple_barrier_label(
+            ohlcv,
+            entry_index=entry_index,
+            side=side,
+            entry_price=entry_price,
+            stop_price=stop_price,
+            target_price=target_price,
+            max_holding_bars=max_holding_bars,
+            fee_rate=fee_rate,
+            slippage_bps=slippage_bps,
+        )
+        records.append({
+            **record,
+            "entry_time": ohlcv.index[entry_index],
+            **outcome.to_dict(),
+        })
+    return pd.DataFrame(records)
+
+
 def run_random_entry_baseline(
     ohlcv: pd.DataFrame,
     atr: pd.Series,
