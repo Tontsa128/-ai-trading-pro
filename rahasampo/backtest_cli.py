@@ -143,6 +143,8 @@ def run_cli(argv: list[str] | None = None) -> int:
         baseline_summary: dict = {"available": False}
         if accepted_returns:
             try:
+                accepted_sides = trades.loc[trades["accepted"], "side"].astype(str).str.lower()
+                long_probability = float((accepted_sides == "long").mean())
                 baseline = run_random_entry_baseline(
                     historical, atr,
                     n_trades=len(accepted_returns),
@@ -153,6 +155,7 @@ def run_cli(argv: list[str] | None = None) -> int:
                     seed=args.seed,
                     fee_rate=args.fee_rate,
                     slippage_bps=args.slippage_bps,
+                    long_probability=long_probability,
                 )
                 comparison = compare_strategy_to_random(accepted_returns, baseline)
                 baseline_summary = {
@@ -160,6 +163,7 @@ def run_cli(argv: list[str] | None = None) -> int:
                     "benchmark": baseline["method"],
                     "simulations": baseline["simulations"],
                     "trades_per_simulation": baseline["trades_per_simulation"],
+                    "long_probability": baseline["long_probability"],
                     "mean_expectancy_pct": baseline["mean_expectancy_pct"],
                     "p05_expectancy_pct": baseline["p05_expectancy_pct"],
                     "median_expectancy_pct": baseline["median_expectancy_pct"],
@@ -189,6 +193,7 @@ def run_cli(argv: list[str] | None = None) -> int:
                 "Results depend on the quality and venue of the supplied historical data.",
                 "The random benchmark is diagnostic, not proof of profitability.",
                 "No live orders are sent by this tool.",
+                "Short-side returns are simplified directional PnL; borrow, margin, funding, liquidation and venue-specific short rules are not modeled.",
             ],
         }
         Path(args.trades_out).parent.mkdir(parents=True, exist_ok=True)
