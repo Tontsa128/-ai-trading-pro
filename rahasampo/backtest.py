@@ -167,6 +167,8 @@ def backtest_signal_candidates(
         row = {**base, "accepted": outcome.event != "unresolved", **outcome.to_dict()}
         if outcome.event == "unresolved":
             unresolved_count += 1
+            # An unresolved open position remains open through the end of available data.
+            occupied_until = len(ohlcv) - 1
         else:
             accepted_returns.append(float(outcome.net_return_pct))
             if outcome.exit_index is not None:
