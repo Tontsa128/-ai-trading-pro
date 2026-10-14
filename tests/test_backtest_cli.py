@@ -52,7 +52,7 @@ class BacktestCliInputTests(unittest.TestCase):
             trades_path = root / "out" / "trades.csv"
             report_path = root / "out" / "report.json"
             self.make_ohlcv(index).to_csv(ohlcv_path, index=False)
-            pd.DataFrame({"timestamp": [index[5].isoformat()], "side": ["long"]}).to_csv(signals_path, index=False)
+            pd.DataFrame({"timestamp": [index[20].isoformat()], "side": ["long"]}).to_csv(signals_path, index=False)
 
             exit_code = run_cli([
                 "--ohlcv", str(ohlcv_path),
