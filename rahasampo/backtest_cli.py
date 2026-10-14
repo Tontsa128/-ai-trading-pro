@@ -104,6 +104,7 @@ def run_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Offline Rahasampo candidate backtest")
     parser.add_argument("--ohlcv", required=True, help="CSV: timestamp,open,high,low,close,volume")
     parser.add_argument("--signals", required=True, help="CSV: timestamp,side (long or short)")
+    parser.add_argument("--symbol", default="", help="Optional instrument label for the report")
     parser.add_argument("--timeframe", default="1m", choices=sorted(TIMEFRAME_SECONDS))
     parser.add_argument("--max-holding-bars", type=int, default=20)
     parser.add_argument("--stop-atr", type=float, default=1.25)
@@ -176,7 +177,7 @@ def run_cli(argv: list[str] | None = None) -> int:
 
         report_payload = {
             "research_only": True,
-            "instrument": Path(args.ohlcv).stem,
+            "instrument": args.symbol or Path(args.ohlcv).stem,
             "timeframe": args.timeframe,
             "input_signal_count": len(candidates),
             "strategy": report.to_dict(),
