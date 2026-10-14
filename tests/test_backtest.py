@@ -15,7 +15,7 @@ class BacktestTests(unittest.TestCase):
     def test_entry_uses_next_bar_open_and_reports_metrics(self):
         frame = frame_from_rows([
             [100, 101, 99, 100],
-            [100, 103, 99, 102],
+            [100, 103, 99.5, 102],
             [102, 103, 101, 102],
             [102, 103, 101, 102],
         ])
