@@ -164,7 +164,16 @@ def candidate_history(
             query,
             (symbol.strip().upper(), timeframe, *CANDIDATE_TYPES, day_start, candle_utc),
         ).fetchall()
-    last = rows[-1][0] if rows else None
+        previous = connection.execute(
+            """
+            SELECT candle_time_utc FROM signal_journal
+            WHERE symbol = ? AND timeframe = ?
+              AND decision_type IN (?, ?) AND candle_time_utc < ?
+            ORDER BY candle_time_utc DESC LIMIT 1
+            """,
+            (symbol.strip().upper(), timeframe, *CANDIDATE_TYPES, candle_utc),
+        ).fetchone()
+    last = previous[0] if previous else None
     return len(rows), last
 
 
