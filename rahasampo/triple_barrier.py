@@ -186,12 +186,11 @@ def run_random_entry_baseline(
     for _ in range(simulations):
         order = rng.permutation(candidates)
         chosen: list[int] = []
-        occupied_until = -1
         for candidate in order:
             position = int(candidate)
-            if position > occupied_until:
+            # Check separation from every selected entry, independent of draw order.
+            if all(abs(position - selected) >= max_holding_bars for selected in chosen):
                 chosen.append(position)
-                occupied_until = position + max_holding_bars - 1
             if len(chosen) == n_trades:
                 break
         if len(chosen) < n_trades:
