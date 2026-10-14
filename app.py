@@ -112,7 +112,7 @@ st.sidebar.divider()
 
 show_fast = st.sidebar.checkbox("EMA9 / EMA21", True)
 show_slow = st.sidebar.checkbox("EMA50 / EMA100", True)
-show_vwap = st.sidebar.checkbox("VWAP", False)
+show_vwap = st.sidebar.checkbox("VWAP (UTC-session, vain täydellä datalla)", False)
 show_levels = st.sidebar.checkbox("Support / Resistance", True)
 show_patterns = st.sidebar.checkbox("Pattern-merkinnät", True)
 live_on = st.sidebar.toggle("Live päällä", True)
@@ -256,13 +256,19 @@ def add_indicators(df):
     df["ATR"] = tr.rolling(14, min_periods=14).mean()
     df["VOL_MA"] = df["Volume"].rolling(20, min_periods=20).mean()
 
-    # Daily UTC-anchored VWAP; never backfill features from future rows.
+    # UTC-session VWAP is valid only when the loaded data contains that session's first bar.
+    # Missing session starts stay NaN rather than displaying a misleading partial-session value.
     typical = (df["High"] + df["Low"] + df["Close"]) / 3
     index_utc = df.index.tz_localize("UTC") if df.index.tz is None else df.index.tz_convert("UTC")
     session_key = pd.Series(index_utc.normalize(), index=df.index)
     cumulative_pv = (typical * df["Volume"]).groupby(session_key).cumsum()
     cumulative_volume = df["Volume"].groupby(session_key).cumsum().replace(0, np.nan)
-    df["VWAP"] = (cumulative_pv / cumulative_volume).ffill()
+    df["VWAP"] = cumulative_pv / cumulative_volume
+    for session_start in session_key.unique():
+        session_mask = session_key == session_start
+        if index_utc[session_mask.to_numpy()].min() != session_start:
+            df.loc[session_mask, "VWAP"] = np.nan
+    df["VWAP"] = df["VWAP"].groupby(session_key).ffill()
 
     return df
 
@@ -677,12 +683,15 @@ def ai_engine(df):
         score -= 7
         notes.append("Hinta EMA100 alapuolella")
 
-    if price > live.VWAP:
-        score += 4
-        notes.append("Hinta VWAP yläpuolella")
+    if pd.notna(live.VWAP):
+        if price > live.VWAP:
+            score += 4
+            notes.append("Hinta täyden UTC-session VWAP:n yläpuolella")
+        else:
+            score -= 4
+            notes.append("Hinta täyden UTC-session VWAP:n alapuolella")
     else:
-        score -= 4
-        notes.append("Hinta VWAP alapuolella")
+        notes.append("VWAP ohitettiin: täyttä UTC-session dataa ei ole ladattu")
 
     if live.RSI < 30:
         score += 10
@@ -851,7 +860,7 @@ def draw_chart(df, ai):
         fig.add_trace(go.Scatter(x=d.index, y=d.EMA100, name="EMA100", mode="lines", line=dict(color="#c084fc", width=2.3)))
 
     if show_vwap:
-        fig.add_trace(go.Scatter(x=d.index, y=d.VWAP, name="VWAP", mode="lines", line=dict(color="#22d3ee", width=2)))
+        fig.add_trace(go.Scatter(x=d.index, y=d.VWAP, name="VWAP (UTC-session)", mode="lines", line=dict(color="#22d3ee", width=2)))
 
     if show_levels:
         fig.add_hline(y=ai["support"], line_dash="dot", line_color="#22c55e")
