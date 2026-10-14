@@ -61,7 +61,7 @@ def get_spot_price_check(
     *,
     max_deviation_pct: float = 0.75,
     max_reference_age_seconds: float = 15.0,
-    timeout_seconds: float = 4.0,
+    timeout_seconds: float = 1.5,
 ) -> PriceCheck:
     """Fetch Binance and Bybit public spot tickers; fail closed on any fetch error.
 
