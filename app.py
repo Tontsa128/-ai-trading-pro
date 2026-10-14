@@ -15,7 +15,7 @@ from rahasampo.cross_exchange import get_spot_price_check
 
 
 # ============================================================
-# RAHASAMPO RADAR V26 PRO
+# RAHASAMPO RADAR V27 PRO — RESEARCH PREVIEW
 # Opetustyökalu / treidausavustaja.
 # Ei sijoitusneuvo. Ei tee oikeita kauppoja.
 # ============================================================
@@ -208,6 +208,7 @@ def get_klines(symbol_code, interval_code, limit_count):
 
 def load_data():
     """Fetch and validate live candles; cached data never powers live signals."""
+    st.session_state.cross_exchange_check = None
     try:
         if st.session_state.df is None:
             candidate = get_klines(symbol, tf, max(candles + 230, 420))
