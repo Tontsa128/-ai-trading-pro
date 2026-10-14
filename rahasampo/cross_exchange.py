@@ -63,7 +63,14 @@ def get_spot_price_check(
     max_reference_age_seconds: float = 15.0,
     timeout_seconds: float = 4.0,
 ) -> PriceCheck:
-    """Fetch Binance and Bybit public spot tickers; fail closed on any fetch error."""
+    """Fetch Binance and Bybit public spot tickers; fail closed on any fetch error.
+
+    A single shared deadline bounds total UI blocking to at most three per-request
+    timeouts, rather than multiplying the timeout across every fallback endpoint.
+    """
+    if not math.isfinite(float(timeout_seconds)) or timeout_seconds <= 0:
+        raise ValueError("timeout_seconds must be finite and positive.")
+    deadline = time.monotonic() + timeout_seconds * 3.0
     primary_price = None
     last_error = ""
     binance_urls = [
@@ -73,11 +80,14 @@ def get_spot_price_check(
         "https://data-api.binance.vision/api/v3/ticker/price",
     ]
     for url in binance_urls:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
         try:
             response = requests.get(
                 url,
                 params={"symbol": symbol},
-                timeout=timeout_seconds,
+                timeout=min(timeout_seconds, remaining),
                 headers={"User-Agent": "RahasampoRadar/27"},
             )
             response.raise_for_status()
@@ -96,11 +106,17 @@ def get_spot_price_check(
             f"Binance spot ticker unavailable: {last_error[:180]}",
         )
 
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return PriceCheck(
+            False, primary_price, None, None, datetime.now(timezone.utc).isoformat(),
+            "Cross-exchange check exceeded its total timeout before the reference request.",
+        )
     try:
         response = requests.get(
             "https://api.bybit.com/v5/market/tickers",
             params={"category": "spot", "symbol": symbol},
-            timeout=timeout_seconds,
+            timeout=min(timeout_seconds, remaining),
             headers={"User-Agent": "RahasampoRadar/27"},
         )
         response.raise_for_status()
