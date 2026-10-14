@@ -167,8 +167,13 @@ def get_klines(symbol_code, interval_code, limit_count):
     ]
 
     last_error = ""
+    # Keep the full endpoint failover bounded; don't multiply an 8s timeout by every URL.
+    deadline = time.monotonic() + 8.0
 
     for url in urls:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
         try:
             r = requests.get(
                 url,
@@ -177,8 +182,8 @@ def get_klines(symbol_code, interval_code, limit_count):
                     "interval": interval_code,
                     "limit": int(limit_count),
                 },
-                timeout=8,
-                headers={"User-Agent": "Mozilla/5.0"},
+                timeout=min(2.0, remaining),
+                headers={"User-Agent": "RahasampoRadar/27"},
             )
 
             if r.status_code != 200:
