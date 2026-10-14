@@ -15,6 +15,7 @@ Rahasampo Radar is a cryptocurrency market-analysis prototype. This branch harde
 
 - `rahasampo/data_quality.py`: OHLCV validation and closed-candle filtering.
 - `rahasampo/triple_barrier.py`: outcome labels for take-profit, stop-loss, and time expiry; conservative stop-first handling when both barriers are hit in a single OHLC candle; unresolved labels if the full horizon is unavailable; simple configurable fee and slippage assumptions.
+- `label_signal_candidates`: batch-labels historical candidates using the next candle open and ATR known when the signal occurred.
 - `run_random_entry_baseline`: reproducible random entry timing and direction with ATR-based barriers and non-overlapping trades.
 - `compare_strategy_to_random`: comparison of observed average net trade return with the simulated random-run distribution.
 
