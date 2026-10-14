@@ -1,6 +1,8 @@
 import unittest
+import time
+from unittest.mock import Mock, patch
 
-from rahasampo.cross_exchange import assess_price_divergence
+from rahasampo.cross_exchange import assess_price_divergence, get_spot_price_check
 
 
 class CrossExchangeTests(unittest.TestCase):
@@ -35,6 +37,36 @@ class CrossExchangeTests(unittest.TestCase):
         )
         self.assertFalse(result.ok)
         self.assertIn("future", result.message)
+
+    def test_public_ticker_adapter_parses_both_exchanges(self):
+        now_ms = int(time.time() * 1000)
+        binance_response = Mock()
+        binance_response.raise_for_status.return_value = None
+        binance_response.json.return_value = {"symbol": "BTCUSDT", "price": "100.00"}
+        bybit_response = Mock()
+        bybit_response.raise_for_status.return_value = None
+        bybit_response.json.return_value = {
+            "retCode": 0,
+            "time": now_ms,
+            "result": {"list": [{"symbol": "BTCUSDT", "lastPrice": "100.10"}]},
+        }
+        with patch("rahasampo.cross_exchange.requests.get", side_effect=[binance_response, bybit_response]):
+            result = get_spot_price_check("BTCUSDT")
+        self.assertTrue(result.ok, result.message)
+        self.assertAlmostEqual(result.primary_price, 100.0)
+        self.assertAlmostEqual(result.reference_price, 100.1)
+
+    def test_public_ticker_adapter_fails_closed_when_reference_is_unavailable(self):
+        binance_response = Mock()
+        binance_response.raise_for_status.return_value = None
+        binance_response.json.return_value = {"symbol": "BTCUSDT", "price": "100.00"}
+        bybit_response = Mock()
+        bybit_response.raise_for_status.return_value = None
+        bybit_response.json.return_value = {"retCode": 10001, "retMsg": "invalid request", "result": {"list": []}}
+        with patch("rahasampo.cross_exchange.requests.get", side_effect=[binance_response, bybit_response]):
+            result = get_spot_price_check("BTCUSDT")
+        self.assertFalse(result.ok)
+        self.assertIn("Bybit", result.message)
 
     def test_invalid_prices_fail(self):
         for price in (0.0, -1.0, float("nan"), float("inf")):
