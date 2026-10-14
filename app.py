@@ -3,13 +3,13 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import time
-import json
-import os
 import requests
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+
+from rahasampo.data_quality import select_closed_candles, validate_ohlcv
 
 
 # ============================================================
@@ -19,10 +19,9 @@ import streamlit as st
 # ============================================================
 
 APP_TZ = "Europe/Helsinki"
-LEARNING_FILE = "learning_v26.json"
 
 st.set_page_config(
-    page_title="Rahasampo Radar V26 PRO",
+    page_title="Rahasampo Radar V27 PRO",
     page_icon="💰",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -100,7 +99,7 @@ init_state()
 # SIDEBAR
 # ============================================================
 
-st.sidebar.title("💰 Rahasampo Radar V26 PRO")
+st.sidebar.title("💰 Rahasampo Radar V27 PRO")
 
 selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 symbol = SYMBOLS[selected_name]
@@ -119,20 +118,12 @@ show_patterns = st.sidebar.checkbox("Pattern-merkinnät", True)
 live_on = st.sidebar.toggle("Live päällä", True)
 
 st.sidebar.divider()
-learning_on = st.sidebar.toggle("Oppiminen päällä", True)
 
 if st.sidebar.button("🔄 Resetoi data"):
     st.session_state.df = None
     st.session_state.memory = []
     st.session_state.last_error = ""
     st.rerun()
-
-if st.sidebar.button("🧠 Tyhjennä oppimismuisti"):
-    if os.path.exists(LEARNING_FILE):
-        os.remove(LEARNING_FILE)
-    st.session_state.memory = []
-    st.rerun()
-
 
 new_key = f"{symbol}_{tf}_{candles}"
 if st.session_state.key != new_key:
@@ -195,47 +186,30 @@ def get_klines(symbol_code, interval_code, limit_count):
     raise RuntimeError(last_error)
 
 
-def demo_data(limit_count=360, base=78000):
-    now = pd.Timestamp.now(tz=APP_TZ).floor("min")
-    idx = pd.date_range(end=now, periods=limit_count, freq="min")
-    price = float(base)
-    rows = []
-
-    for _ in idx:
-        o = price
-        price *= 1 + np.random.normal(0, 0.0011)
-        c = price
-        h = max(o, c) * (1 + abs(np.random.normal(0, 0.0008)))
-        l = min(o, c) * (1 - abs(np.random.normal(0, 0.0008)))
-        v = abs(np.random.normal(100, 25))
-        rows.append([o, h, l, c, v])
-
-    return pd.DataFrame(rows, index=idx, columns=["Open", "High", "Low", "Close", "Volume"])
-
-
 def load_data():
+    """Fetch and validate live candles; cached data never powers live signals."""
     try:
         if st.session_state.df is None:
-            st.session_state.df = get_klines(symbol, tf, max(candles + 230, 420))
+            candidate = get_klines(symbol, tf, max(candles + 230, 420))
         else:
             latest = get_klines(symbol, tf, 10)
-            df = pd.concat([st.session_state.df, latest])
-            df = df[~df.index.duplicated(keep="last")]
-            df = df.sort_index().tail(max(candles + 230, 420))
-            st.session_state.df = df
+            candidate = pd.concat([st.session_state.df, latest])
+            candidate = candidate[~candidate.index.duplicated(keep="last")]
+            candidate = candidate.sort_index().tail(max(candles + 230, 420))
 
+        valid, errors = validate_ohlcv(candidate, timeframe=tf, min_rows=120)
+        if not valid:
+            raise RuntimeError("; ".join(errors))
+
+        st.session_state.df = candidate
         st.session_state.last_error = ""
-        return st.session_state.df.copy(), "Binance live OHLC"
+        return candidate.copy(), "Binance live OHLC"
 
-    except Exception as e:
-        st.session_state.last_error = str(e)
-
-        if st.session_state.df is None:
-            base = 78000 if symbol == "BTCUSDT" else 3000
-            st.session_state.df = demo_data(max(candles + 230, 420), base)
-            return st.session_state.df.copy(), "Demo-varadata"
-
-        return st.session_state.df.copy(), "Vanha data käytössä"
+    except Exception as exc:
+        st.session_state.last_error = str(exc)
+        if st.session_state.df is not None:
+            return st.session_state.df.copy(), "DATA FAIL — cached data only; signals disabled"
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"]), "DATA FAIL — no valid live data"
 
 
 # ============================================================
@@ -243,13 +217,18 @@ def load_data():
 # ============================================================
 
 def rsi(close, period=14):
+    """Wilder-style RSI with explicit all-gain/all-loss/flat edge cases."""
     delta = close.diff()
     gain = delta.clip(lower=0)
     loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
+    avg_gain = gain.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
+    avg_loss = loss.ewm(alpha=1 / period, adjust=False, min_periods=period).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    return (100 - (100 / (1 + rs))).fillna(50).clip(0, 100)
+    result = 100 - (100 / (1 + rs))
+    result = result.mask((avg_loss == 0) & (avg_gain > 0), 100.0)
+    result = result.mask((avg_gain == 0) & (avg_loss > 0), 0.0)
+    result = result.mask((avg_gain == 0) & (avg_loss == 0), 50.0)
+    return result.clip(0, 100)
 
 
 def add_indicators(df):
@@ -274,12 +253,16 @@ def add_indicators(df):
         (df["Low"] - df["Close"].shift()).abs(),
     ], axis=1).max(axis=1)
 
-    df["ATR"] = tr.rolling(14, min_periods=5).mean().bfill()
-    df["VOL_MA"] = df["Volume"].rolling(20, min_periods=5).mean().bfill()
+    df["ATR"] = tr.rolling(14, min_periods=14).mean()
+    df["VOL_MA"] = df["Volume"].rolling(20, min_periods=20).mean()
 
+    # Daily UTC-anchored VWAP; never backfill features from future rows.
     typical = (df["High"] + df["Low"] + df["Close"]) / 3
-    volume_sum = df["Volume"].replace(0, np.nan).cumsum()
-    df["VWAP"] = ((typical * df["Volume"]).cumsum() / volume_sum).ffill().bfill()
+    index_utc = df.index.tz_localize("UTC") if df.index.tz is None else df.index.tz_convert("UTC")
+    session_key = pd.Series(index_utc.normalize(), index=df.index)
+    cumulative_pv = (typical * df["Volume"]).groupby(session_key).cumsum()
+    cumulative_volume = df["Volume"].groupby(session_key).cumsum().replace(0, np.nan)
+    df["VWAP"] = (cumulative_pv / cumulative_volume).ffill()
 
     return df
 
@@ -623,81 +606,6 @@ def live_reaction(df):
 
 
 # ============================================================
-# LEARNING ENGINE
-# ============================================================
-
-def read_learning():
-    try:
-        with open(LEARNING_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-
-def write_learning(history):
-    try:
-        with open(LEARNING_FILE, "w", encoding="utf-8") as f:
-            json.dump(history[-300:], f, ensure_ascii=False, indent=2)
-    except Exception:
-        pass
-
-
-def feature_signature(ai_temp):
-    return {
-        "bias": ai_temp.get("bias"),
-        "structure": ai_temp.get("structure"),
-        "triangle": ai_temp.get("triangle"),
-        "direction": ai_temp.get("direction"),
-    }
-
-
-def learning_adjust(score, ai_temp):
-    if not learning_on:
-        return score, "Oppiminen pois päältä"
-
-    history = read_learning()
-    if not history:
-        return score, "Ei vielä oppimishistoriaa"
-
-    sig = feature_signature(ai_temp)
-    adjustment = 0
-    matches = 0
-
-    for item in history[-120:]:
-        features = item.get("features", {})
-        result = item.get("result")
-
-        similarity = 0
-        for key in ["bias", "structure", "triangle", "direction"]:
-            if features.get(key) == sig.get(key):
-                similarity += 1
-
-        if similarity >= 2:
-            matches += 1
-            if result == "win":
-                adjustment += 2
-            elif result == "loss":
-                adjustment -= 2
-
-    adjustment = max(-12, min(12, adjustment))
-
-    return score + adjustment, f"Oppiminen: {matches} osumaa, säätö {adjustment:+d}"
-
-
-def save_learning_result(result, ai):
-    history = read_learning()
-    history.append({
-        "time": now_local(),
-        "symbol": selected_name,
-        "result": result,
-        "features": feature_signature(ai),
-        "score": ai["score"],
-        "level": ai["level"],
-    })
-    write_learning(history)
-
-
-# ============================================================
 # AI ENGINE
 # ============================================================
 
@@ -814,9 +722,6 @@ def ai_engine(df):
         "direction": direction_temp,
     }
 
-    score, learn_note = learning_adjust(int(score), ai_temp)
-    notes.append(learn_note)
-
     if no_trade and alert == "EI":
         score *= 0.6
         notes.append("Sivuttaismarkkina: signaalia leikataan")
@@ -847,8 +752,6 @@ def ai_engine(df):
     if no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
-    confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
-
     atr = max(float(live.ATR), price * 0.001)
 
     if "OSTA" in level:
@@ -871,7 +774,6 @@ def ai_engine(df):
     return {
         "level": level,
         "score": final,
-        "confidence": confidence,
         "price": price,
         "support": support,
         "resistance": resistance,
@@ -896,8 +798,6 @@ def ai_engine(df):
 
 def signal_box(ai):
     level = ai["level"]
-    conf = ai["confidence"]
-
     if "OSTA" in level and "TARKKAILU" not in level:
         cls = "buy"
     elif "MYY" in level and "TARKKAILU" not in level:
@@ -912,7 +812,7 @@ def signal_box(ai):
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>{conf}%</div>',
+        f'<div class="signal {cls}">{level}<br>Score {ai["score"]:+d}/100</div>',
         unsafe_allow_html=True,
     )
 
@@ -965,7 +865,7 @@ def draw_chart(df, ai):
         fig.add_hline(y=ai["triangle_lines"]["support_line"], line_dash="dash", line_color="#22c55e")
 
     fig.update_layout(
-        title=f"{selected_name} — Rahasampo Radar V26 PRO",
+        title=f"{selected_name} — Rahasampo Radar V27 PRO",
         height=780,
         template="plotly_dark",
         paper_bgcolor="#070d1c",
@@ -995,7 +895,7 @@ def remember(ai):
         "Signaali": ai["level"],
         "Hinta": round(ai["price"], 4),
         "Score": ai["score"],
-        "Varmuus": ai["confidence"],
+        "Signaalivahvuus": ai["score"],
         "Pattern": ai["triangle"],
         "Structure": ai["structure"],
     }
@@ -1008,12 +908,33 @@ def remember(ai):
 
 
 def run_app():
+    st.title("💰 Rahasampo Radar V27 PRO — Research Preview")
     raw, source = load_data()
-    df = add_indicators(raw)
-    ai = ai_engine(df)
-    remember(ai)
 
-    st.title("💰 Rahasampo Radar V26 PRO")
+    if source != "Binance live OHLC":
+        st.error(source)
+        st.warning("NO TRADE — kelvollista live-dataa ei ole vahvistettu. Välimuistia ei käytetä signaalin muodostamiseen.")
+        if st.session_state.last_error:
+            st.caption(f"Viimeisin datavirhe: {st.session_state.last_error}")
+        return
+
+    valid, data_errors = validate_ohlcv(raw, timeframe=tf, min_rows=120)
+    if not valid:
+        st.error("DATA FAIL — signaalin muodostaminen estetty.")
+        for error in data_errors:
+            st.write(f"• {error}")
+        return
+
+    closed_raw = select_closed_candles(raw, tf)
+    if len(closed_raw) < 120:
+        st.error("NO TRADE — suljettuja kynttilöitä ei ole tarpeeksi luotettavaan analyysiin.")
+        return
+
+    # Chart may show the forming candle; signal calculations use closed bars only.
+    df = add_indicators(raw)
+    signal_df = add_indicators(closed_raw)
+    ai = ai_engine(signal_df)
+    remember(ai)
 
     signal_box(ai)
 
@@ -1024,7 +945,7 @@ def run_app():
     c4.metric("Candle", ai["power"])
     c5.metric("Päivitetty", now_local())
 
-    st.caption(f"{source} | TF: {tf} | Live {refresh}s | Suomen aika")
+    st.caption(f"{source} | TF: {tf} | Päivitys {refresh}s | Signaali perustuu viimeiseen suljettuun kynttilään | ajat Suomen ajassa")
 
     if st.session_state.last_error:
         st.warning(f"Datavaroitus: {st.session_state.last_error}")
@@ -1065,17 +986,9 @@ def run_app():
 
     with d:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🧠 Opeta AI:ta")
-        st.write("Kun signaali oli hyvä tai huono, tallenna tulos.")
-        colw, coll = st.columns(2)
-        with colw:
-            if st.button("✅ Tämä onnistui", use_container_width=True):
-                save_learning_result("win", ai)
-                st.success("Tallennettu voitolliseksi malliksi.")
-        with coll:
-            if st.button("❌ Tämä epäonnistui", use_container_width=True):
-                save_learning_result("loss", ai)
-                st.error("Tallennettu virheeksi.")
+        st.subheader("🧪 V27 tutkimustyökalut")
+        st.write("Käsin merkittävät win/loss-arviot on poistettu. Triple-barrier-luokitin ja satunnaisbaseline ovat testattavia tutkimusmoduuleja.")
+        st.write("Historiallinen signaaliseuranta ja mallin koulutus kytketään käyttöliittymään vasta, kun niiden tulokset on erikseen testattu.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("🧠 Miksi AI sanoo näin?"):
@@ -1088,12 +1001,10 @@ def run_app():
         else:
             st.info("Ei vielä signaaleja.")
 
-    with st.expander("📚 Oppimishistoria"):
-        hist = read_learning()
-        if hist:
-            st.dataframe(pd.DataFrame(hist), use_container_width=True)
-        else:
-            st.info("Ei vielä tallennettua oppimishistoriaa.")
+    with st.expander("🧪 Tutkimusmoduulien tila"):
+        st.write("Triple-barrier: automaattiset TP/SL/aikaraja-merkinnät; ratkaisematon aikahorisontti jää merkitsemättä.")
+        st.write("Satunnaisbaseline: kiinteä seed, ATR-pohjaiset stop- ja tavoitesäännöt sekä kulumalli.")
+        st.write("Tutkimusmoduulit eivät vielä todista strategian kannattavuutta. Vertailu edellyttää tallennettua historiallista signaalisarjaa ja koskematonta testijaksoa.")
 
     st.warning("Opetustyökalu. Ei tee oikeita kauppoja eikä ole sijoitusneuvo.")
 
