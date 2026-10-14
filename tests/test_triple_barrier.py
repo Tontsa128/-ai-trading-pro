@@ -66,7 +66,7 @@ class TripleBarrierTests(unittest.TestCase):
                 entry_price=100, stop_price=101, target_price=103, max_holding_bars=1)
 
     def test_batch_labeler_enters_on_next_open_and_labels_automatically(self):
-        frame = bars([[100, 101, 99, 100], [100, 105, 99, 104], [104, 105, 103, 104]])
+        frame = bars([[100, 101, 99, 100], [100, 105, 99.5, 104], [104, 105, 103, 104]])
         atr = pd.Series([1.0, 1.0, 1.0], index=frame.index)
         labels = label_signal_candidates(
             frame, atr, [{"signal_index": 0, "side": "long"}],
