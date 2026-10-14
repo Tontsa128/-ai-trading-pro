@@ -69,8 +69,11 @@ def triple_barrier_label(
     if entry_index < 0 or entry_index >= len(ohlcv):
         raise IndexError("entry_index is outside the OHLCV frame.")
     _validate_prices(side, entry_price, stop_price, target_price, max_holding_bars)
-    if fee_rate < 0 or slippage_bps < 0:
-        raise ValueError("Fees and slippage cannot be negative.")
+    cost_inputs = np.asarray([fee_rate, slippage_bps], dtype=float)
+    if not np.isfinite(cost_inputs).all() or fee_rate < 0 or fee_rate >= 1:
+        raise ValueError("Fee rate must be finite and in the range [0, 1).")
+    if slippage_bps < 0 or slippage_bps >= 10_000:
+        raise ValueError("Slippage must be finite and in the range [0, 10000) basis points.")
     if same_bar_policy not in ("stop", "target"):
         raise ValueError("same_bar_policy must be 'stop' or 'target'.")
 
@@ -113,7 +116,17 @@ def triple_barrier_label(
                 "Insufficient future bars to resolve the full holding horizon.",
             )
         bar = ohlcv.iloc[bar_index]
-        open_price, high, low = float(bar["Open"]), float(bar["High"]), float(bar["Low"])
+        open_price, high, low, close = (
+            float(bar["Open"]), float(bar["High"]), float(bar["Low"]), float(bar["Close"])
+        )
+        bar_prices = np.asarray([open_price, high, low, close], dtype=float)
+        if (
+            not np.isfinite(bar_prices).all()
+            or (bar_prices <= 0).any()
+            or high < max(open_price, close, low)
+            or low > min(open_price, close, high)
+        ):
+            raise ValueError(f"Invalid OHLC values at row position {bar_index}.")
         if side == "long":
             stop_hit, target_hit = low <= stop_price, high >= target_price
         else:
