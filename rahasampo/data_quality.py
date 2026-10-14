@@ -98,3 +98,15 @@ def select_closed_candles(
     utc_index = frame.index.tz_convert("UTC")
     mask = utc_index + pd.to_timedelta(interval, unit="s") <= current_time
     return frame.loc[mask].copy()
+
+
+def has_sufficient_timeframe_data(
+    results: dict[str, str],
+    *,
+    minimum_valid: int = 3,
+) -> bool:
+    """Return whether enough higher timeframes have validated directional states."""
+    if minimum_valid < 1:
+        raise ValueError("minimum_valid must be at least 1.")
+    valid_states = {"NOUSU", "LASKU", "EPÄSELVÄ"}
+    return sum(value in valid_states for value in results.values()) >= minimum_valid
