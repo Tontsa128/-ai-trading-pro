@@ -631,6 +631,7 @@ def ai_engine(df):
     notes = []
 
     bias, details = higher_tf_bias(symbol)
+    htf_data_ok = sum(value != "?" for value in details.values()) >= 3
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -751,6 +752,11 @@ def ai_engine(df):
 
     if no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
+
+    if not htf_data_ok:
+        final = 0
+        level = "EI TREIDIÄ"
+        notes.append("Ylempien aikavälien data puutteellinen: signaali estetty.")
 
     atr = max(float(live.ATR), price * 0.001)
 
