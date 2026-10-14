@@ -118,6 +118,45 @@ class SignalJournalTests(unittest.TestCase):
         self.assertEqual(count, 0)
         self.assertIsNotNone(latest)
 
+    def test_guardrail_fails_closed_if_journal_path_is_unavailable(self):
+        blocked_parent = Path(self.temp.name) / "not-a-directory"
+        blocked_parent.write_text("file prevents database directory creation", encoding="utf-8")
+        result, reason = apply_signal_guardrails(
+            self.decision("OSTA", 48),
+            symbol="BTCUSDT", timeframe="1m",
+            candle_time=self.base_time,
+            cooldown_bars=3, daily_signal_limit=8,
+            journal_path=str(blocked_parent / "journal.sqlite"),
+        )
+        self.assertEqual(result["level"], "EI TREIDIÄ")
+        self.assertIn("päiväkirja", reason.lower())
+
+    def test_repeated_rerun_same_candle_does_not_trigger_its_own_cooldown(self):
+        record_decision(
+            symbol="BTCUSDT", timeframe="1m", candle_time=self.base_time,
+            decision=self.decision(), data_source="test", journal_path=self.db,
+        )
+        current_time = self.base_time + pd.Timedelta(minutes=3)
+        result, reason = apply_signal_guardrails(
+            self.decision("MYY", -48),
+            symbol="BTCUSDT", timeframe="1m", candle_time=current_time,
+            cooldown_bars=3, daily_signal_limit=8, journal_path=self.db,
+        )
+        # At the exact cooldown boundary the candidate is allowed.
+        self.assertEqual(result["level"], "MYY")
+        self.assertIsNone(reason)
+        record_decision(
+            symbol="BTCUSDT", timeframe="1m", candle_time=current_time,
+            decision=result, data_source="test", journal_path=self.db,
+        )
+        repeated, repeated_reason = apply_signal_guardrails(
+            self.decision("MYY", -48),
+            symbol="BTCUSDT", timeframe="1m", candle_time=current_time,
+            cooldown_bars=3, daily_signal_limit=8, journal_path=self.db,
+        )
+        self.assertEqual(repeated["level"], "MYY")
+        self.assertIsNone(repeated_reason)
+
     def test_watch_signals_do_not_consume_candidate_guardrail(self):
         result, reason = apply_signal_guardrails(
             self.decision("TARKKAILU OSTA", 25),
