@@ -10,6 +10,7 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
+from rahasampo.decision import classify_score
 
 
 # ============================================================
@@ -727,44 +728,27 @@ def ai_engine(df):
     notes.extend(sm_notes)
 
     live_score, alert, live_notes = live_reaction(df)
-    score += live_score
+    # A single candle may confirm momentum, but cannot force a buy/sell label.
+    bounded_live_score = int(np.clip(live_score, -18, 18))
+    score += bounded_live_score
     notes.extend(live_notes)
+    if bounded_live_score != live_score:
+        notes.append(f"Kynttilämomentin vaikutusta rajattiin: {live_score:+d} → {bounded_live_score:+d}")
+    if alert in ("NOPEA OSTA", "NOPEA MYY"):
+        notes.append(f"Nopea kynttilähälytys on vain vahvistava havainto: {alert}")
 
     no_trade = range_filter(closed)
-
-    if no_trade and alert == "EI":
-        score *= 0.6
-        notes.append("Sivuttaismarkkina: signaalia leikataan")
+    if no_trade:
+        notes.append("Markkinan range-suodatin aktiivinen: trendisignaali estetty.")
 
     final = int(max(-100, min(100, score)))
-
-    if alert == "NOPEA OSTA":
-        level = "⚡ NOPEA OSTA"
-        final = max(final, 58)
-    elif alert == "NOPEA MYY":
-        level = "⚡ NOPEA MYY"
-        final = min(final, -58)
-    elif final >= 65:
-        level = "VAHVA OSTA"
-    elif final >= 38:
-        level = "OSTA"
-    elif final >= 18:
-        level = "TARKKAILU OSTA"
-    elif final <= -65:
-        level = "VAHVA MYY"
-    elif final <= -38:
-        level = "MYY"
-    elif final <= -18:
-        level = "TARKKAILU MYY"
-    else:
-        level = "ODOTA"
-
-    if no_trade and abs(final) < 18:
-        level = "EI TREIDIÄ"
-
+    level = classify_score(
+        final,
+        range_blocked=no_trade,
+        higher_timeframe_data_ok=htf_data_ok,
+    )
     if not htf_data_ok:
         final = 0
-        level = "EI TREIDIÄ"
         notes.append("Ylempien aikavälien data puutteellinen: signaali estetty.")
 
     atr = max(float(live.ATR), price * 0.001)
