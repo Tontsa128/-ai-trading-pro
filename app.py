@@ -9,7 +9,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from rahasampo.data_quality import select_closed_candles, validate_ohlcv
+from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
 
 
 # ============================================================
@@ -631,7 +631,7 @@ def ai_engine(df):
     notes = []
 
     bias, details = higher_tf_bias(symbol)
-    htf_data_ok = sum(value != "?" for value in details.values()) >= 3
+    htf_data_ok = has_sufficient_timeframe_data(details, minimum_valid=3)
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
