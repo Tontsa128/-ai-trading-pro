@@ -709,19 +709,6 @@ def ai_engine(df):
 
     no_trade = range_filter(closed)
 
-    direction_temp = "ODOTA"
-    if score > 0:
-        direction_temp = "OSTA"
-    elif score < 0:
-        direction_temp = "MYY"
-
-    ai_temp = {
-        "bias": bias,
-        "structure": structure,
-        "triangle": triangle_name,
-        "direction": direction_temp,
-    }
-
     if no_trade and alert == "EI":
         score *= 0.6
         notes.append("Sivuttaismarkkina: signaalia leikataan")
