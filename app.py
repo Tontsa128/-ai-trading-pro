@@ -3,7 +3,6 @@
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import time
-import requests
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
@@ -12,6 +11,7 @@ import streamlit as st
 from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
 from rahasampo.decision import classify_score
 from rahasampo.cross_exchange import get_spot_price_check
+from rahasampo.market_data import fetch_binance_klines
 
 
 # ============================================================
@@ -158,57 +158,14 @@ def cached_spot_price_check(symbol_code):
 
 @st.cache_data(ttl=2, show_spinner=False)
 def get_klines(symbol_code, interval_code, limit_count):
-    urls = [
-        "https://api.binance.com/api/v3/klines",
-        "https://api1.binance.com/api/v3/klines",
-        "https://api2.binance.com/api/v3/klines",
-        "https://api3.binance.com/api/v3/klines",
-        "https://data-api.binance.vision/api/v3/klines",
-    ]
-
-    last_error = ""
-    # Keep the full endpoint failover bounded; don't multiply an 8s timeout by every URL.
-    deadline = time.monotonic() + 8.0
-
-    for url in urls:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        try:
-            r = requests.get(
-                url,
-                params={
-                    "symbol": symbol_code,
-                    "interval": interval_code,
-                    "limit": int(limit_count),
-                },
-                timeout=min(2.0, remaining),
-                headers={"User-Agent": "RahasampoRadar/27"},
-            )
-
-            if r.status_code != 200:
-                last_error = f"{r.status_code}: {r.text[:120]}"
-                continue
-
-            raw = r.json()
-            rows = []
-
-            for k in raw:
-                rows.append({
-                    "Date": pd.to_datetime(k[0], unit="ms", utc=True).tz_convert(APP_TZ),
-                    "Open": float(k[1]),
-                    "High": float(k[2]),
-                    "Low": float(k[3]),
-                    "Close": float(k[4]),
-                    "Volume": float(k[5]),
-                })
-
-            return pd.DataFrame(rows).set_index("Date")
-
-        except Exception as e:
-            last_error = str(e)
-
-    raise RuntimeError(last_error)
+    return fetch_binance_klines(
+        symbol_code,
+        interval_code,
+        int(limit_count),
+        timezone_name=APP_TZ,
+        total_timeout_seconds=8.0,
+        request_timeout_seconds=2.0,
+    )
 
 
 def load_data():
