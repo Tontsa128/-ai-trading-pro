@@ -30,6 +30,34 @@ class TripleBarrierTests(unittest.TestCase):
         self.assertEqual(result.event, "take_profit")
         self.assertEqual(result.label, 1)
 
+    def test_long_stop_gap_fills_at_open(self):
+        result = triple_barrier_label(bars([[95, 103, 94, 100]]), entry_index=0, side="long",
+            entry_price=100, stop_price=98, target_price=102, max_holding_bars=1,
+            fee_rate=0, slippage_bps=0)
+        self.assertEqual(result.event, "stop_loss")
+        self.assertAlmostEqual(result.exit_price, 95)
+
+    def test_long_target_gap_resolves_before_intrabar_stop(self):
+        result = triple_barrier_label(bars([[104, 106, 97, 100]]), entry_index=0, side="long",
+            entry_price=100, stop_price=98, target_price=102, max_holding_bars=1,
+            fee_rate=0, slippage_bps=0)
+        self.assertEqual(result.event, "take_profit")
+        self.assertAlmostEqual(result.exit_price, 102)
+
+    def test_short_stop_gap_fills_at_open(self):
+        result = triple_barrier_label(bars([[105, 106, 96, 100]]), entry_index=0, side="short",
+            entry_price=100, stop_price=102, target_price=98, max_holding_bars=1,
+            fee_rate=0, slippage_bps=0)
+        self.assertEqual(result.event, "stop_loss")
+        self.assertAlmostEqual(result.exit_price, 105)
+
+    def test_short_target_gap_resolves_before_intrabar_stop(self):
+        result = triple_barrier_label(bars([[96, 103, 94, 100]]), entry_index=0, side="short",
+            entry_price=100, stop_price=102, target_price=98, max_holding_bars=1,
+            fee_rate=0, slippage_bps=0)
+        self.assertEqual(result.event, "take_profit")
+        self.assertAlmostEqual(result.exit_price, 98)
+
     def test_same_bar_hit_is_stop_first_by_default(self):
         result = triple_barrier_label(bars([[100, 105, 95, 101]]), entry_index=0, side="long",
             entry_price=100, stop_price=98, target_price=103, max_holding_bars=1, fee_rate=0, slippage_bps=0)
