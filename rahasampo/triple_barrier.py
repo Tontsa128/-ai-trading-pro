@@ -69,10 +69,9 @@ def triple_barrier_label(
     if entry_index < 0 or entry_index >= len(ohlcv):
         raise IndexError("entry_index is outside the OHLCV frame.")
     _validate_prices(side, entry_price, stop_price, target_price, max_holding_bars)
-    cost_inputs = np.asarray([fee_rate, slippage_bps], dtype=float)
-    if not np.isfinite(cost_inputs).all() or fee_rate < 0 or fee_rate >= 1:
+    if not np.isfinite(float(fee_rate)) or fee_rate < 0 or fee_rate >= 1:
         raise ValueError("Fee rate must be finite and in the range [0, 1).")
-    if slippage_bps < 0 or slippage_bps >= 10_000:
+    if not np.isfinite(float(slippage_bps)) or slippage_bps < 0 or slippage_bps >= 10_000:
         raise ValueError("Slippage must be finite and in the range [0, 10000) basis points.")
     if same_bar_policy not in ("stop", "target"):
         raise ValueError("same_bar_policy must be 'stop' or 'target'.")
