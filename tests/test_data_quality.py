@@ -2,7 +2,7 @@ import unittest
 
 import pandas as pd
 
-from rahasampo.data_quality import select_closed_candles, validate_ohlcv
+from rahasampo.data_quality import has_sufficient_timeframe_data, select_closed_candles, validate_ohlcv
 
 
 def sample_frame(index):
@@ -39,6 +39,14 @@ class DataQualityTests(unittest.TestCase):
         result = select_closed_candles(sample_frame(index), "1m", now=now)
         self.assertEqual(len(result), 4)
         self.assertEqual(result.index[-1], index[3])
+
+    def test_higher_timeframe_gate_requires_three_valid_feeds(self):
+        self.assertTrue(has_sufficient_timeframe_data({
+            "5m": "NOUSU", "15m": "LASKU", "1h": "EPÄSELVÄ", "4h": "?"
+        }))
+        self.assertFalse(has_sufficient_timeframe_data({
+            "5m": "NOUSU", "15m": "LASKU", "1h": "?", "4h": "?"
+        }))
 
     def test_stale_data_is_rejected(self):
         now = pd.Timestamp("2026-10-14T12:10:00Z")
