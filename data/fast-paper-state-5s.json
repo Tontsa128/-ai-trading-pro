@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "mode": "paper",
+  "intervalSeconds": 5,
+  "initialCash": 1000,
+  "cash": 1000,
+  "positions": {},
+  "trades": [],
+  "sessions": [
+    {
+      "at": "2026-10-15T15:10:03.131Z",
+      "endedAt": "2026-10-15T15:13:33.232Z",
+      "intervalSeconds": 5,
+      "trades": 0,
+      "errors": 0,
+      "equity": 1000,
+      "realizedPnl": 0,
+      "openPositions": 0
+    }
+  ],
+  "lastSessionAt": "2026-10-15T15:13:33.232Z"
+}
