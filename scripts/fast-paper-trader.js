@@ -3,6 +3,7 @@
 // Short-horizon PAPER research worker. No private API keys or order endpoints.
 const fs = require("node:fs");
 const path = require("node:path");
+const { parseBinanceMessage, normalizeTickerQuote } = require("./market-feed");
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
 const INTERVAL_SECONDS = Number(process.env.FAST_INTERVAL_SECONDS || 5);
@@ -25,7 +26,16 @@ const symbols = new Map();
 let socket;
 let reconnectTimer;
 let stopTimer;
+let quoteTimer;
 let stopping = false;
+let socketOpen = false;
+let socketMessages = 0;
+let socketErrors = 0;
+let restPolls = 0;
+let restPollErrors = 0;
+let lastSocketMessageAt = null;
+let lastRestError = null;
+let quotePollBusy = false;
 
 if (![5, 15].includes(INTERVAL_SECONDS)) {
   console.error("FAST_INTERVAL_SECONDS must be 5 or 15.");
@@ -58,12 +68,12 @@ const errors = [];
 const events = [];
 const barMs = INTERVAL_SECONDS * 1000;
 
-async function json(url) {
+async function json(url, timeoutMs = 8000) {
   const hosts = ["https://data-api.binance.vision", "https://api1.binance.com", "https://api.binance.com"];
   let last;
   for (const host of hosts) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(host + url, { signal: controller.signal });
       clearTimeout(timeout);
@@ -78,7 +88,7 @@ async function json(url) {
   throw last || new Error("Market data unavailable");
 }
 function bucket(ts) { return Math.floor(ts / barMs) * barMs; }
-function addTrade(s, price, qty, ts) {
+function addTrade(s, price, qty, ts, feed = "websocket") {
   if (!(price > 0) || !(qty >= 0) || !Number.isFinite(ts)) return;
   const time = bucket(ts);
   let b = s.bars[s.bars.length - 1];
@@ -98,6 +108,9 @@ function addTrade(s, price, qty, ts) {
     b.volume += qty;
   }
   s.lastPrice = price;
+  s.lastUpdateAt = Date.now();
+  s.lastFeed = feed;
+  if (feed === "websocket") s.lastTradeAt = Date.now();
 }
 function ema(values, period) {
   if (values.length < period) return null;
@@ -166,25 +179,82 @@ function onClosedBar(s, bar) {
     }
   }
 }
-function handleMessage(raw) {
-  let msg;
-  try { msg = JSON.parse(String(raw)); } catch { return; }
-  const d = msg.data || msg;
-  if (!d || !d.s) return;
-  const s = symbols.get(d.s);
+async function handleMessage(raw) {
+  const event = parseBinanceMessage(raw);
+  if (!event) return;
+  const s = symbols.get(event.symbol);
   if (!s) return;
-  if (d.e === "trade" || (d.p && d.q && d.T)) addTrade(s, Number(d.p), Number(d.q), Number(d.T));
-  else if (d.b && d.a) { s.bid = Number(d.b); s.ask = Number(d.a); }
+  const now = Date.now();
+  socketMessages += 1;
+  lastSocketMessageAt = now;
+  if (event.type === "trade") {
+    addTrade(s, event.price, event.qty, event.time, "websocket");
+  } else if (event.type === "bookTicker") {
+    s.bid = event.bid;
+    s.ask = event.ask;
+    s.lastUpdateAt = now;
+    s.lastFeed = "websocket";
+  }
 }
 function connect() {
   if (stopping || Date.now() >= endAt) return;
   const streams = SYMBOLS.flatMap(x => [x.toLowerCase() + "@trade", x.toLowerCase() + "@bookTicker"]);
-  socket = new WebSocket("wss://stream.binance.com:9443/stream?streams=" + streams.join("/"));
-  socket.addEventListener("message", e => handleMessage(e.data));
-  socket.addEventListener("error", () => { try { socket.close(); } catch {} });
+  // Port 443 is more widely available than 9443 on hosted CI runners.
+  socket = new WebSocket("wss://stream.binance.com:443/stream?streams=" + streams.join("/"));
+  socket.addEventListener("open", () => {
+    socketOpen = true;
+    console.log("Binance WebSocket connected on port 443.");
+  });
+  socket.addEventListener("message", e => {
+    handleMessage(e.data).catch(error => {
+      socketErrors += 1;
+      console.error("Unable to parse Binance WebSocket event:", String(error.message || error));
+    });
+  });
+  socket.addEventListener("error", () => {
+    socketErrors += 1;
+    socketOpen = false;
+    try { socket.close(); } catch {}
+  });
   socket.addEventListener("close", () => {
+    socketOpen = false;
     if (!stopping && Date.now() < endAt) reconnectTimer = setTimeout(connect, 1500);
   });
+}
+async function pollQuotes() {
+  if (stopping || quotePollBusy || Date.now() >= endAt) return;
+  quotePollBusy = true;
+  try {
+    await Promise.all([...symbols.values()].map(async s => {
+      try {
+        // A single-symbol 24h ticker includes last price and top-of-book bid/ask.
+        const q = normalizeTickerQuote(await json("/api/v3/ticker/24hr?symbol=" + encodeURIComponent(s.symbol), 3500));
+        const now = Date.now();
+        if (!q) {
+          restPollErrors += 1;
+          lastRestError = "Binance quote contained invalid price or bid/ask values.";
+          return;
+        }
+        s.bid = q.bid;
+        s.ask = q.ask;
+        restPolls += 1;
+        s.lastUpdateAt = now;
+        if (s.lastTradeAt && now - s.lastTradeAt <= 2500) {
+          s.lastPrice = q.price;
+          s.lastFeed = "websocket+restQuote";
+        } else {
+          // REST fallback advances a zero-volume sampled-price candle, never inventing trade volume.
+          addTrade(s, q.price, 0, now, "restFallback");
+        }
+      } catch (error) {
+        restPollErrors += 1;
+        lastRestError = String(error.message || error);
+      }
+    }));
+  } finally {
+    quotePollBusy = false;
+    if (!stopping && Date.now() < endAt) quoteTimer = setTimeout(pollQuotes, 2000);
+  }
 }
 async function seed(s) {
   const rows = await json("/api/v3/klines?symbol=" + s.symbol + "&interval=1s&limit=1000");
@@ -214,23 +284,38 @@ function writeReport() {
     if (p && s.lastPrice) p.lastPrice = s.lastPrice;
   }
   const realizedPnl = state.trades.filter(t => Number.isFinite(t.pnl)).reduce((a, t) => a + t.pnl, 0);
+  const feedMode = socketMessages > 0
+    ? "Binance public Spot WebSocket + REST quote fallback"
+    : "Binance public REST ticker fallback (no WebSocket market events received)";
+  const reportErrors = errors.slice();
+  if (restPollErrors > 0) reportErrors.push({ type: "rest-quote-polling", count: restPollErrors, lastError: lastRestError });
   const report = {
-    schema: 1, mode: "paper", source: "Binance public Spot WebSocket trade + bookTicker streams",
+    schema: 2, mode: "paper", source: feedMode,
     intervalSeconds: INTERVAL_SECONDS, sessionStartedAt: new Date(startedAt).toISOString(),
     sessionEndedAt: new Date(now).toISOString(), requestedSessionSeconds: SESSION_SECONDS,
+    feedStatus: {
+      websocketConnectedAtEnd: socketOpen, websocketMessages: socketMessages,
+      websocketErrors: socketErrors, lastWebSocketMessageAt: lastSocketMessageAt ? new Date(lastSocketMessageAt).toISOString() : null,
+      restQuoteUpdates: restPolls, restQuoteErrors: restPollErrors, lastRestError
+    },
     symbols: SYMBOLS.map(symbol => {
       const s = symbols.get(symbol);
+      const lastUpdateAt = s?.lastUpdateAt || null;
       return { symbol, price: s?.lastPrice ?? null, bid: s?.bid ?? null, ask: s?.ask ?? null,
         spreadPct: s?.bid > 0 && s?.ask >= s?.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null,
+        lastUpdateAt: lastUpdateAt ? new Date(lastUpdateAt).toISOString() : null,
+        marketAgeMs: lastUpdateAt ? Math.max(0, now - lastUpdateAt) : null,
+        feed: s?.lastFeed || "seed-history-only",
         closedBars: s?.bars.filter(b => b.closeTime !== undefined).length || 0,
         position: state.positions[symbol] || null };
     }),
     portfolio: { initialCash: state.initialCash, cash: state.cash, equity: equity(), realizedPnl,
       openPositions: Object.keys(state.positions).length, positions: state.positions },
-    sessionTrades: events, errors,
+    sessionTrades: events, errors: reportErrors,
     notes: [
       "Paper trading only: no private API keys and no real exchange orders.",
-      "5/15-second bars are aggregated from public trade events; a session may end without any trades.",
+      "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
+      "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
       "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
       "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
       "A 5-second/15-second strategy can lose to fees, spread, latency and adverse selection even when direction is correct."
@@ -247,8 +332,10 @@ function writeReport() {
   state.lastSessionAt = report.sessionEndedAt;
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
   console.log(JSON.stringify({ intervalSeconds: INTERVAL_SECONDS, symbols: SYMBOLS.length,
-    events: events.length, errors: errors.length, cash: state.cash, equity: report.portfolio.equity,
-    realizedPnl, openPositions: report.portfolio.openPositions }, null, 2));
+    paperTrades: events.length, websocketMessages: socketMessages, restQuoteUpdates: restPolls,
+    restQuoteErrors: restPollErrors, errors: report.errors.length, cash: state.cash,
+    equity: report.portfolio.equity, realizedPnl, openPositions: report.portfolio.openPositions,
+    feedMode: report.source }, null, 2));
 }
 async function main() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -260,10 +347,14 @@ async function main() {
     throw new Error("Insufficient historical trade data to warm up the 5/15-second indicators.");
   }
   connect();
+  // Poll immediately, then every 2s to keep prices and top-of-book current when WS is unavailable.
+  void pollQuotes();
   await new Promise(resolve => {
     stopTimer = setTimeout(() => {
       stopping = true;
       clearTimeout(reconnectTimer);
+      clearTimeout(quoteTimer);
+      socketOpen = false;
       try { if (socket) socket.close(); } catch {}
       resolve();
     }, Math.max(1000, endAt - Date.now()));

@@ -115,7 +115,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
     <div class="metric"><small>Virheet</small><strong id="fast5Errors">—</strong></div>
    </div>
    <div id="fast5Status" class="status">Haetaan raporttia…</div>
-   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Positio</th></tr></thead><tbody id="fast5Rows"><tr><td colspan="6">Odotetaan raporttia.</td></tr></tbody></table></div>
+   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Datan ikä</th><th>Positio</th></tr></thead><tbody id="fast5Rows"><tr><td colspan="7">Odotetaan raporttia.</td></tr></tbody></table></div>
    <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Aika</th><th>Pari</th><th>Tapahtuma</th><th>Määrä</th><th>P/L</th><th>Syy</th></tr></thead><tbody id="fast5TradeRows"><tr><td colspan="6">Ei session tapahtumia.</td></tr></tbody></table></div>
   </section>
   <section class="panel">
@@ -129,7 +129,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
     <div class="metric"><small>Virheet</small><strong id="fast15Errors">—</strong></div>
    </div>
    <div id="fast15Status" class="status">Haetaan raporttia…</div>
-   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Positio</th></tr></thead><tbody id="fast15Rows"><tr><td colspan="6">Odotetaan raporttia.</td></tr></tbody></table></div>
+   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Positio</th></tr></thead><tbody id="fast15Rows"><tr><td colspan="7">Odotetaan raporttia.</td></tr></tbody></table></div>
    <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Aika</th><th>Pari</th><th>Tapahtuma</th><th>Määrä</th><th>P/L</th><th>Syy</th></tr></thead><tbody id="fast15TradeRows"><tr><td colspan="6">Ei session tapahtumia.</td></tr></tbody></table></div>
   </section>
  </div>
@@ -417,19 +417,25 @@ async function loadFast(interval){
   ui.rows.innerHTML=(d.symbols||[]).map(function(s){
    var spread=Number.isFinite(Number(s.spreadPct))?num(s.spreadPct,4)+"%":"—";
    var pos=s.position?"AVOIN":"—";
-   return "<tr><td>"+escFast(s.symbol)+"</td><td>"+num(s.price,s.price<1?6:2)+"</td><td>"+num(s.bid,s.bid<1?6:2)+" / "+num(s.ask,s.ask<1?6:2)+"</td><td>"+spread+"</td><td>"+num(s.closedBars,0)+"</td><td>"+pos+"</td></tr>";
-  }).join("")||'<tr><td colspan="6">Raportissa ei ole symboleja.</td></tr>';
+   var updated=s.lastUpdateAt?Date.parse(s.lastUpdateAt):NaN;
+   var age=Number.isFinite(updated)?Math.max(0,(Date.now()-updated)/1000):null;
+   var ageLabel=age===null?"EI DATAA":age<60?num(age,0)+" s":num(age/60,1)+" min";
+   if(age!==null&&age>420)ageLabel="VANHA · "+ageLabel;
+   return "<tr><td>"+escFast(s.symbol)+"</td><td>"+num(s.price,s.price<1?6:2)+"</td><td>"+num(s.bid,s.bid<1?6:2)+" / "+num(s.ask,s.ask<1?6:2)+"</td><td>"+spread+"</td><td>"+num(s.closedBars,0)+"</td><td>"+ageLabel+"</td><td>"+pos+"</td></tr>";
+  }).join("")||'<tr><td colspan="7">Raportissa ei ole symboleja.</td></tr>';
   ui.tradeRows.innerHTML=trades.slice(-10).reverse().map(function(t){
    var side=escFast(t.side),when=reportTime(t.exitTime||t.entryTime),q=num(t.qty,6),pnl=t.pnl===undefined?"—":num(t.pnl)+" USDT";
    var reason=escFast(t.reason||"—");
    return "<tr><td>"+when+"</td><td>"+escFast(t.symbol)+"</td><td>"+side+"</td><td>"+q+"</td><td>"+pnl+"</td><td>"+reason+"</td></tr>";
   }).join("")||'<tr><td colspan="6">Tässä sessionissa ei syntynyt simuloituja kauppatapahtumia.</td></tr>';
-  ui.status.className="status "+((d.errors||[]).length?"error":"ok");
-  ui.status.textContent="Viimeisin "+interval+" s ajo: "+reportTime(d.sessionStartedAt)+" – "+reportTime(d.sessionEndedAt)+" · lähde: "+escFast(d.source||"Binance public WebSocket")+" · sulkeutuneita kynttilöitä: "+num((d.symbols||[]).reduce(function(a,x){return a+(Number(x.closedBars)||0);},0));
+  var feed=d.feedStatus||{}, ended=Date.parse(d.sessionEndedAt), ageSeconds=Number.isFinite(ended)?Math.max(0,(Date.now()-ended)/1000):Infinity;
+  var stale=ageSeconds>420, errCount=(d.errors||[]).length;
+  ui.status.className="status "+(errCount||stale?"error":"ok");
+  ui.status.textContent="Viimeisin "+interval+" s ajo: "+reportTime(d.sessionStartedAt)+" – "+reportTime(d.sessionEndedAt)+" · raportin ikä: "+(Number.isFinite(ageSeconds)?num(ageSeconds,0)+" s":"tuntematon")+" · lähde: "+escFast(d.source||"tuntematon")+" · WS-viestit: "+num(feed.websocketMessages,0)+" · REST-hakua: "+num(feed.restQuoteUpdates,0)+" · virheitä: "+errCount+" · sulkeutuneita kynttilöitä: "+num((d.symbols||[]).reduce(function(a,x){return a+(Number(x.closedBars)||0);},0))+(stale?" · VANHA RAPORTTI — odota seuraavaa onnistunutta ajoa":"");
  }catch(e){
   ui.status.className="status "+((e&&e.message&&e.message.indexOf("HTTP 404")>=0)?"":"error");
   ui.status.textContent=(e&&e.message?e.message:"Nopean paper-treidauksen raportin haku epäonnistui.");
-  ui.rows.innerHTML='<tr><td colspan="6">Ei vahvistettua raporttia. Vanhaa hintaa ei esitetä live-datana.</td></tr>';
+  ui.rows.innerHTML='<tr><td colspan="7">Ei vahvistettua raporttia. Vanhaa hintaa ei esitetä live-datana.</td></tr>';
   ui.tradeRows.innerHTML='<tr><td colspan="6">Raportin puuttuessa tapahtumia ei näytetä.</td></tr>';
  }
 }
