@@ -20,7 +20,7 @@ def _timestamp_ms(value: Any, *, field: str) -> int:
     if timestamp.tzinfo is None:
         raise ValueError(f"{field} must include a timezone.")
     timestamp = timestamp.tz_convert("UTC")
-    return int(timestamp.to_numpy(dtype="datetime64[ns]").astype("int64") // 1_000_000)
+    return int(timestamp.value // 1_000_000)
 
 
 def fetch_binance_historical_klines(
@@ -64,7 +64,7 @@ def fetch_binance_historical_klines(
     if clock.tzinfo is None:
         raise ValueError("now must be timezone-aware.")
     clock = clock.tz_convert("UTC")
-    clock_ms = int(clock.to_numpy(dtype="datetime64[ns]").astype("int64") // 1_000_000)
+    clock_ms = int(clock.value // 1_000_000)
     interval_ms = TIMEFRAME_SECONDS[interval] * 1000
 
     if start_time is None:
@@ -174,7 +174,7 @@ def fetch_binance_historical_klines(
     # A public API can return the currently forming bar. Only bars whose full
     # interval had elapsed at the retrieval time may enter the backtest.
     close_times = frame.index.to_numpy(dtype="datetime64[ns]").astype("int64") + interval_ms * 1_000_000
-    now_ns = int(clock.to_numpy(dtype="datetime64[ns]").astype("int64"))
+    now_ns = int(clock.value)
     frame = frame.loc[close_times <= now_ns].copy()
     if frame.empty:
         raise ValueError("No fully closed candles were returned.")
