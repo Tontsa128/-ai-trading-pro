@@ -15,8 +15,8 @@ import pandas as pd
 
 from .backtest import backtest_signal_candidates
 from .backtest_cli import calculate_atr, read_ohlcv_csv
-from .data_quality import select_closed_candles
-from .strategy_replay import generate_strategy_candidates
+from .data_quality import TIMEFRAME_SECONDS, select_closed_candles
+from .strategy_replay import generate_strategy_candidates, resample_ohlcv
 from .historical_data import fetch_binance_historical_klines
 from .triple_barrier import compare_strategy_to_random, run_random_entry_baseline
 
@@ -28,7 +28,8 @@ def run_cli(argv: list[str] | None = None) -> int:
     source_group.add_argument("--download-days", type=int, help="Download this many recent days of public Binance history")
     parser.add_argument("--max-download-bars", type=int, default=200_000, help="Safety cap for downloaded candles")
     parser.add_argument("--symbol", default="BTCUSDT")
-    parser.add_argument("--timeframe", default="1m", choices=["1m", "3m", "5m", "15m"])
+    parser.add_argument("--timeframe", default="1m", choices=["1m", "3m", "5m", "15m"], help="Signal/evaluation timeframe")
+    parser.add_argument("--source-timeframe", choices=["1m", "3m", "5m", "15m"], help="OHLCV source candle interval; defaults to signal timeframe for CSVs and 1m for downloads")
     parser.add_argument("--window-bars", type=int, default=420, help="Signal engine lookback; default matches app's initial data window")
     parser.add_argument("--paper-equity", type=float, default=1000.0, help="Simulated quote-currency equity, not a real account balance")
     parser.add_argument("--risk-fraction", type=float, default=0.005, help="Risk budget fraction per trade, default 0.005 = 0.5%%")
@@ -48,24 +49,46 @@ def run_cli(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        if args.source_timeframe is not None:
+            source_timeframe = args.source_timeframe
+        elif args.download_days is not None:
+            source_timeframe = "1m"
+        else:
+            source_timeframe = args.timeframe
+
+        if TIMEFRAME_SECONDS[args.timeframe] < TIMEFRAME_SECONDS[source_timeframe]:
+            raise ValueError("Source timeframe cannot be slower than the selected signal timeframe.")
+        if TIMEFRAME_SECONDS[args.timeframe] % TIMEFRAME_SECONDS[source_timeframe]:
+            raise ValueError("Signal timeframe must be an integer multiple of the source timeframe.")
+
         if args.download_days is not None:
-            history = fetch_binance_historical_klines(
+            source_history = fetch_binance_historical_klines(
                 args.symbol,
-                args.timeframe,
+                source_timeframe,
                 days=args.download_days,
                 max_bars=args.max_download_bars,
             )
             data_source = "binance_public_historical_api"
         else:
-            history = read_ohlcv_csv(args.ohlcv, timeframe=args.timeframe, min_rows=120)
+            source_history = read_ohlcv_csv(args.ohlcv, timeframe=source_timeframe, min_rows=120)
             data_source = "local_csv"
-        history = select_closed_candles(history, args.timeframe)
+        source_history = select_closed_candles(source_history, source_timeframe)
+        if len(source_history) < 120:
+            raise ValueError("Fewer than 120 fully closed source candles remain after filtering.")
+
+        history = resample_ohlcv(
+            source_history,
+            source_timeframe=source_timeframe,
+            target_timeframe=args.timeframe,
+        )
         if len(history) < 120:
-            raise ValueError("Fewer than 120 fully closed candles remain after filtering.")
+            raise ValueError("Fewer than 120 complete signal-timeframe candles remain after resampling.")
 
         candidates, audit, diagnostics = generate_strategy_candidates(
             history,
             timeframe=args.timeframe,
+            higher_timeframe_ohlcv=source_history,
+            higher_timeframe_source_timeframe=source_timeframe,
             symbol=args.symbol,
             window_bars=args.window_bars,
             paper_equity=args.paper_equity,
@@ -132,9 +155,11 @@ def run_cli(argv: list[str] | None = None) -> int:
             "instrument": args.symbol,
             "timeframe": args.timeframe,
             "source": data_source,
-            "source_rows_after_closed_candle_filter": len(history),
-            "data_start_utc": history.index[0].isoformat(),
-            "data_end_utc": history.index[-1].isoformat(),
+            "source_timeframe": source_timeframe,
+            "source_rows_after_closed_candle_filter": len(source_history),
+            "signal_bars_after_resampling": len(history),
+            "data_start_utc": source_history.index[0].isoformat(),
+            "data_end_utc": source_history.index[-1].isoformat(),
             "replay_diagnostics": diagnostics.to_dict(),
             "backtest": report.to_dict(),
             "random_baseline": baseline,
