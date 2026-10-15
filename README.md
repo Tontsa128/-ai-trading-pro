@@ -6,6 +6,8 @@ Rahasampo Radar is a cryptocurrency market-analysis prototype. This branch harde
 
 - The app does not place live orders.
 - If live data cannot be fetched and validated, signal generation is disabled. Cached data is not treated as live data.
+- If persistent decision-journal writing fails, actionable signals are changed to `EI TREIDIÄ`.
+- Decisive BUY/SELL candidates are gated by estimated per-side fee and adverse slippage; candidates that cannot cover modeled round-trip costs are blocked.
 - A fresh Binance/Bybit spot price cross-check must pass before the app displays a valid live signal.
 - Signals are calculated from fully closed candles. The chart may display the currently forming candle for visual context.
 - The old manually entered win/loss learning controls have been removed.
@@ -21,6 +23,8 @@ Rahasampo Radar is a cryptocurrency market-analysis prototype. This branch harde
 - `rahasampo/decision.py`: pure score classification with hard no-trade gates. Fast candle alerts cannot force a buy/sell label.
 - `rahasampo/cross_exchange.py`: fail-closed Binance/Bybit spot ticker comparison; stale reference prices, invalid prices, unsupported pairs, API failures, or excessive divergence block the live signal path.
 - `rahasampo/market_data.py`: isolated Binance OHLCV adapter with strict payload parsing and a shared endpoint failover timeout; API behavior is tested independently of Streamlit.
+- `rahasampo/market_data.py` also provides the six-symbol 24-hour public spot watchlist (BTC, ETH, SOL, BNB, XRP, DOGE). It is display-only and never feeds the selected strategy signal.
+- `rahasampo/risk.py`: fee/slippage-aware paper position sizing with a maximum 2% risk budget, no leverage, and hard blocking when modeled target reward cannot cover round-trip costs. The Streamlit signal path uses it before guardrails and journal persistence; results are estimates, not execution orders.
 - `rahasampo/signal_journal.py`: persistent, idempotent SQLite decisions per symbol/timeframe/closed candle, including no-trade reasons.
 - `rahasampo/guardrails.py`: persisted cooldown and UTC-day signal cap; blocks decisive signal candidates if the journal is unavailable or the rate limit is exceeded.
 - The candidate replay uses a circular moving-block bootstrap interval to retain some local dependence in sequential trade outcomes.
