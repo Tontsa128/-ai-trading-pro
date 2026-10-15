@@ -1,5 +1,25 @@
 "use strict";
 
+const WEBSOCKET_BASES = Object.freeze([
+  "wss://data-stream.binance.vision:443",
+  "wss://stream.binance.com:443",
+  "wss://stream.binance.com:9443"
+]);
+
+function buildCombinedStreamUrl(base, symbols) {
+  if (typeof base !== "string" || !/^wss:\/\//.test(base) || !Array.isArray(symbols) || symbols.length === 0) {
+    throw new TypeError("A secure WebSocket base and at least one market symbol are required.");
+  }
+  const streams = symbols.flatMap(symbol => {
+    if (typeof symbol !== "string" || !/^[A-Z0-9]{4,20}$/.test(symbol)) {
+      throw new TypeError("Invalid WebSocket market symbol.");
+    }
+    const ticker = symbol.toLowerCase();
+    return [ticker + "@trade", ticker + "@bookTicker"];
+  });
+  return base.replace(/\/+$/, "") + "/stream?streams=" + streams.join("/");
+}
+
 function parseBinanceMessage(raw) {
   let text;
   if (typeof raw === "string") text = raw;
@@ -33,4 +53,4 @@ function normalizeTickerQuote(payload) {
   return { price, bid, ask };
 }
 
-module.exports = { parseBinanceMessage, normalizeTickerQuote };
+module.exports = { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };

@@ -3,7 +3,7 @@
 // Short-horizon PAPER research worker. No private API keys or order endpoints.
 const fs = require("node:fs");
 const path = require("node:path");
-const { parseBinanceMessage, normalizeTickerQuote } = require("./market-feed");
+const { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("./market-feed");
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
 const INTERVAL_SECONDS = Number(process.env.FAST_INTERVAL_SECONDS || 5);
@@ -34,6 +34,9 @@ let socketErrors = 0;
 let consecutiveSocketFailures = 0;
 let websocketDisabled = false;
 let lastSocketFailureAt = null;
+let lastWebSocketEndpoint = null;
+let lastConnectedWebSocketEndpoint = null;
+const websocketEndpointsTried = [];
 let restPolls = 0;
 let restPollErrors = 0;
 let lastSocketMessageAt = null;
@@ -201,7 +204,7 @@ async function handleMessage(raw) {
 }
 function scheduleReconnect() {
   if (stopping || Date.now() >= endAt || websocketDisabled || reconnectTimer) return;
-  if (consecutiveSocketFailures >= 3) {
+  if (consecutiveSocketFailures >= WEBSOCKET_BASES.length) {
     websocketDisabled = true;
     console.warn("Binance WebSocket failed three consecutive connections; REST live quotes remain active.");
     return;
@@ -214,9 +217,10 @@ function scheduleReconnect() {
 }
 function connect() {
   if (stopping || Date.now() >= endAt || websocketDisabled) return;
-  const streams = SYMBOLS.flatMap(x => [x.toLowerCase() + "@trade", x.toLowerCase() + "@bookTicker"]);
-  // Port 443 is more widely available than 9443 on hosted CI runners.
-  const currentSocket = new WebSocket("wss://stream.binance.com:443/stream?streams=" + streams.join("/"));
+  const base = WEBSOCKET_BASES[consecutiveSocketFailures % WEBSOCKET_BASES.length];
+  lastWebSocketEndpoint = base;
+  if (!websocketEndpointsTried.includes(base)) websocketEndpointsTried.push(base);
+  const currentSocket = new WebSocket(buildCombinedStreamUrl(base, SYMBOLS));
   socket = currentSocket;
   let errorCounted = false;
   let sawMarketMessage = false;
@@ -227,17 +231,18 @@ function connect() {
     consecutiveSocketFailures += 1;
     lastSocketFailureAt = new Date().toISOString();
     socketOpen = false;
-    console.warn("Binance WebSocket connection failure (" + consecutiveSocketFailures + "/3): " + reason);
-    if (consecutiveSocketFailures >= 3) {
+    console.warn("Binance WebSocket connection failure (" + consecutiveSocketFailures + "/" + WEBSOCKET_BASES.length + ") at " + base + ": " + reason);
+    if (consecutiveSocketFailures >= WEBSOCKET_BASES.length) {
       websocketDisabled = true;
-      console.warn("Binance WebSocket retries paused after three consecutive failures; REST live quotes remain active.");
+      console.warn("Binance WebSocket retries paused after all configured public endpoints failed; REST live quotes remain active.");
     }
     try { currentSocket.close(); } catch {}
     scheduleReconnect();
   }
   currentSocket.addEventListener("open", () => {
     if (socket === currentSocket) socketOpen = true;
-    console.log("Binance WebSocket connected on port 443.");
+    lastConnectedWebSocketEndpoint = base;
+    console.log("Binance public market-data WebSocket connected: " + base);
   });
   currentSocket.addEventListener("message", e => {
     sawMarketMessage = true;
@@ -336,6 +341,9 @@ function writeReport() {
       websocketConnectedAtEnd: socketOpen, websocketMessages: socketMessages,
       websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
       websocketDisabled: websocketDisabled,
+      websocketEndpointsTried: websocketEndpointsTried,
+      lastWebSocketEndpoint: lastWebSocketEndpoint,
+      lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
       lastWebSocketFailureAt: lastSocketFailureAt,
       lastWebSocketMessageAt: lastSocketMessageAt ? new Date(lastSocketMessageAt).toISOString() : null,
       restQuoteUpdates: restPolls, restQuoteErrors: restPollErrors, lastRestError
@@ -375,7 +383,9 @@ function writeReport() {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
   console.log(JSON.stringify({ intervalSeconds: INTERVAL_SECONDS, symbols: SYMBOLS.length,
     paperTrades: events.length, websocketMessages: socketMessages, restQuoteUpdates: restPolls,
-    restQuoteErrors: restPollErrors, websocketDisabled: websocketDisabled, errors: report.errors.length, cash: state.cash,
+    restQuoteErrors: restPollErrors, websocketDisabled: websocketDisabled,
+    websocketEndpointsTried: websocketEndpointsTried, lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
+    errors: report.errors.length, cash: state.cash,
     equity: report.portfolio.equity, realizedPnl, openPositions: report.portfolio.openPositions,
     feedMode: report.source }, null, 2));
 }
