@@ -25,7 +25,7 @@ GitHub Actions runs this test on pushes and pull requests to `main`.
 
 ## Vercel setup
 
-The Vercel project should use **Framework Preset: Other**, no build command, and **Output Directory: `public`**. These values are also represented in `vercel.json`. Connect this repository's `main` branch to Vercel to publish changes automatically. Check build logs and the resulting URL after each change; a commit being present in GitHub does not itself prove that a deployment succeeded.
+The Vercel project should use **Framework Preset: Other**, no build command, and **Output Directory: `public`**. These values are also represented in `vercel.json`. Connect this repository's `main` branch to Vercel to publish changes automatically. `vercel.json` uses `scripts/vercel-ignore-build.js` to skip telemetry-only paper-report commits and the dedicated `paper-data` branch, preventing scheduled reporting from consuming production build quota. Check build logs and the resulting URL after code changes; a commit being present in GitHub does not itself prove that a deployment succeeded.
 
 ## Important limitations
 

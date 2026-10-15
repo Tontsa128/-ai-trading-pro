@@ -98,7 +98,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  </div>
  <div id="paperUpdated" class="status">Haetaan viimeisintä paperitreidausraporttia…</div>
  <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Trendit 1h / 4h / 1d</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th><th>Volyymi / 20 kynttilää</th><th>Miksi ODOTA?</th></tr></thead><tbody id="paperRows"><tr><td colspan="9">Raporttia ei vielä ole.</td></tr></tbody></table></div>
- <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
+ <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/paper-data/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
 </section>
 <section class="panel" style="margin-top:12px">
  <div class="section-title"><div><h3 style="margin:0">Nopea Paper Trading · 5 s / 15 s</h3><div class="sub">Binance WebSocket -virtuaalikaupat, erilliset virtuaalisalkut ja viimeisimmät raportit</div></div><button id="fastPaperRefresh" style="width:auto">Päivitä nopeat raportit</button></div>
@@ -133,7 +133,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
    <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Aika</th><th>Pari</th><th>Tapahtuma</th><th>Määrä</th><th>P/L</th><th>Syy</th></tr></thead><tbody id="fast15TradeRows"><tr><td colspan="6">Ei session tapahtumia.</td></tr></tbody></table></div>
   </section>
  </div>
- <p class="sub" style="font-size:12px"><a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/fast-paper-trading.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa 5s/15s paper-treidaajan ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa tallennetut salkut ja raportit</a>.</p>
+ <p class="sub" style="font-size:12px"><a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/fast-paper-trading.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa 5s/15s paper-treidaajan ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/paper-data/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa tallennetut salkut ja raportit</a>.</p>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
 <div class="foot">Markkinadata: Binance Spot API (julkinen markkinadata). Hinnat ja laskelmat esitetään USDT:ssä, eivät euroissa. Omat todelliset kulut, täyttöhinta, likviditeetti, verotus ja pörssin saatavuus voivat muuttaa tulosta. Historiallisen testin yksittäisen aikavälin signaali ei ole sama kuin live-signaalin korkeamman aikavälin vahvistus.</div>
@@ -436,7 +436,7 @@ setTimer();load();runHistoricalBacktest();
 </script>
 <script>
 (function(){
-const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/main/data/latest-report.json";
+const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/paper-data/data/latest-report.json";
 const el=id=>document.getElementById(id);
 function n(v,d){return v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
 function trendFi(v){return v==="bull"?"NOUSU":v==="bear"?"LASKU":"EPÄSELVÄ"}
@@ -475,7 +475,7 @@ async function loadFast(interval){
  var prefix=interval===5?"fast5":"fast15",ui=ids(prefix);
  ui.status.className="status";ui.status.textContent="Haetaan "+interval+" sekunnin viimeisintä raporttia GitHubista…";
  try{
-  var response=await fetch("https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/main/data/fast-paper-latest-"+interval+"s.json?t="+Date.now(),{cache:"no-store"});
+  var response=await fetch("https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/paper-data/data/fast-paper-latest-"+interval+"s.json?t="+Date.now(),{cache:"no-store"});
   if(!response.ok)throw new Error("Raporttia ei ole vielä tallennettu (HTTP "+response.status+"). Ensimmäisen GitHub Actions -session pitää valmistua.");
   var d=await response.json();
   if(d.mode!=="paper"||Number(d.intervalSeconds)!==interval)throw new Error("Raportin tila tai aikaväli ei täsmää; tiedot jätettiin näyttämättä.");
