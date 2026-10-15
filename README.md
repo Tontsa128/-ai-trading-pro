@@ -54,12 +54,18 @@ python -m rahasampo.backtest_cli \
   --max-holding-bars 20 \
   --stop-atr 1.25 \
   --target-atr 2.2 \
+  --fee-rate 0.001 \
+  --slippage-bps 5 \
   --simulations 200 \
   --trades-out backtest_trades.csv \
   --report-out backtest_report.json
 ```
 
-The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. The random benchmark matches the accepted strategy trades' long/short ratio and samples an exact number of non-overlapping random entries. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. Defaults are a 0.10% fee per side and 5 basis points of adverse slippage per fill: this is a conservative starting point for basic spot taker orders, not a measured fill model. Check the exact fee tier for the account/venue and override `--fee-rate` as required. The random benchmark matches the accepted strategy trades' long/short ratio and samples an exact number of non-overlapping random entries. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+
+## Live market watchlist
+
+The app's market overview displays public Binance spot last prices, rolling 24-hour price changes, and quote volume for BTC, ETH, SOL, BNB, XRP and DOGE. This is an informational watchlist only. The figures are not order-book bid/ask data, do not prove liquidity at the intended size, and are not used as signal inputs. The selected instrument's own candle validation and Binance/Bybit price sanity check remain separate.
 
 ## Persistent signal journal and conservative guardrails
 
