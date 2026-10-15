@@ -218,7 +218,15 @@ async function load(){
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää.","ok");
  }catch(e){
   status("Analyysi keskeytettiin: "+(e&&e.message?e.message:"tuntematon virhe")+". Vanhentunutta dataa ei käytetä uuteen signaaliin.","error");
-  $("signal").textContent="ODOTA";$("signal").className="signal wait";$("summary").textContent="Uutta signaalia ei muodostettu datan tai laskennan virheen vuoksi.";
+  $("signal").textContent="ODOTA";$("signal").className="signal wait";
+  $("summary").textContent="Uutta signaalia ei muodostettu datan tai laskennan virheen vuoksi.";
+  ["price","change","rsi","adx","spread"].forEach(function(id){$(id).textContent="—";});
+  $("timestamp").textContent="Data ei päivittynyt";
+  $("passed").textContent="Ehdot —";
+  $("checklist").textContent="Tarkistuslista ei ole voimassa, koska tuoretta dataa ei saatu.";
+  $("timeframes").textContent="Aikavälivahvistusta ei saatu.";
+  $("levels").textContent="Uusia tukia, vastuksia tai indikaattoreita ei näytetä ilman tuoretta dataa.";
+  $("riskPlan").innerHTML='<div class="signal wait">ODOTA</div><p>Markkinadataa ei voitu vahvistaa. Aiempi riskisuunnitelma on poistettu käytöstä; älä tee päätöstä vanhojen arvojen perusteella.</p>';
  }finally{busy=false;$("update").disabled=false;}
 }
 function setTimer(){if(timer)clearInterval(timer);var secs=Number($("refresh").value);if(secs)timer=setInterval(load,secs*1000);}
