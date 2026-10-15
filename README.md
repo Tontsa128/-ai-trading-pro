@@ -33,3 +33,15 @@ The Vercel project should use **Framework Preset: Other**, no build command, and
 - The historical test does not include multi-timeframe confirmation, funding costs, taxes, spread variability beyond the configured slippage estimate, order-book depth, outages, or realistic partial fills. Historical performance is not a prediction.
 - The web dashboard does not read account balances, hold exchange secrets, or submit orders. Do not put exchange API keys in browser code or Git.
 - Live signal results must be independently reviewed and paper-tested before any real-money use.
+
+
+## Scheduled paper trading (two-hour cycles)
+
+A GitHub Actions workflow (\`.github/workflows/paper-trading-cycle.yml\`) runs every two hours and can also be started manually from **Actions → Paper trading data collection (2-hour cycle) → Run workflow**. It fetches public Binance Spot candles for BTC, ETH, SOL, BNB, XRP and DOGE, calculates the 1h signal with 4h and 1d confirmations, then records a simulated portfolio, trades, data errors and a JSON/Markdown report under \`data/\`.
+
+- All trades are virtual; no exchange orders or API keys are used.
+- The virtual portfolio starts at 1,000 USDT and is persisted in \`data/paper-state.json\`.
+- Latest report: \`data/latest-report.json\`; cycle history: \`data/reports/\`.
+- GitHub Actions must be enabled and the repository's workflow token must be allowed to write to the repository for cycle reports to persist.
+- GitHub scheduled jobs are best-effort and can run late. This is a decision every two hours, not a continuous execution engine. Stops/targets are checked against the latest closed hourly candle at each run, so intraperiod moves may be missed.
+- Review report errors, realized/unrealized P&L, drawdown and costs before changing the strategy. Do not auto-tune parameters from a small sample.
