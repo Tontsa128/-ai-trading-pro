@@ -52,8 +52,8 @@ def triple_barrier_label(
     stop_price: float,
     target_price: float,
     max_holding_bars: int,
-    fee_rate: float = 0.0004,
-    slippage_bps: float = 2.0,
+    fee_rate: float = 0.001,
+    slippage_bps: float = 5.0,
     same_bar_policy: Literal["stop", "target"] = "stop",
 ) -> TripleBarrierResult:
     """Label TP/SL/time expiry; unresolved horizons are never guessed.
@@ -186,8 +186,8 @@ def label_signal_candidates(
     max_holding_bars: int = 20,
     stop_atr: float = 1.25,
     target_atr: float = 2.2,
-    fee_rate: float = 0.0004,
-    slippage_bps: float = 2.0,
+    fee_rate: float = 0.001,
+    slippage_bps: float = 5.0,
 ) -> pd.DataFrame:
     """Automatically label historical signal candidates with triple barriers.
 
@@ -289,8 +289,8 @@ def run_random_entry_baseline(
     target_atr: float = 2.2,
     simulations: int = 200,
     seed: int = 42,
-    fee_rate: float = 0.0004,
-    slippage_bps: float = 2.0,
+    fee_rate: float = 0.001,
+    slippage_bps: float = 5.0,
     long_probability: float = 0.5,
 ) -> dict:
     """Randomize entry timing while preserving a configurable direction mix.
