@@ -236,6 +236,8 @@ async function runHistoricalBacktest(){
  }finally{button.disabled=false;}
 }
 function renderChart(series,signal,symbol,chartCount){
+ if(!window.Plotly||typeof window.Plotly.react!=="function"){$("chart").innerHTML='<div class="status error">Kaaviokirjasto ei latautunut (Plotly CDN). Markkinatiedot ja signaalit toimivat silti; yritä ladata sivu uudelleen tai tarkista verkkoyhteys.</div>';return false;}
+ $("chart").innerHTML="";
  var d=series.slice(-chartCount),x=d.map(function(b){return new Date(b.time);});
  var traces=[{type:"candlestick",x:x,open:d.map(function(b){return b.open;}),high:d.map(function(b){return b.high;}),low:d.map(function(b){return b.low;}),close:d.map(function(b){return b.close;}),name:symbol,increasing:{line:{color:"#28d7a0"}},decreasing:{line:{color:"#ff647c"}}}];
  [["ema9","#ffd166"],["ema21","#67b7ff"],["ema50","#c084fc"],["ema200","#fb7185"]].forEach(function(item){
@@ -249,6 +251,7 @@ function renderChart(series,signal,symbol,chartCount){
  Plotly.react("chart",traces,{paper_bgcolor:"#101d30",plot_bgcolor:"#101d30",font:{color:"#dce9fa"},margin:{l:55,r:18,t:12,b:45},
   xaxis:{gridcolor:"#263750",rangeslider:{visible:false}},yaxis:{gridcolor:"#263750",side:"right"},legend:{orientation:"h",y:1.1},autosize:true,shapes:shapes},
   {responsive:true,displaylogo:false,scrollZoom:true});
+ return true;
 }
 async function load(){
  if(busy)return;busy=true;var myToken=++refreshToken;$("update").disabled=true;status("Haetaan sulkeutuneita kynttilöitä, suurempia aikavälejä ja spot-hintaa…");
@@ -284,9 +287,9 @@ async function load(){
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
-  renderChart(main,signal,symbol,Number($("chartCount").value));
+  var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
-  status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää.","ok");
+  status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää."+(chartOk?"":" Kaavio ei ole käytettävissä, koska Plotly ei latautunut."),chartOk?"ok":"error");
  }catch(e){
   status("Analyysi keskeytettiin: "+(e&&e.message?e.message:"tuntematon virhe")+". Vanhentunutta dataa ei käytetä uuteen signaaliin.","error");
   $("signal").textContent="ODOTA";$("signal").className="signal wait";
