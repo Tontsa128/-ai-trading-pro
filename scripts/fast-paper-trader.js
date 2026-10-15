@@ -139,7 +139,7 @@ function onClosedBar(s, bar) {
   if (p) {
     p.lastPrice = bar.close;
     if (bar.low <= p.stop) closePosition(s, "Stop-loss (bar touched; conservative)", Math.min(p.stop, bar.close), bar.closeTime);
-    else if (bar.high >= p.target) closePosition(s, "Take-profit (bar touched)", Math.max(p.target, bar.close), bar.closeTime);
+    else if (bar.high >= p.target) closePosition(s, "Take-profit (bar touched)", p.target, bar.closeTime);
     else if (fast !== null && slow !== null && fast < slow && momentum < 0) closePosition(s, "EMA reversal + negative momentum", bar.close, bar.closeTime);
     return;
   }
