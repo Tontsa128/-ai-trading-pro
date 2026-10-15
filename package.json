@@ -4,6 +4,6 @@
   "private": true,
   "description": "Static market-analysis dashboard and deterministic spot-risk research engine",
   "scripts": {
-    "test": "node tests/trading-engine.test.js"
+    "test": "node tests/trading-engine.test.js && node tests/market-proxy.test.js && node --check api/market.js && node --check scripts/fast-paper-trader.js"
   }
 }
