@@ -59,8 +59,13 @@ def _rolling_window_ema(values: pd.Series, span: int, window: int = 179) -> pd.S
     result = full.to_numpy(dtype=float, copy=True)
     full_values = full.to_numpy(dtype=float, copy=False)
     values_array = values.to_numpy(dtype=float, copy=False)
-    for pos in range(window, len(values)):
-        result[pos] = full_values[pos] - power * full_values[pos - window] + power * values_array[pos - window + 1]
+    # Pandas EWM is recursive: subtract the old seed contribution and insert
+    # the start value that a fresh rolling-window EWM would have used.
+    result[window:] = (
+        full_values[window:]
+        - power * full_values[:-window]
+        + power * values_array[1:len(values) - window + 1]
+    )
     return pd.Series(result, index=values.index, name=values.name)
 
 
@@ -134,8 +139,8 @@ def _rolling_vwap_matches_live_window(indicators: pd.DataFrame, window_bars: int
     """Hide VWAP whenever the live app's lookback window lacks UTC midnight."""
     result = indicators.copy()
     index_utc = result.index.tz_convert("UTC")
-    index_ns = index_utc.asi8
-    day_ns = index_utc.normalize().asi8
+    index_ns = index_utc.to_numpy(dtype="datetime64[ns]").astype("int64")
+    day_ns = index_utc.normalize().to_numpy(dtype="datetime64[ns]").astype("int64")
     midnight_positions: dict[int, int | None] = {}
     for day in np.unique(day_ns):
         pos = int(np.searchsorted(index_ns, day))
@@ -167,7 +172,7 @@ def prepare_higher_timeframe_timeline(
         seconds = TIMEFRAME_SECONDS[htf]
         # Only complete aggregate candles are included. Their close time, not
         # their open label, determines when their state becomes observable.
-        close_times = frame.index.tz_convert("UTC").asi8 + seconds * 1_000_000_000
+        close_times = frame.index.tz_convert("UTC").to_numpy(dtype="datetime64[ns]").astype("int64") + seconds * 1_000_000_000
         states = _timeframe_states(frame, htf)
         views[htf] = (close_times, states)
     return views, tuple(views.keys())
@@ -219,7 +224,13 @@ def generate_strategy_candidates(
     # Resampling requires canonical UTC candle-open times.
     frame = ohlcv.copy()
     frame.index = frame.index.tz_convert("UTC")
-    frame = frame.sort_index()
+    base_interval_ns = TIMEFRAME_SECONDS[timeframe] * 1_000_000_000
+    timestamp_ns = frame.index.to_numpy(dtype="datetime64[ns]").astype("int64")
+    if (timestamp_ns % base_interval_ns != 0).any():
+        raise ValueError("OHLCV timestamps must align to UTC candle-open boundaries for the selected timeframe.")
+    gaps_seconds = np.diff(timestamp_ns) / 1_000_000_000
+    if (gaps_seconds > TIMEFRAME_SECONDS[timeframe] * 2.5).any():
+        raise ValueError("OHLCV history contains missing candle intervals exceeding 2.5 bars.")
 
     # EMA/RSI/MACD/ATR are causal, so their series can be prepared once.
     # After the 110 higher-TF candle warmup, startup EWM differences have
@@ -227,7 +238,7 @@ def generate_strategy_candidates(
     prepared = _rolling_vwap_matches_live_window(add_indicators(frame), window_bars)
     timeframe_views, available_frames = prepare_higher_timeframe_timeline(frame, timeframe)
     base_seconds = TIMEFRAME_SECONDS[timeframe]
-    base_close_ns = frame.index.asi8 + base_seconds * 1_000_000_000
+    base_close_ns = timestamp_ns + base_seconds * 1_000_000_000
 
     valid_count = np.zeros(len(frame), dtype=int)
     for _, (close_times, states) in timeframe_views.items():
