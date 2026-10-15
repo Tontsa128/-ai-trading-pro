@@ -11,6 +11,8 @@ Trading dashboard and deterministic indicator engine for research and education.
 - Spot risk calculator estimates position sizing for a BUY using account value, a configurable risk fraction, a maximum exposure cap, estimated exchange fees and slippage. SELL signals do not invent a sell quantity because the app does not know the user's holdings.
 - Historical test: paginated 1h history (up to 2,500 closed candles per pair, fetched in batches of at most 1,000), plus aligned 4h/1d history for BTC, ETH, SOL and the selected pair. Live, backtest and paper trading call the same `evaluateSignal()` function. The backtest remains long-only spot; historical spread is an estimate because past order-book quotes are not fetched. If fewer than 100 trades exist, return, win-rate, drawdown and profit-factor metrics are shown as `—` with a warning rather than treated as evidence.
 
+Signal diagnostics: the checklist chooses BUY/SELL context from the EMA trend bias before falling back to score counts, so a bearish trend is not accidentally shown with the bullish checklist while direction is WAIT. Higher-timeframe trend bias is separated from MACD histogram sign; MACD is labelled by what is actually measured (histogram positive/negative). The volume threshold is 0.5x the prior 20-candle average, and support/resistance are calculated from the prior 30 candles excluding the current candle. The support/resistance clearance guard is 0.5 ATR. These are hypotheses to validate, not proven improvements; compare results and drawdown over a larger sample.
+
 ## Run tests
 
 Requires Node.js 20 or newer:
