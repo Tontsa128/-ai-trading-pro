@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "mode": "paper",
+  "status": "Awaiting first scheduled or manual run",
+  "symbols": [],
+  "errors": [],
+  "newTrades": [],
+  "notes": [
+    "No trading results exist yet; first successful workflow run will create the first report."
+  ]
+}
