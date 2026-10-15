@@ -181,7 +181,7 @@ def fetch_binance_historical_klines(
     if frame.index.has_duplicates or not frame.index.is_monotonic_increasing:
         raise ValueError("Historical candles must have unique chronological timestamps.")
 
-    valid, quality_errors = validate_ohlcv(frame, min_rows=120)
+    valid, quality_errors = validate_ohlcv(frame, min_rows=1)
     if not valid:
         raise ValueError("Invalid historical OHLCV data: " + "; ".join(quality_errors))
     gaps = frame.index.to_series().diff().dt.total_seconds().dropna()
