@@ -9,7 +9,7 @@ Trading dashboard and deterministic indicator engine for research and education.
 - Indicators: EMA 9/21/50/200, Wilder RSI, ATR, MACD, ADX and relative volume.
 - Conservative signal gates: requires a trend/momentum setup plus confirmation from two higher timeframes, recent price data, a sufficiently narrow spread and non-extreme volatility. If a required check fails or data cannot be validated, it returns `ODOTA`.
 - Spot risk calculator estimates position sizing for a BUY using account value, a configurable risk fraction, a maximum exposure cap, estimated exchange fees and slippage. SELL signals do not invent a sell quantity because the app does not know the user's holdings.
-- Historical test: paginated 1h history (up to 2,500 closed candles per pair, fetched in batches of at most 1,000) for BTC, ETH, SOL and the selected pair. The displayed test remains long-only and does not yet include the live signal's 4h/1d confirmation. If fewer than 100 trades exist, return, win-rate, drawdown and profit-factor metrics are shown as `—` with a warning rather than treated as evidence.
+- Historical test: paginated 1h history (up to 2,500 closed candles per pair, fetched in batches of at most 1,000), plus aligned 4h/1d history for BTC, ETH, SOL and the selected pair. Live, backtest and paper trading call the same `evaluateSignal()` function. The backtest remains long-only spot; historical spread is an estimate because past order-book quotes are not fetched. If fewer than 100 trades exist, return, win-rate, drawdown and profit-factor metrics are shown as `—` with a warning rather than treated as evidence.
 
 ## Run tests
 
