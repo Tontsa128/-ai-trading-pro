@@ -36,7 +36,17 @@
       "equity": 1000,
       "realizedPnl": 0,
       "openPositions": 0
+    },
+    {
+      "at": "2026-10-15T15:28:47.490Z",
+      "endedAt": "2026-10-15T15:32:17.491Z",
+      "intervalSeconds": 15,
+      "trades": 0,
+      "errors": 0,
+      "equity": 1000,
+      "realizedPnl": 0,
+      "openPositions": 0
     }
   ],
-  "lastSessionAt": "2026-10-15T15:28:36.670Z"
+  "lastSessionAt": "2026-10-15T15:32:17.491Z"
 }
