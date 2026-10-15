@@ -1,6 +1,6 @@
 import unittest
 
-from rahasampo.risk import calculate_risk_plan
+from rahasampo.risk import calculate_risk_plan, gate_decision_by_net_costs
 
 
 class RiskPlanTests(unittest.TestCase):
@@ -52,6 +52,30 @@ class RiskPlanTests(unittest.TestCase):
                 entry_price=100, stop_price=98, target_price=105,
                 side="long", equity_quote=1000, risk_fraction=0.03,
             )
+
+
+    def test_decisive_signal_is_blocked_when_target_does_not_cover_costs(self):
+        decision = {
+            "level": "OSTA", "direction": "OSTA", "price": 100.0,
+            "stop": 99.5, "target": 100.2, "rr": 0.4, "notes": [],
+        }
+        guarded, plan = gate_decision_by_net_costs(decision, equity_quote=1000.0)
+        self.assertEqual(guarded["level"], "EI TREIDIÄ")
+        self.assertIsNone(guarded["stop"])
+        self.assertIsNotNone(plan)
+        self.assertFalse(plan.eligible)
+
+    def test_watch_signal_is_not_modified_by_risk_gate(self):
+        decision = {"level": "TARKKAILU OSTA", "price": 100.0, "notes": []}
+        guarded, plan = gate_decision_by_net_costs(decision, equity_quote=1000.0)
+        self.assertEqual(guarded, decision)
+        self.assertIsNone(plan)
+
+    def test_missing_stop_for_buy_signal_fails_closed(self):
+        decision = {"level": "OSTA", "direction": "OSTA", "price": 100.0, "stop": None, "target": 105.0, "notes": []}
+        guarded, plan = gate_decision_by_net_costs(decision, equity_quote=1000.0)
+        self.assertEqual(guarded["level"], "EI TREIDIÄ")
+        self.assertIsNone(plan)
 
 
 if __name__ == "__main__":
