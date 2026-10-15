@@ -3,6 +3,7 @@
 // Short-horizon PAPER research worker. No private API keys or order endpoints.
 const fs = require("node:fs");
 const path = require("node:path");
+const { parseBinanceMessage, normalizeTickerQuote } = require("./market-feed");
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
 const INTERVAL_SECONDS = Number(process.env.FAST_INTERVAL_SECONDS || 5);
@@ -179,33 +180,20 @@ function onClosedBar(s, bar) {
   }
 }
 async function handleMessage(raw) {
-  let text;
-  try {
-    if (typeof raw === "string") text = raw;
-    else if (Buffer.isBuffer(raw)) text = raw.toString("utf8");
-    else if (raw instanceof ArrayBuffer) text = Buffer.from(raw).toString("utf8");
-    else if (raw && typeof raw.text === "function") text = await raw.text();
-    else text = String(raw);
-  } catch { return; }
-  let msg;
-  try { msg = JSON.parse(text); } catch { return; }
-  const d = msg.data || msg;
-  if (!d || !d.s) return;
-  const s = symbols.get(String(d.s).toUpperCase());
+  const event = parseBinanceMessage(raw);
+  if (!event) return;
+  const s = symbols.get(event.symbol);
   if (!s) return;
   const now = Date.now();
   socketMessages += 1;
   lastSocketMessageAt = now;
-  if (d.e === "trade" || (d.p != null && d.q != null && d.T != null)) {
-    addTrade(s, Number(d.p), Number(d.q), Number(d.T), "websocket");
-  } else if (d.b != null && d.a != null) {
-    const bid = Number(d.b), ask = Number(d.a);
-    if (bid > 0 && ask >= bid) {
-      s.bid = bid;
-      s.ask = ask;
-      s.lastUpdateAt = now;
-      s.lastFeed = "websocket";
-    }
+  if (event.type === "trade") {
+    addTrade(s, event.price, event.qty, event.time, "websocket");
+  } else if (event.type === "bookTicker") {
+    s.bid = event.bid;
+    s.ask = event.ask;
+    s.lastUpdateAt = now;
+    s.lastFeed = "websocket";
   }
 }
 function connect() {
@@ -240,26 +228,23 @@ async function pollQuotes() {
     await Promise.all([...symbols.values()].map(async s => {
       try {
         // A single-symbol 24h ticker includes last price and top-of-book bid/ask.
-        const q = await json("/api/v3/ticker/24hr?symbol=" + encodeURIComponent(s.symbol), 3500);
-        const price = Number(q.lastPrice);
-        const bid = Number(q.bidPrice);
-        const ask = Number(q.askPrice);
+        const q = normalizeTickerQuote(await json("/api/v3/ticker/24hr?symbol=" + encodeURIComponent(s.symbol), 3500));
         const now = Date.now();
-        if (!(price > 0) || !(bid > 0) || !(ask >= bid)) {
+        if (!q) {
           restPollErrors += 1;
           lastRestError = "Binance quote contained invalid price or bid/ask values.";
           return;
         }
-        s.bid = bid;
-        s.ask = ask;
+        s.bid = q.bid;
+        s.ask = q.ask;
         restPolls += 1;
         s.lastUpdateAt = now;
         if (s.lastTradeAt && now - s.lastTradeAt <= 2500) {
-          s.lastPrice = price;
+          s.lastPrice = q.price;
           s.lastFeed = "websocket+restQuote";
         } else {
           // REST fallback advances a zero-volume sampled-price candle, never inventing trade volume.
-          addTrade(s, price, 0, now, "restFallback");
+          addTrade(s, q.price, 0, now, "restFallback");
         }
       } catch (error) {
         restPollErrors += 1;
