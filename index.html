@@ -130,10 +130,21 @@ function paintChecklist(sig){
  $("passed").textContent="Ehdot "+sig.passed+"/"+sig.total;
 }
 function renderRisk(sig){
- if(sig.direction==="WAIT"||!(sig.qty>0)){
+ if(sig.direction==="WAIT"){
   $("riskPlan").innerHTML='<div class="signal wait">ODOTA</div><p>Vaaditut ehdot eivät täyty. Ei ostoa, myyntiä eikä laskettua positiota tällä hetkellä.</p><p class="sub">Älä tulkitse ODOTA-tilaa piilotetuksi ostokehotukseksi.</p>';return;
  }
- var d=sig.direction==="BUY"?"OSTA (spot)":"MYY / KEVENNÄ (spot)";
+ if(sig.direction==="SELL"){
+  $("riskPlan").innerHTML='<div class="signal sell">MYY / KEVENNÄ (spot)</div>'+
+   '<div class="kv"><span>Viimeisin hinta</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
+   '<div class="kv"><span>Stop-taso (viite)</span><strong>'+fmtPrice(sig.stop)+'</strong></div>'+
+   '<div class="kv"><span>Tavoitetaso (viite)</span><strong>'+fmtPrice(sig.target)+'</strong></div>'+
+   '<p>Laske myytävä määrä omistamiesi kolikoiden perusteella. Sovellus ei tiedä lompakkosi saldoa, joten se ei arvaa myyntimäärää eikä rahallista riskiä.</p>'+
+   '<p class="sub">Laskuympäristö tukee spot-kauppaa: tämä signaali ei tarkoita short-positiota.</p>';return;
+ }
+ if(!(sig.qty>0)){
+  $("riskPlan").innerHTML='<div class="signal wait">ODOTA</div><p>Syötä positiivinen pääoma riskimäärän laskentaa varten.</p>';return;
+ }
+ var d="OSTA (spot)";
  $("riskPlan").innerHTML='<div class="signal '+(sig.direction==="BUY"?"buy":"sell")+'">'+d+'</div>'+
  '<div class="kv"><span>Suunnittelun entry</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
  '<div class="kv"><span>Stop-loss (arvio)</span><strong>'+fmtPrice(sig.stop)+'</strong></div>'+
