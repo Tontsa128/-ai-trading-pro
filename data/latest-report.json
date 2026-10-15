@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-15T12:42:54.823Z",
+  "cycleStartedAt": "2026-10-15T12:50:02.815Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 80932.53,
-      "change24hPct": -2.256,
-      "spreadPct": 0.000012355970308802645,
+      "price": 80795.25,
+      "change24hPct": -2.584,
+      "spreadPct": 0.000012376964457580226,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -50,9 +50,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2357.71,
-      "change24hPct": -4.977,
-      "spreadPct": 0.0004241394740146087,
+      "price": 2353.66,
+      "change24hPct": -5.278,
+      "spreadPct": 0.00042487110471855615,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -93,9 +93,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 102.01,
-      "change24hPct": -3.719,
-      "spreadPct": 0.009802480027438028,
+      "price": 101.89,
+      "change24hPct": -3.796,
+      "spreadPct": 0.009814987485895977,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -134,9 +134,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 719.88,
-      "change24hPct": -2.532,
-      "spreadPct": 0.0013891300573003515,
+      "price": 719.24,
+      "change24hPct": -2.682,
+      "spreadPct": 0.0013904048163610192,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -176,9 +176,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.3046,
-      "change24hPct": -4.257,
-      "spreadPct": 0.007664890966925151,
+      "price": 1.302,
+      "change24hPct": -4.384,
+      "spreadPct": 0.007680786512538037,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -218,9 +218,9 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.08015,
-      "change24hPct": -4.287,
-      "spreadPct": 0.012477384740153627,
+      "price": 0.08009,
+      "change24hPct": -4.404,
+      "spreadPct": 0.012486732846345912,
       "timeframe": "1h",
       "confirmations": [
         "4h",
