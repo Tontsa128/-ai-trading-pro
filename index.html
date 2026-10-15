@@ -163,7 +163,7 @@ function paintChecklist(sig){
   if(group!==lastGroup){list+='<div class="sub" style="font-weight:800;margin:12px 0 4px">'+esc(group)+'</div>';lastGroup=group;}
   list+='<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';
  });
- var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":(sig.checks.bullN>=sig.checks.bearN?"OSTA — ei vahvistettu":"MYY — ei vahvistettu");
+ var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":sig.checks.bias==="bear"?"MYY — ei vahvistettu":sig.checks.bias==="bull"?"OSTA — ei vahvistettu":(sig.checks.bearN>sig.checks.bullN?"MYY — ei vahvistettu":"OSTA — ei vahvistettu");
  $("checklist").innerHTML='<div class="sub">Arvioitava suunta: <strong>'+esc(side)+'</strong></div>'+list;
  $("passed").textContent="Ehdot "+sig.passed+"/"+sig.total;
 }
