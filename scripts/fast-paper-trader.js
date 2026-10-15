@@ -31,6 +31,9 @@ let stopping = false;
 let socketOpen = false;
 let socketMessages = 0;
 let socketErrors = 0;
+let consecutiveSocketFailures = 0;
+let websocketDisabled = false;
+let lastSocketFailureAt = null;
 let restPolls = 0;
 let restPollErrors = 0;
 let lastSocketMessageAt = null;
@@ -196,29 +199,65 @@ async function handleMessage(raw) {
     s.lastFeed = "websocket";
   }
 }
+function scheduleReconnect() {
+  if (stopping || Date.now() >= endAt || websocketDisabled || reconnectTimer) return;
+  if (consecutiveSocketFailures >= 3) {
+    websocketDisabled = true;
+    console.warn("Binance WebSocket failed three consecutive connections; REST live quotes remain active.");
+    return;
+  }
+  const delayMs = Math.min(5000, 1000 * Math.max(1, consecutiveSocketFailures));
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    connect();
+  }, delayMs);
+}
 function connect() {
-  if (stopping || Date.now() >= endAt) return;
+  if (stopping || Date.now() >= endAt || websocketDisabled) return;
   const streams = SYMBOLS.flatMap(x => [x.toLowerCase() + "@trade", x.toLowerCase() + "@bookTicker"]);
   // Port 443 is more widely available than 9443 on hosted CI runners.
-  socket = new WebSocket("wss://stream.binance.com:443/stream?streams=" + streams.join("/"));
-  socket.addEventListener("open", () => {
-    socketOpen = true;
+  const currentSocket = new WebSocket("wss://stream.binance.com:443/stream?streams=" + streams.join("/"));
+  socket = currentSocket;
+  let errorCounted = false;
+  let sawMarketMessage = false;
+  function failConnection(reason) {
+    if (errorCounted) return;
+    errorCounted = true;
+    socketErrors += 1;
+    consecutiveSocketFailures += 1;
+    lastSocketFailureAt = new Date().toISOString();
+    socketOpen = false;
+    console.warn("Binance WebSocket connection failure (" + consecutiveSocketFailures + "/3): " + reason);
+    if (consecutiveSocketFailures >= 3) {
+      websocketDisabled = true;
+      console.warn("Binance WebSocket retries paused after three consecutive failures; REST live quotes remain active.");
+    }
+    try { currentSocket.close(); } catch {}
+    scheduleReconnect();
+  }
+  currentSocket.addEventListener("open", () => {
+    if (socket === currentSocket) socketOpen = true;
     console.log("Binance WebSocket connected on port 443.");
   });
-  socket.addEventListener("message", e => {
+  currentSocket.addEventListener("message", e => {
+    sawMarketMessage = true;
+    consecutiveSocketFailures = 0;
+    if (socket === currentSocket) socketOpen = true;
     handleMessage(e.data).catch(error => {
       socketErrors += 1;
       console.error("Unable to parse Binance WebSocket event:", String(error.message || error));
     });
   });
-  socket.addEventListener("error", () => {
-    socketErrors += 1;
-    socketOpen = false;
-    try { socket.close(); } catch {}
+  currentSocket.addEventListener("error", () => {
+    failConnection("WebSocket error event");
   });
-  socket.addEventListener("close", () => {
-    socketOpen = false;
-    if (!stopping && Date.now() < endAt) reconnectTimer = setTimeout(connect, 1500);
+  currentSocket.addEventListener("close", () => {
+    if (socket === currentSocket) socketOpen = false;
+    if (!sawMarketMessage && !errorCounted) {
+      failConnection("socket closed before receiving market data");
+      return;
+    }
+    if (!stopping && Date.now() < endAt && !websocketDisabled) scheduleReconnect();
   });
 }
 async function pollQuotes() {
@@ -295,7 +334,10 @@ function writeReport() {
     sessionEndedAt: new Date(now).toISOString(), requestedSessionSeconds: SESSION_SECONDS,
     feedStatus: {
       websocketConnectedAtEnd: socketOpen, websocketMessages: socketMessages,
-      websocketErrors: socketErrors, lastWebSocketMessageAt: lastSocketMessageAt ? new Date(lastSocketMessageAt).toISOString() : null,
+      websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
+      websocketDisabled: websocketDisabled,
+      lastWebSocketFailureAt: lastSocketFailureAt,
+      lastWebSocketMessageAt: lastSocketMessageAt ? new Date(lastSocketMessageAt).toISOString() : null,
       restQuoteUpdates: restPolls, restQuoteErrors: restPollErrors, lastRestError
     },
     symbols: SYMBOLS.map(symbol => {
@@ -333,7 +375,7 @@ function writeReport() {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
   console.log(JSON.stringify({ intervalSeconds: INTERVAL_SECONDS, symbols: SYMBOLS.length,
     paperTrades: events.length, websocketMessages: socketMessages, restQuoteUpdates: restPolls,
-    restQuoteErrors: restPollErrors, errors: report.errors.length, cash: state.cash,
+    restQuoteErrors: restPollErrors, websocketDisabled: websocketDisabled, errors: report.errors.length, cash: state.cash,
     equity: report.portfolio.equity, realizedPnl, openPositions: report.portfolio.openPositions,
     feedMode: report.source }, null, 2));
 }
