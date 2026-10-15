@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Local app data and research outputs
+learning_v26.json
+signal_journal.sqlite*
+*.db
+*.sqlite
+*.sqlite3
+backtest_trades.csv
+backtest_report.json
+local_data/
+data/private/
+
+# Editors and operating systems
+.DS_Store
+.idea/
+.vscode/
