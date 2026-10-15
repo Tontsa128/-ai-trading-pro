@@ -47,3 +47,15 @@ A GitHub Actions workflow (\`.github/workflows/paper-trading-cycle.yml\`) runs e
 - GitHub Actions must be enabled and the repository's workflow token must be allowed to write to the repository for cycle reports to persist. If there is no run in the workflow history, start it manually at https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml using **Run workflow**. A missing run is not evidence of a Binance error; inspect the first actual run's logs before diagnosing HTTP 451 or permissions.
 - GitHub scheduled jobs are best-effort and can run late. This is a decision every two hours, not a continuous execution engine. Stops/targets are checked against the latest closed hourly candle at each run, so intraperiod moves may be missed.
 - Review report errors, realized/unrealized P&L, drawdown and costs before changing the strategy. Do not auto-tune parameters from a small sample.
+
+
+## Fast paper trading (5-second / 15-second research)
+
+The separate workflow \`.github/workflows/fast-paper-trading.yml\` listens to Binance's public Spot WebSocket \`trade\` and \`bookTicker\` streams for BTC, ETH, SOL, BNB, XRP and DOGE. It aggregates trade events into closed 5-second bars by default; **Actions → Fast paper trading (5s / 15s) → Run workflow** can select 5 or 15 seconds and a session of up to 210 seconds. The scheduled job listens for 210 seconds every five minutes, subject to GitHub Actions scheduling delays and usage limits.
+
+- Separate virtual portfolios: \`data/fast-paper-state-5s.json\` and \`data/fast-paper-state-15s.json\`.
+- Latest session reports: \`data/fast-paper-latest-5s.json\` and \`data/fast-paper-latest-15s.json\`; detailed history is stored under \`data/fast-reports/\`.
+- The initial strategy is a deliberately simple long-only EMA(9)/EMA(21) cross with momentum, spread, position-size, stop and target guards. It is a test harness, **not a trained or proven profitable strategy**.
+- The simulator estimates 0.10% fee and 0.05% slippage per side. Those costs alone can overwhelm many 5-second/15-second moves. Reports must be evaluated over a meaningful sample, including net P/L, drawdown, win/loss distribution and no-trade sessions.
+- A GitHub Actions schedule is best-effort, not a permanently connected trading server. Vercel hosts the static dashboard; it does not keep this WebSocket worker running continuously. For truly uninterrupted 24/7 streaming, run the worker on an always-on host with monitoring and durable storage.
+- Paper only: no private API keys, account balances, or real orders are used. Do not enable real-money execution based on these results.

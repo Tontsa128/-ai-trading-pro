@@ -40,6 +40,12 @@ const paperScriptSource = fs.readFileSync(path.join(__dirname, "../scripts/paper
 assert.ok(paperScriptSource.includes('"HTTP "+r.status+" from "+host+url'),
   "paper collector reports the exact public data endpoint that fails");
 
+const { spawnSync } = require("node:child_process");
+const fastWorkerCheck = spawnSync(process.execPath,
+  ["--check", path.join(__dirname, "../scripts/fast-paper-trader.js")], { encoding: "utf8" });
+assert.equal(fastWorkerCheck.status, 0,
+  "fast paper WebSocket worker must pass Node syntax validation: " + fastWorkerCheck.stderr);
+
 
 
 const now = 50000;
