@@ -1,7 +1,7 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const { parseBinanceMessage, normalizeTickerQuote } = require("../scripts/market-feed");
+const { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("../scripts/market-feed");
 
 const trade = parseBinanceMessage(JSON.stringify({
   stream: "btcusdt@trade",
@@ -26,4 +26,17 @@ assert.equal(normalizeTickerQuote({ lastPrice: "0", bidPrice: "9.99", askPrice: 
 assert.equal(normalizeTickerQuote({ lastPrice: "10", bidPrice: "11", askPrice: "10" }), null);
 assert.equal(normalizeTickerQuote(null), null);
 
-console.log("Live market feed tests passed: wrapped trade stream, book ticker, buffer input and REST quote validation.");
+assert.deepEqual(WEBSOCKET_BASES, [
+  "wss://data-stream.binance.vision:443",
+  "wss://stream.binance.com:443",
+  "wss://stream.binance.com:9443"
+], "try the dedicated public market-data stream first");
+assert.equal(
+  buildCombinedStreamUrl(WEBSOCKET_BASES[0], ["BTCUSDT", "ETHUSDT"]),
+  "wss://data-stream.binance.vision:443/stream?streams=btcusdt@trade/btcusdt@bookTicker/ethusdt@trade/ethusdt@bookTicker"
+);
+assert.throws(() => buildCombinedStreamUrl("https://not-ws.example", ["BTCUSDT"]), /secure WebSocket/);
+assert.throws(() => buildCombinedStreamUrl(WEBSOCKET_BASES[0], []), /at least one market symbol/);
+assert.throws(() => buildCombinedStreamUrl(WEBSOCKET_BASES[0], ["BTC/USDT"]), /Invalid WebSocket market symbol/);
+
+console.log("Live market feed tests passed: WebSocket host failover URLs, wrapped trade stream, book ticker, Buffer input and REST quote validation.");
