@@ -14,6 +14,7 @@ from rahasampo.strategy_replay import (
     _resample_completed_bars,
     generate_strategy_candidates,
     prepare_higher_timeframe_timeline,
+    resample_ohlcv,
 )
 
 
@@ -59,6 +60,25 @@ class StrategyReplayTests(unittest.TestCase):
             frame.index[-1] + pd.Timedelta(minutes=15),
         )
 
+    def test_fine_source_preserves_all_four_live_higher_timeframes(self):
+        source = make_ohlcv(periods=27_000, freq="min")
+        signals = resample_ohlcv(
+            source,
+            source_timeframe="1m",
+            target_timeframe="15m",
+        )
+        candidates, audit, diagnostics = generate_strategy_candidates(
+            signals,
+            timeframe="15m",
+            higher_timeframe_ohlcv=source,
+            higher_timeframe_source_timeframe="1m",
+            symbol="BTCUSDT",
+        )
+        self.assertEqual(set(diagnostics.timeframe_inputs), {"5m", "15m", "1h", "4h"})
+        self.assertEqual(diagnostics.bars_received, len(signals))
+        self.assertEqual(diagnostics.accepted_candidates, len(candidates))
+        self.assertIn("status", audit.columns)
+
     def test_replay_uses_only_available_higher_timeframe_inputs(self):
         frame = make_ohlcv()
         candidates, audit, diagnostics = generate_strategy_candidates(
@@ -81,7 +101,7 @@ class StrategyReplayTests(unittest.TestCase):
 
     @patch("rahasampo.strategy_backtest_cli.fetch_binance_historical_klines")
     def test_strategy_backtest_cli_can_download_history_without_csv(self, download):
-        frame = make_ohlcv(periods=1800)
+        frame = make_ohlcv(periods=27_000, freq="min")
         download.return_value = frame
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -93,7 +113,6 @@ class StrategyReplayTests(unittest.TestCase):
                 "--max-download-bars", "200000",
                 "--symbol", "ETHUSDT",
                 "--timeframe", "15m",
-                "--source-timeframe", "15m",
                 "--max-holding-bars", "5",
                 "--signals-out", str(signals),
                 "--trades-out", str(trades),
@@ -104,6 +123,8 @@ class StrategyReplayTests(unittest.TestCase):
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["source"], "binance_public_historical_api")
             self.assertEqual(report["instrument"], "ETHUSDT")
+            self.assertEqual(report["source_timeframe"], "1m")
+            self.assertIn("5m", report["replay_diagnostics"]["timeframe_inputs"])
             self.assertIn("data_start_utc", report)
             self.assertIn("data_end_utc", report)
 
