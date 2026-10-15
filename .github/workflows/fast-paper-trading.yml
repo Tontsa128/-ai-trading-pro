@@ -2,6 +2,13 @@ name: Fast paper trading (5s / 15s)
 
 on:
   pull_request:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/fast-paper-trading.yml"
+      - ".github/workflows/fast-paper-trading-15s.yml"
+      - "scripts/fast-paper-trader.js"
+      - "package.json"
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -29,7 +36,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: fast-paper-trading
+  group: fast-paper-trading-5s
   cancel-in-progress: false
 
 jobs:
@@ -68,6 +75,16 @@ jobs:
           if git diff --cached --quiet; then
             echo "No fast paper report changes to persist"
           else
-            git commit -m "Record fast paper trading session"
-            git push
+            git commit -m "Record 5-second paper trading session"
+            for attempt in 1 2 3 4; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              git rebase --abort || true
+              sleep $((attempt * 2))
+            done
+            echo "Could not persist 5-second report after retries"
+            exit 1
           fi
