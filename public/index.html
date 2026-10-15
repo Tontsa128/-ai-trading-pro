@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<meta name="description" content="Rahasampo Radar - kryptomarkkinan analyysi- ja riskienhallintatyökalu. Ei automaattista kaupankäyntiä.">
+<title>Rahasampo Radar PRO — markkina-analyysi</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101d30;--line:#263750;--muted:#9db0c8;--green:#28d7a0;--red:#ff647c;--gold:#ffd166;--blue:#67b7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#132642 0,#07111f 55%);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#edf5ff}
+main{max-width:1450px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.brand{font-size:clamp(22px,4vw,32px);font-weight:850;letter-spacing:-.7px}.sub,.muted{color:var(--muted)}.tag,.pill{display:inline-block;border:1px solid #35506d;border-radius:999px;padding:5px 10px;font-size:12px;color:#b8cbe2}.pill{border:0;background:#20334b;padding:3px 8px}
+.controls,.metrics,.grid,.risk-controls{display:grid;gap:12px}.controls{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:20px 0 12px}.risk-controls{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:12px}.panel,.metric{background:linear-gradient(150deg,#122239,#0c1728);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}.metric small{display:block;color:var(--muted);margin-bottom:5px}.metric strong{font-size:clamp(19px,3vw,27px);overflow-wrap:anywhere}.metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0}.grid{grid-template-columns:minmax(0,2fr) minmax(290px,1fr);margin-top:12px}.signal{font-size:clamp(25px,4vw,40px);font-weight:900;letter-spacing:-1px}.signal.buy{color:var(--green)}.signal.sell{color:var(--red)}.signal.wait{color:var(--gold)}
+select,input,button{width:100%;padding:11px 12px;border:1px solid #38506b;border-radius:10px;background:#0b1728;color:#edf5ff;font:inherit}button{cursor:pointer;background:#173c5b;font-weight:700}button:hover{filter:brightness(1.2)}button:disabled{opacity:.6;cursor:wait}label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}#chart{height:520px;width:100%}
+.status{padding:10px 12px;border-radius:10px;background:#172b42;color:#c8d9ee;margin:12px 0}.status.error{color:#ffb4bd;background:#381c2a}.status.ok{color:#91f4d3;background:#10352f}
+ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);padding:18px 2px}.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.divider{height:1px;background:var(--line);margin:14px 0}.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #203048}.kv span:first-child{color:var(--muted)}.good{color:var(--green)}.bad{color:var(--red)}.neutral{color:var(--gold)}.check{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #203048}.check-mark{font-weight:900;min-width:18px}.check-mark.yes{color:var(--green)}.check-mark.no{color:var(--red)}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{text-align:right;padding:9px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}.disclaimer{border:1px solid #735d2f;background:#211c12;border-radius:12px;padding:13px;margin:12px 0;color:#f3dfaa;font-size:13px}
+@media(max-width:850px){main{padding:12px}.grid{grid-template-columns:1fr}#chart{height:390px}.panel{padding:12px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:last-child{grid-column:1/-1}}
+</style>
+</head>
+<body><main>
+<header class="top">
+ <div><div class="brand">◈ Rahasampo Radar <span style="color:var(--green)">PRO</span></div><div class="sub">AI Trading Pro · tekninen analyysi, riskilaskenta ja historiallinen koe</div></div>
+ <span class="tag">BINANCE SPOT DATA · EI AUTOMAATTISIA TOIMEKSIANTOJA</span>
+</header>
+<div class="controls">
+ <div><label for="symbol">Kaupankäyntipari</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option></select></div>
+ <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
+ <div><label for="chartCount">Kaavion kynttilät</label><select id="chartCount"><option>80</option><option selected>150</option><option>250</option><option>500</option></select></div>
+ <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0">Manuaalinen</option><option value="30">30 sekuntia</option><option value="60" selected>60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
+ <div style="display:flex;align-items:end"><button id="update">↻ Päivitä markkina</button></div>
+</div>
+<section class="panel">
+ <div class="section-title"><strong>Riskiasetukset (vain laskentaa varten)</strong><span class="pill">Spot, ei vipua</span></div>
+ <div class="risk-controls">
+  <div><label for="capital">Tilin arvo / pääoma (USDT)</label><input id="capital" type="number" value="1000" min="0" max="100000000" step="100"></div>
+  <div><label for="riskPct">Enimmäisriski / kauppa</label><select id="riskPct"><option value="0.25">0,25 %</option><option value="0.5" selected>0,50 %</option><option value="0.75">0,75 %</option><option value="1">1,00 %</option></select></div>
+  <div><label for="exposurePct">Pääomasta enintään positioon</label><select id="exposurePct"><option value="10">10 %</option><option value="25" selected>25 %</option><option value="50">50 %</option></select></div>
+  <div><label for="feePct">Kaupankäyntikulu / suunta (%)</label><input id="feePct" type="number" value="0.10" min="0" max="2" step="0.01"></div>
+  <div><label for="slippagePct">Arvioitu lipsuma / suunta (%)</label><input id="slippagePct" type="number" value="0.05" min="0" max="2" step="0.01"></div>
+ </div>
+</section>
+<div id="status" class="status">Yhdistetään markkinadataan…</div>
+<section class="metrics">
+ <div class="metric"><small>Viimeisin markkinahinta (USDT)</small><strong id="price">—</strong></div>
+ <div class="metric"><small>24 h muutos</small><strong id="change">—</strong></div>
+ <div class="metric"><small>RSI (14)</small><strong id="rsi">—</strong></div>
+ <div class="metric"><small>ADX (trendin vahvuus)</small><strong id="adx">—</strong></div>
+ <div class="metric"><small>Spread / osto–myyntihajonta</small><strong id="spread">—</strong></div>
+ <div class="metric"><small>Tekninen päätös</small><strong id="signal" class="signal wait">ODOTA</strong></div>
+</section>
+<div class="grid">
+ <section class="panel">
+  <div class="section-title"><div><strong>Hintakaavio</strong><div class="sub">Sulkeutuneet kynttilät · EMA 9 / 21 / 50 / 200</div></div><span id="timestamp" class="pill">—</span></div>
+  <div id="chart"></div>
+  <div class="sub">Kaavio näyttää valitun aikavälin. Analyysi vertaa myös kahta suurempaa aikaväliä.</div>
+ </section>
+ <aside class="panel">
+  <div class="section-title"><h3 style="margin:0">Signaalin arvio</h3><span id="passed" class="pill">Ehdot —</span></div>
+  <p id="summary" class="sub">Odotetaan dataa.</p>
+  <div class="divider"></div>
+  <h3>Moniaikavälivahvistus</h3><div id="timeframes" class="sub">Odotetaan dataa.</div>
+  <div class="divider"></div>
+  <h3>Tärkeät hintatasot</h3><div id="levels" class="sub">Ei vielä saatavilla.</div>
+ </aside>
+</div>
+<div class="grid">
+ <section class="panel">
+  <div class="section-title"><h3 style="margin:0">Signaalin tarkistuslista</h3><span class="pill">Ei voittotodennäköisyys</span></div>
+  <div id="checklist" class="sub">Odotetaan dataa.</div>
+ </section>
+ <section class="panel">
+  <h3 style="margin-top:0">Riskilaskelma — vain kun signaali vahvistuu</h3>
+  <div id="riskPlan" class="sub">ODOTA-signaalissa positiota ei ehdoteta.</div>
+  <p class="sub" style="font-size:12px">Esimerkkilaskelma käyttää ATR-pohjaista stop-lossia ja tavoitetta sekä syötettyjä kulu- ja lipsuma-arvioita. Toteutushinta voi poiketa. Stop-loss ei takaa tappion rajaamista ilmoitettuun tasoon.</p>
+ </section>
+</div>
+<section class="panel" style="margin-top:12px">
+ <div class="section-title"><div><h3 style="margin:0">Historiallinen strategiakoe</h3><div class="sub">Enintään 500 aiempaa kynttilää · long-only spot · kulut ja lipsuma mukana</div></div><span class="pill">Ei ennuste tulevasta</span></div>
+ <div class="metrics">
+  <div class="metric"><small>Kauppoja kokeessa</small><strong id="btTrades">—</strong></div>
+  <div class="metric"><small>Voittavien osuus</small><strong id="btWin">—</strong></div>
+  <div class="metric"><small>Nettotulos (USDT)</small><strong id="btPnl">—</strong></div>
+  <div class="metric"><small>Tuotto</small><strong id="btPct">—</strong></div>
+  <div class="metric"><small>Suurin lasku huipusta</small><strong id="btDd">—</strong></div>
+  <div class="metric"><small>Voitto/tappio-suhde</small><strong id="btPf">—</strong></div>
+ </div>
+ <div id="backtestNote" class="sub">Historiallista koetta ei ole vielä tehty.</div>
+ <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
+</section>
+<div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
+<div class="foot">Markkinadata: Binance Spot API (julkinen markkinadata). Hinnat ja laskelmat esitetään USDT:ssä, eivät euroissa. Omat todelliset kulut, täyttöhinta, likviditeetti, verotus ja pörssin saatavuus voivat muuttaa tulosta. Historiallisen testin yksittäisen aikavälin signaali ei ole sama kuin live-signaalin korkeamman aikavälin vahvistus.</div>
+</main>
+<script src="./trading-engine.js"></script>
+<script>
+(function(){
+"use strict";
+var $=function(id){return document.getElementById(id);}, timer=null, busy=false, refreshToken=0;
+var periods=["1m","3m","5m","15m","1h","4h","1d","3d","1w"];
+function fmt(n,d){if(!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("en-US",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
+function fmtPrice(n){var v=Number(n);return fmt(v,v<0.01?6:v<1?5:2);}
+function money(n){return fmt(n,2)+" USDT";}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
+function status(msg,type){$("status").className="status "+(type||"");$("status").textContent=msg;}
+function options(){return {capital:Math.max(0,Number($("capital").value)||0),riskPct:Number($("riskPct").value),maxExposurePct:Number($("exposurePct").value),feePct:Math.max(0,Number($("feePct").value)||0),slippagePct:Math.max(0,Number($("slippagePct").value)||0)};}
+function nextHigher(iv){var i=periods.indexOf(iv);return [periods[Math.min(i+1,periods.length-1)],periods[Math.min(i+2,periods.length-1)]];}
+async function fetchJson(path){
+ var hosts=["https://data-api.binance.vision","https://api.binance.com","https://api1.binance.com"], last=null;
+ for(var i=0;i<hosts.length;i++){
+  var controller=typeof AbortController!=="undefined"?new AbortController():null;
+  var timeout=controller?setTimeout(function(c){return function(){c.abort();};}(controller),9000):null;
+  try{
+   var res=await fetch(hosts[i]+path,{cache:"no-store",signal:controller?controller.signal:undefined});
+   if(timeout)clearTimeout(timeout);
+   if(res.status===429||res.status===418)throw new Error("Binancen pyyntöraja tuli vastaan (HTTP "+res.status+"). Päivitä harvemmin ja odota ennen uutta pyyntöä.");
+   if(!res.ok)throw new Error("Markkinalähde vastasi HTTP "+res.status+".");
+   return await res.json();
+  }catch(e){if(timeout)clearTimeout(timeout);last=e;if(e&&e.message&&e.message.indexOf("pyyntöraja")>=0)throw e;}
+ }
+ throw last||new Error("Markkinadata ei ole saatavilla.");
+}
+async function getBars(symbol,iv,limit){
+ var raw=await fetchJson("/api/v3/klines?symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(iv)+"&limit="+limit);
+ var bars=TradingEngine.parseKlines(raw,Date.now());
+ if(bars.length<220)throw new Error(iv+"-aikaväliltä saatiin vain "+bars.length+" sulkeutunutta kynttilää; tarvitaan vähintään 220.");
+ return TradingEngine.enrich(bars);
+}
+function paintChecklist(sig){
+ var list=sig.checklist.map(function(x){return '<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';}).join("");
+ $("checklist").innerHTML=list;
+ $("passed").textContent="Ehdot "+sig.passed+"/"+sig.total;
+}
+function renderRisk(sig){
+ if(sig.direction==="WAIT"){
+  $("riskPlan").innerHTML='<div class="signal wait">ODOTA</div><p>Vaaditut ehdot eivät täyty. Ei ostoa, myyntiä eikä laskettua positiota tällä hetkellä.</p><p class="sub">Älä tulkitse ODOTA-tilaa piilotetuksi ostokehotukseksi.</p>';return;
+ }
+ if(sig.direction==="SELL"){
+  $("riskPlan").innerHTML='<div class="signal sell">MYY / KEVENNÄ (spot)</div>'+
+   '<div class="kv"><span>Viimeisin hinta</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
+   '<div class="kv"><span>Stop-taso (viite)</span><strong>'+fmtPrice(sig.stop)+'</strong></div>'+
+   '<div class="kv"><span>Tavoitetaso (viite)</span><strong>'+fmtPrice(sig.target)+'</strong></div>'+
+   '<p>Laske myytävä määrä omistamiesi kolikoiden perusteella. Sovellus ei tiedä lompakkosi saldoa, joten se ei arvaa myyntimäärää eikä rahallista riskiä.</p>'+
+   '<p class="sub">Laskuympäristö tukee spot-kauppaa: tämä signaali ei tarkoita short-positiota.</p>';return;
+ }
+ if(!(sig.qty>0)){
+  $("riskPlan").innerHTML='<div class="signal wait">ODOTA</div><p>Syötä positiivinen pääoma riskimäärän laskentaa varten.</p>';return;
+ }
+ var d="OSTA (spot)";
+ $("riskPlan").innerHTML='<div class="signal '+(sig.direction==="BUY"?"buy":"sell")+'">'+d+'</div>'+
+ '<div class="kv"><span>Suunnittelun entry</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
+ '<div class="kv"><span>Stop-loss (arvio)</span><strong>'+fmtPrice(sig.stop)+'</strong></div>'+
+ '<div class="kv"><span>Tavoite (arvio)</span><strong>'+fmtPrice(sig.target)+'</strong></div>'+
+ '<div class="kv"><span>Määrä</span><strong>'+fmt(sig.qty,6)+'</strong></div>'+
+ '<div class="kv"><span>Position arvo</span><strong>'+money(sig.notional)+'</strong></div>'+
+ '<div class="kv"><span>Arvioitu riski kuluineen</span><strong>'+money(sig.estimatedLoss)+'</strong></div>'+
+ '<div class="kv"><span>Arvioitu netto-tavoite kuluineen</span><strong>'+money(sig.estimatedGain)+'</strong></div>'+
+ '<p class="sub">'+esc(sig.reason)+'</p>';
+}
+function renderBacktest(result){
+ $("btTrades").textContent=String(result.count);$("btWin").textContent=fmt(result.winRate,1)+"%";
+ $("btPnl").textContent=money(result.netPnl);$("btPnl").className=result.netPnl>=0?"good":"bad";
+ $("btPct").textContent=fmt(result.netPct,2)+"%";$("btPct").className=result.netPct>=0?"good":"bad";
+ $("btDd").textContent=fmt(result.maxDrawdownPct,2)+"%";$("btPf").textContent=Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞";
+ $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+money(result.endEquity)+".";
+ var rows=result.trades.slice(-10).reverse();
+ $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Ehtoja täyttäviä historiallisia kauppoja ei löytynyt tästä otoksesta. Se ei osoita, että strategia olisi kannattava.</td></tr>';
+}
+function renderChart(series,signal,symbol,chartCount){
+ var d=series.slice(-chartCount),x=d.map(function(b){return new Date(b.time);});
+ var traces=[{type:"candlestick",x:x,open:d.map(function(b){return b.open;}),high:d.map(function(b){return b.high;}),low:d.map(function(b){return b.low;}),close:d.map(function(b){return b.close;}),name:symbol,increasing:{line:{color:"#28d7a0"}},decreasing:{line:{color:"#ff647c"}}}];
+ [["ema9","#ffd166"],["ema21","#67b7ff"],["ema50","#c084fc"],["ema200","#fb7185"]].forEach(function(item){
+  traces.push({type:"scatter",x:x,y:d.map(function(b){return b[item[0]];}),mode:"lines",name:item[0].toUpperCase(),line:{color:item[1],width:item[0]==="ema200"?2:1.3}});
+ });
+ var shapes=[];
+ if(signal.direction!=="WAIT"&&Number.isFinite(signal.stop)&&Number.isFinite(signal.target)){
+  shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.stop,y1:signal.stop,line:{color:"#ff647c",dash:"dash"}});
+  shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.target,y1:signal.target,line:{color:"#28d7a0",dash:"dash"}});
+ }
+ Plotly.react("chart",traces,{paper_bgcolor:"#101d30",plot_bgcolor:"#101d30",font:{color:"#dce9fa"},margin:{l:55,r:18,t:12,b:45},
+  xaxis:{gridcolor:"#263750",rangeslider:{visible:false}},yaxis:{gridcolor:"#263750",side:"right"},legend:{orientation:"h",y:1.1},autosize:true,shapes:shapes},
+  {responsive:true,displaylogo:false,scrollZoom:true});
+}
+async function load(){
+ if(busy)return;busy=true;var myToken=++refreshToken;$("update").disabled=true;status("Haetaan sulkeutuneita kynttilöitä, suurempia aikavälejä ja spot-hintaa…");
+ try{
+  var symbol=$("symbol").value,iv=$("interval").value,n=nextHigher(iv),opts=options();
+  var paths=[
+   getBars(symbol,iv,500),
+   getBars(symbol,n[0],300),
+   getBars(symbol,n[1],300),
+   fetchJson("/api/v3/ticker/24hr?symbol="+symbol),
+   fetchJson("/api/v3/ticker/bookTicker?symbol="+symbol)
+  ];
+  var data=await Promise.all(paths);if(myToken!==refreshToken)return;
+  var main=data[0],higher=[TradingEngine.analyzeSeries(data[1]),TradingEngine.analyzeSeries(data[2])];
+  var day=data[3],book=data[4],price=Number(day.lastPrice);
+  if(!Number.isFinite(price)||price<=0)throw new Error("Markkinahinta ei ole kelvollinen.");
+  var signal=TradingEngine.makeSignal(TradingEngine.analyzeSeries(main),higher,
+   {price:price,closeTime:Number(day.closeTime),bid:Number(book.bidPrice),ask:Number(book.askPrice)},opts);
+  var latest=signal.main.bar;
+  $("price").textContent=fmtPrice(price);$("change").textContent=fmt(Number(day.priceChangePercent),2)+"%";
+  $("change").className=Number(day.priceChangePercent)>=0?"good":"bad";
+  $("rsi").textContent=fmt(latest.rsi,1);$("adx").textContent=fmt(latest.adx,1);
+  $("spread").textContent=fmt(signal.spreadPct,3)+"%";
+  $("signal").textContent=signal.direction==="BUY"?"OSTA (SPOT)":signal.direction==="SELL"?"MYY / KEVENNÄ":"ODOTA";
+  $("signal").className="signal "+(signal.direction==="BUY"?"buy":signal.direction==="SELL"?"sell":"wait");
+  $("summary").textContent=signal.reason;
+  $("timeframes").innerHTML=[{name:iv+" (valittu)",a:signal.main.checks.bias}, {name:n[0],a:higher[0].checks.bias},{name:n[1],a:higher[1].checks.bias}].map(function(t){
+   var val=t.a==="bull"?"NOUSU":t.a==="bear"?"LASKU":"EPÄSELVÄ";return '<div class="kv"><span>'+esc(t.name)+'</span><strong class="'+(t.a==="bull"?"good":t.a==="bear"?"bad":"neutral")+'">'+val+'</strong></div>';
+  }).join("");
+  $("levels").innerHTML='<div class="kv"><span>Tuki (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.support)+'</strong></div>'+
+   '<div class="kv"><span>Vastus (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
+   '<div class="kv"><span>ATR (14)</span><strong>'+fmtPrice(latest.atr)+'</strong></div>'+
+   '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
+   '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
+  paintChecklist(signal);renderRisk(signal);
+  var bt=TradingEngine.backtest(main,opts);renderBacktest(bt);renderChart(main,signal,symbol,Number($("chartCount").value));
+  $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
+  status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää.","ok");
+ }catch(e){
+  status("Analyysi keskeytettiin: "+(e&&e.message?e.message:"tuntematon virhe")+". Vanhentunutta dataa ei käytetä uuteen signaaliin.","error");
+  $("signal").textContent="ODOTA";$("signal").className="signal wait";$("summary").textContent="Uutta signaalia ei muodostettu datan tai laskennan virheen vuoksi.";
+ }finally{busy=false;$("update").disabled=false;}
+}
+function setTimer(){if(timer)clearInterval(timer);var secs=Number($("refresh").value);if(secs)timer=setInterval(load,secs*1000);}
+$("update").addEventListener("click",load);
+["symbol","interval","chartCount","capital","riskPct","exposurePct","feePct","slippagePct"].forEach(function(id){$(id).addEventListener("change",function(){if(id==="symbol"||id==="interval"||id==="capital"||id==="riskPct"||id==="exposurePct"||id==="feePct"||id==="slippagePct")load();});});
+$("refresh").addEventListener("change",function(){setTimer();});
+window.addEventListener("resize",function(){if(window.Plotly)Plotly.Plots.resize($("chart"));});
+setTimer();load();
+})();
+</script>
+</body></html>
