@@ -8,6 +8,7 @@ on:
       - ".github/workflows/fast-paper-trading.yml"
       - ".github/workflows/fast-paper-trading-15s.yml"
       - "scripts/fast-paper-trader.js"
+      - "scripts/persist-paper-data.sh"
       - "package.json"
   schedule:
     - cron: "*/5 * * * *"
@@ -35,7 +36,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: paper-data-writer
+  group: fast-paper-trading-5s
   cancel-in-progress: false
 
 jobs:
@@ -57,10 +58,10 @@ jobs:
       - name: Restore 5-second portfolio and report history from paper-data branch
         if: github.event_name != 'pull_request'
         run: |
-          git fetch origin paper-data
+          git fetch origin +refs/heads/paper-data:refs/remotes/origin/paper-data
           git checkout origin/paper-data -- data/fast-paper-state-5s.json data/fast-paper-latest-5s.json data/fast-reports/5s/
       - name: Test existing trading engine
-        run: npm test
+        run: npm test && bash -n scripts/persist-paper-data.sh
       - name: Validate fast worker syntax
         run: node --check scripts/fast-paper-trader.js
       - name: Listen to public market stream and simulate trades
@@ -70,22 +71,6 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           node -e "const i=process.env.FAST_INTERVAL_SECONDS||'5'; const s=require('./data/fast-paper-state-'+i+'s.json'); const r=require('./data/fast-paper-latest-'+i+'s.json'); if(s.mode!=='paper'||r.mode!=='paper'||r.intervalSeconds!==Number(i)||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated '+i+'s paper state/report')"
-      - name: Persist 5-second paper data on the dedicated data branch
+      - name: Persist paper data with retry-safe branch updates
         if: github.event_name != 'pull_request'
-        run: |
-          git fetch origin paper-data
-          git worktree add --detach /tmp/paper-data refs/remotes/origin/paper-data
-          mkdir -p /tmp/paper-data/data/fast-reports/5s
-          cp data/fast-paper-state-5s.json /tmp/paper-data/data/
-          cp data/fast-paper-latest-5s.json /tmp/paper-data/data/
-          cp -a data/fast-reports/5s/. /tmp/paper-data/data/fast-reports/5s/
-          cd /tmp/paper-data
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fast-paper-state-5s.json data/fast-paper-latest-5s.json data/fast-reports/5s/
-          if git diff --cached --quiet; then
-            echo "No 5-second report changes to persist"
-          else
-            git commit -m "Update 5-second paper-trading reports"
-            git push origin HEAD:paper-data
-          fi
+        run: bash scripts/persist-paper-data.sh fast-5s
