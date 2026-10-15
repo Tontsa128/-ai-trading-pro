@@ -54,7 +54,7 @@ jobs:
           git fetch origin +refs/heads/paper-data:refs/remotes/origin/paper-data
           git checkout origin/paper-data -- data/fast-paper-state-15s.json data/fast-paper-latest-15s.json data/fast-reports/15s/
       - name: Test existing trading engine
-        run: npm test && bash -n scripts/persist-paper-data.sh
+        run: npm test && node tests/paper-data-persistence.test.js && bash -n scripts/persist-paper-data.sh
       - name: Validate fast worker syntax
         run: node --check scripts/fast-paper-trader.js
       - name: Listen to public market stream and simulate 15-second trades
