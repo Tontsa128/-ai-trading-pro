@@ -49,6 +49,11 @@ const signal = E.makeSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.01}, opts);
 assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known enum");
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
+assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
+assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
+const historicalSignal = E.evaluateSignal(analysed, [analysed, analysed],
+  {price: analysed.bar.close, closeTime: 1, bid: 100, ask: 100.01}, {...opts, historical: true});
+assert.equal(historicalSignal.priceAgeMs, 0, "historical evaluation does not fail the live freshness gate");
 const stale = E.makeSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now() - 10 * 60 * 1000, bid: 100, ask: 100.01}, opts);
 assert.equal(stale.direction, "WAIT", "stale market data must force WAIT");
@@ -56,6 +61,9 @@ if (signal.direction === "BUY") assert.ok(signal.qty > 0, "a buy has a positive 
 if (signal.direction === "SELL") assert.equal(signal.qty, 0, "spot sell size is never invented without holdings");
 
 const bt = E.backtest(full, opts);
+assert.equal(bt.count, 0, "backtest without higher-timeframe data fails closed");
 assert.ok(Number.isFinite(bt.netPnl) && Number.isFinite(bt.maxDrawdownPct), "backtest metrics are finite");
-assert.ok(bt.trades.every(t => Number.isFinite(t.pnl) && t.entryTime < t.exitTime), "backtest trades have valid timing and P/L");
+const alignedBt = E.backtest(full, {...opts, higherSeries: [full, full]});
+assert.ok(Number.isFinite(alignedBt.netPnl) && Number.isFinite(alignedBt.maxDrawdownPct), "aligned backtest metrics are finite");
+assert.ok(alignedBt.trades.every(t => Number.isFinite(t.pnl) && t.entryTime < t.exitTime), "backtest trades have valid timing and P/L");
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
