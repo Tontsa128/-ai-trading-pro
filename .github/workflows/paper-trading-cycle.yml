@@ -11,12 +11,13 @@ on:
       - "trading-engine.js"
       - "public/trading-engine.js"
       - "scripts/paper-trading-cycle.js"
+      - "scripts/persist-paper-data.sh"
 
 permissions:
   contents: write
 
 concurrency:
-  group: paper-data-writer
+  group: paper-trading-cycle
   cancel-in-progress: false
 
 jobs:
@@ -32,9 +33,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Validate application tests and paper-data publisher
+        run: npm test && node tests/paper-data-persistence.test.js && bash -n scripts/persist-paper-data.sh
       - name: Restore portfolio and report history from paper-data branch
         run: |
-          git fetch origin paper-data
+          git fetch origin +refs/heads/paper-data:refs/remotes/origin/paper-data
           git checkout origin/paper-data -- data/paper-state.json data/latest-report.json data/reports/
       - name: Validate collector syntax
         run: node --check scripts/paper-trading-cycle.js
@@ -43,21 +46,6 @@ jobs:
       - name: Verify state and report are valid JSON
         run: |
           node -e "const s=require('./data/paper-state.json'); const r=require('./data/latest-report.json'); if(s.mode!=='paper'||r.mode!=='paper'||!Array.isArray(r.symbols)) process.exit(1); console.log('Validated paper state and latest report')"
-      - name: Persist two-hour paper data on the dedicated data branch
-        run: |
-          git fetch origin paper-data
-          git worktree add --detach /tmp/paper-data refs/remotes/origin/paper-data
-          mkdir -p /tmp/paper-data/data/reports
-          cp data/paper-state.json /tmp/paper-data/data/
-          cp data/latest-report.json /tmp/paper-data/data/
-          cp -a data/reports/. /tmp/paper-data/data/reports/
-          cd /tmp/paper-data
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/paper-state.json data/latest-report.json data/reports/
-          if git diff --cached --quiet; then
-            echo "No two-hour report changes to persist"
-          else
-            git commit -m "Update two-hour paper-trading reports"
-            git push origin HEAD:paper-data
-          fi
+      - name: Persist paper data with retry-safe branch updates
+        if: github.event_name != 'pull_request'
+        run: bash scripts/persist-paper-data.sh two-hour

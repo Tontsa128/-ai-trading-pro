@@ -6,15 +6,42 @@ function isPaperTelemetryPath(file) {
   return /^data\/(?:paper-state\.json|latest-report\.json|reports\/[^/]+\.(?:json|md)|fast-paper-state-(?:5|15)s\.json|fast-paper-latest-(?:5|15)s\.json|fast-reports\/(?:5s|15s)\/[^/]+\.json)$/.test(file);
 }
 
+function isDeploymentRelevantPath(file) {
+  const importantRootFiles = new Set([
+    "vercel.json",
+    "package.json",
+    "package-lock.json",
+    "pnpm-lock.yaml",
+    "yarn.lock",
+    "app.py",
+    "requirements.txt",
+    "pyproject.toml",
+    "Pipfile",
+    "Pipfile.lock",
+    "uv.lock",
+    "tsconfig.json",
+    "next.config.js",
+    "next.config.mjs",
+    "next.config.ts",
+    "vite.config.js",
+    "vite.config.ts"
+  ]);
+  return file.startsWith("public/") ||
+    file.startsWith("api/") ||
+    file.startsWith(".vercel/") ||
+    importantRootFiles.has(file);
+}
+
 function shouldIgnoreBuild(ref, changedFiles) {
   if (ref === "paper-data") return true;
-  return Array.isArray(changedFiles) && changedFiles.length > 0 && changedFiles.every(isPaperTelemetryPath);
+  return Array.isArray(changedFiles) && changedFiles.length > 0 &&
+    changedFiles.every(file => isPaperTelemetryPath(file) || !isDeploymentRelevantPath(file));
 }
 
 function main() {
   const ref = process.env.VERCEL_GIT_COMMIT_REF || "";
-  if (shouldIgnoreBuild(ref, [])) {
-    console.log("Skipping deployment from the paper-data branch; this branch only stores simulation state and reports.");
+  if (ref === "paper-data") {
+    console.log("Skipping deployment from the paper-data branch; it stores simulation state and reports only.");
     process.exit(0);
   }
 
@@ -29,13 +56,17 @@ function main() {
     process.exit(1);
   }
 
-  if (shouldIgnoreBuild(ref, files)) {
+  if (files.length && files.every(file => isPaperTelemetryPath(file))) {
     console.log("Skipping Vercel build because this commit only changes paper-trading state and report files.");
     process.exit(0);
   }
-  console.log("Application code or configuration changed; proceeding with Vercel build.");
+  if (shouldIgnoreBuild(ref, files)) {
+    console.log("Skipping Vercel build because this commit only changes documentation, tests, workflows, or non-deployed scripts.");
+    process.exit(0);
+  }
+  console.log("A deployed application file or configuration changed; proceeding with the Vercel build.");
   process.exit(1);
 }
 
 if (require.main === module) main();
-module.exports = { isPaperTelemetryPath, shouldIgnoreBuild };
+module.exports = { isPaperTelemetryPath, isDeploymentRelevantPath, shouldIgnoreBuild };
