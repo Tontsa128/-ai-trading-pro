@@ -157,8 +157,14 @@ async function getHistoricalBars(symbol,iv,total){
  return TradingEngine.enrich(all);
 }
 function paintChecklist(sig){
- var list=sig.checklist.map(function(x){return '<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';}).join("");
- $("checklist").innerHTML=list;
+ var list="",lastGroup="";
+ sig.checklist.forEach(function(x){
+  var group=x.group||"Ehdot";
+  if(group!==lastGroup){list+='<div class="sub" style="font-weight:800;margin:12px 0 4px">'+esc(group)+'</div>';lastGroup=group;}
+  list+='<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';
+ });
+ var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":(sig.checks.bullN>=sig.checks.bearN?"OSTA — ei vahvistettu":"MYY — ei vahvistettu");
+ $("checklist").innerHTML='<div class="sub">Arvioitava suunta: <strong>'+esc(side)+'</strong></div>'+list;
  $("passed").textContent="Ehdot "+sig.passed+"/"+sig.total;
 }
 function renderRisk(sig){
@@ -208,8 +214,10 @@ async function runHistoricalBacktest(){
  try{
   var symbols=Array.from(new Set(["BTCUSDT","ETHUSDT","SOLUSDT",$("symbol").value]));
   var results=await Promise.all(symbols.map(async function(sym){
-   var bars=await getHistoricalBars(sym,"1h",2500);
-   return {symbol:sym,bars:bars,result:TradingEngine.backtest(bars,options())};
+   var data=await Promise.all([getHistoricalBars(sym,"1h",2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",300)]);
+   var bars=data[0],higher=data.slice(1);
+   var result=TradingEngine.backtest(bars,Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10}));
+   return {symbol:sym,bars:bars,higher:higher,result:result};
   }));
   var selected=results.find(function(x){return x.symbol===$("symbol").value;})||results[0];
   renderBacktest(selected.result);
@@ -253,7 +261,7 @@ async function load(){
   var main=data[0],higher=[TradingEngine.analyzeSeries(data[1]),TradingEngine.analyzeSeries(data[2])];
   var day=data[3],book=data[4],price=Number(day.lastPrice);
   if(!Number.isFinite(price)||price<=0)throw new Error("Markkinahinta ei ole kelvollinen.");
-  var signal=TradingEngine.makeSignal(TradingEngine.analyzeSeries(main),higher,
+  var signal=TradingEngine.evaluateSignal(TradingEngine.analyzeSeries(main),higher,
    {price:price,closeTime:Number(day.closeTime),bid:Number(book.bidPrice),ask:Number(book.askPrice)},opts);
   var latest=signal.main.bar;
   $("price").textContent=fmtPrice(price);$("change").textContent=fmt(Number(day.priceChangePercent),2)+"%";
