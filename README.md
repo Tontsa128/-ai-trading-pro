@@ -9,7 +9,7 @@ Trading dashboard and deterministic indicator engine for research and education.
 - Indicators: EMA 9/21/50/200, Wilder RSI, ATR, MACD, ADX and relative volume.
 - Conservative signal gates: requires a trend/momentum setup plus confirmation from two higher timeframes, recent price data, a sufficiently narrow spread and non-extreme volatility. If a required check fails or data cannot be validated, it returns `ODOTA`.
 - Spot risk calculator estimates position sizing for a BUY using account value, a configurable risk fraction, a maximum exposure cap, estimated exchange fees and slippage. SELL signals do not invent a sell quantity because the app does not know the user's holdings.
-- Historical test: single-timeframe, long-only spot simulation on up to 500 closed candles. It applies estimated costs; if stop and target are both touched in the same candle, the stop is assumed first.
+- Historical test: paginated 1h history (up to 2,500 closed candles per pair, fetched in batches of at most 1,000) for BTC, ETH, SOL and the selected pair. The displayed test remains long-only and does not yet include the live signal's 4h/1d confirmation. If fewer than 100 trades exist, return, win-rate, drawdown and profit-factor metrics are shown as `—` with a warning rather than treated as evidence.
 
 ## Run tests
 
@@ -42,6 +42,6 @@ A GitHub Actions workflow (\`.github/workflows/paper-trading-cycle.yml\`) runs e
 - All trades are virtual; no exchange orders or API keys are used.
 - The virtual portfolio starts at 1,000 USDT and is persisted in \`data/paper-state.json\`.
 - Latest report: \`data/latest-report.json\`; cycle history: \`data/reports/\`.
-- GitHub Actions must be enabled and the repository's workflow token must be allowed to write to the repository for cycle reports to persist.
+- GitHub Actions must be enabled and the repository's workflow token must be allowed to write to the repository for cycle reports to persist. If there is no run in the workflow history, start it manually at https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml using **Run workflow**. A missing run is not evidence of a Binance error; inspect the first actual run's logs before diagnosing HTTP 451 or permissions.
 - GitHub scheduled jobs are best-effort and can run late. This is a decision every two hours, not a continuous execution engine. Stops/targets are checked against the latest closed hourly candle at each run, so intraperiod moves may be missed.
 - Review report errors, realized/unrealized P&L, drawdown and costs before changing the strategy. Do not auto-tune parameters from a small sample.
