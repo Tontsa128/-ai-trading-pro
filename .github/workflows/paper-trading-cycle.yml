@@ -25,6 +25,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
+      - name: Validate collector syntax
+        run: node --check scripts/paper-trading-cycle.js
       - name: Collect public market data and run paper-trading cycle
         run: node scripts/paper-trading-cycle.js
       - name: Verify state and report are valid JSON
