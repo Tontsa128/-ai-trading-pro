@@ -1,0 +1,75 @@
+name: Fast paper trading (15s)
+
+on:
+  pull_request:
+  schedule:
+    - cron: "3,18,33,48 * * * *"
+  workflow_dispatch:
+    inputs:
+      session_seconds:
+        description: "Session length in seconds (max 210)"
+        required: true
+        type: choice
+        options:
+          - "60"
+          - "120"
+          - "180"
+          - "210"
+        default: "210"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fast-paper-trading-15s
+  cancel-in-progress: false
+
+jobs:
+  fast-paper-15s:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    env:
+      FAST_INTERVAL_SECONDS: "15"
+      FAST_SESSION_SECONDS: ${{ github.event.inputs.session_seconds || '210' }}
+    steps:
+      - name: Checkout persistent 15-second paper portfolio
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || 'main' }}
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test existing trading engine
+        run: npm test
+      - name: Validate fast worker syntax
+        run: node --check scripts/fast-paper-trader.js
+      - name: Listen to public market stream and simulate 15-second trades
+        if: github.event_name != 'pull_request'
+        run: node scripts/fast-paper-trader.js
+      - name: Validate 15-second paper report
+        if: github.event_name != 'pull_request'
+        run: |
+          node -e "const s=require('./data/fast-paper-state-15s.json'); const r=require('./data/fast-paper-latest-15s.json'); if(s.mode!=='paper'||r.mode!=='paper'||r.intervalSeconds!==15||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated 15s paper state/report')"
+      - name: Persist 15-second virtual portfolio and report
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/fast-paper-state-15s.json data/fast-paper-latest-15s.json data/fast-reports/15s/
+          if git diff --cached --quiet; then
+            echo "No 15-second paper report changes to persist"
+          else
+            git commit -m "Record 15-second paper trading session"
+            for attempt in 1 2 3 4; do
+              git fetch origin main
+              git rebase origin/main
+              if git push origin HEAD:main; then
+                exit 0
+              fi
+              git rebase --abort || true
+              sleep $((attempt * 2))
+            done
+            echo "Could not persist 15-second report after retries"
+            exit 1
+          fi
