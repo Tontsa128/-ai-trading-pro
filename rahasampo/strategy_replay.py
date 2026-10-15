@@ -93,6 +93,29 @@ def _resample_completed_bars(ohlcv: pd.DataFrame, base_timeframe: str, higher_ti
     return frame
 
 
+def resample_ohlcv(
+    ohlcv: pd.DataFrame,
+    *,
+    source_timeframe: str,
+    target_timeframe: str,
+) -> pd.DataFrame:
+    """Build target-timeframe OHLCV bars only from complete source intervals."""
+    if source_timeframe not in TIMEFRAME_SECONDS or target_timeframe not in TIMEFRAME_SECONDS:
+        raise ValueError("Unsupported source or target timeframe.")
+    if TIMEFRAME_SECONDS[target_timeframe] < TIMEFRAME_SECONDS[source_timeframe]:
+        raise ValueError("Target timeframe cannot be smaller than its source timeframe.")
+    if TIMEFRAME_SECONDS[target_timeframe] % TIMEFRAME_SECONDS[source_timeframe]:
+        raise ValueError("Target timeframe must be an integer multiple of source timeframe.")
+    if not isinstance(ohlcv.index, pd.DatetimeIndex) or ohlcv.index.tz is None:
+        raise ValueError("OHLCV source must have a timezone-aware DatetimeIndex.")
+    frame = ohlcv.copy()
+    frame.index = frame.index.tz_convert("UTC")
+    result = _resample_completed_bars(frame, source_timeframe, target_timeframe)
+    if result is None or result.empty:
+        raise ValueError("No complete target-timeframe candles could be built from the source data.")
+    return result
+
+
 def _timeframe_states(frame: pd.DataFrame, timeframe: str, *, window: int = 179) -> np.ndarray:
     """Produce live-equivalent trend states; short history is marked unknown."""
     states = np.full(len(frame), "?", dtype=object)
@@ -196,6 +219,8 @@ def generate_strategy_candidates(
     timeframe: str,
     symbol: str = "BTCUSDT",
     window_bars: int = 420,
+    higher_timeframe_ohlcv: pd.DataFrame | None = None,
+    higher_timeframe_source_timeframe: str | None = None,
     paper_equity: float = 1000.0,
     risk_fraction: float = 0.005,
     fee_rate: float = 0.001,
@@ -236,7 +261,22 @@ def generate_strategy_candidates(
     # After the 110 higher-TF candle warmup, startup EWM differences have
     # decayed; window-dependent VWAP eligibility is explicitly matched below.
     prepared = _rolling_vwap_matches_live_window(add_indicators(frame), window_bars)
-    timeframe_views, available_frames = prepare_higher_timeframe_timeline(frame, timeframe)
+    higher_source = higher_timeframe_ohlcv if higher_timeframe_ohlcv is not None else frame
+    source_timeframe = higher_timeframe_source_timeframe or timeframe
+    if source_timeframe not in TIMEFRAME_SECONDS:
+        raise ValueError(f"Unsupported higher-timeframe source: {source_timeframe}.")
+    if not isinstance(higher_source.index, pd.DatetimeIndex) or higher_source.index.tz is None:
+        raise ValueError("Higher-timeframe source must use timezone-aware candle timestamps.")
+    higher_source = higher_source.copy()
+    higher_source.index = higher_source.index.tz_convert("UTC")
+    source_valid, source_errors = validate_ohlcv(higher_source, min_rows=120)
+    if not source_valid:
+        raise ValueError("Invalid higher-timeframe source: " + "; ".join(source_errors))
+    source_seconds = TIMEFRAME_SECONDS[source_timeframe]
+    source_ns = higher_source.index.to_numpy(dtype="datetime64[ns]").astype("int64")
+    if (source_ns % (source_seconds * 1_000_000_000) != 0).any():
+        raise ValueError("Higher-timeframe source timestamps are not aligned to candle-open boundaries.")
+    timeframe_views, available_frames = prepare_higher_timeframe_timeline(higher_source, source_timeframe)
     base_seconds = TIMEFRAME_SECONDS[timeframe]
     base_close_ns = timestamp_ns + base_seconds * 1_000_000_000
 
