@@ -86,6 +86,21 @@ python -m rahasampo.strategy_backtest_cli \
   --report-out strategy_report.json
 ```
 
+For a quick no-CSV historical run, the CLI can fetch recent public Binance candles (no API key is required for public market data):
+
+```bash
+python -m rahasampo.strategy_backtest_cli \
+  --download-days 35 \
+  --symbol BTCUSDT \
+  --timeframe 1m \
+  --max-download-bars 200000 \
+  --signals-out results/btc_signals.csv \
+  --trades-out results/btc_trades.csv \
+  --report-out results/btc_report.json
+```
+
+Repeat separately with `--symbol ETHUSDT` and `--symbol SOLUSDT`; keep each instrument's report separate. A longer sample is generally preferable, but the configured download cap and endpoint timeout are intentional safeguards. The CLI excludes the current incomplete candle and records the actual UTC start/end of the downloaded data.
+
 Review `strategy_report.json` before interpreting performance. Fewer than 10 resolved trades deliberately yields no random-benchmark claim. The replay is causally timestamped, but it is not yet an exact execution simulator: EMA/RSI warm-up history can differ slightly from the app's rolling fetch window, higher timeframes are reconstructed from the input series, and spread, order-book depth, queue priority, latency, partial fills, minimum lot sizes and stop gaps are not fully modeled. Validate the replay against captured live signals before using its results.
 
 ## Live market watchlist
