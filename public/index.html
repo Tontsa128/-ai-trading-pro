@@ -87,6 +87,19 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  <div id="backtestNote" class="sub">Historiallista koetta ei ole vielä tehty.</div>
  <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
 </section>
+<section class="panel" style="margin-top:12px">
+ <div class="section-title"><div><h3 style="margin:0">Paper Trading · 2 h</h3><div class="sub">Virtuaalisalkku ja viimeisin automaattinen raportti GitHub Actionsista</div></div><button id="paperRefresh" style="width:auto">Päivitä raportti</button></div>
+ <div class="metrics">
+  <div class="metric"><small>Virtuaalinen saldo</small><strong id="paperCash">—</strong></div>
+  <div class="metric"><small>Salkun arvioitu arvo</small><strong id="paperEquity">—</strong></div>
+  <div class="metric"><small>Toteutunut P/L</small><strong id="paperPnl">—</strong></div>
+  <div class="metric"><small>Avoimet positiot</small><strong id="paperPositions">—</strong></div>
+  <div class="metric"><small>Keruun virheet</small><strong id="paperErrors">—</strong></div>
+ </div>
+ <div id="paperUpdated" class="status">Haetaan viimeisintä paperitreidausraporttia…</div>
+ <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th></tr></thead><tbody id="paperRows"><tr><td colspan="6">Raporttia ei vielä ole.</td></tr></tbody></table></div>
+ <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
+</section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
 <div class="foot">Markkinadata: Binance Spot API (julkinen markkinadata). Hinnat ja laskelmat esitetään USDT:ssä, eivät euroissa. Omat todelliset kulut, täyttöhinta, likviditeetti, verotus ja pörssin saatavuus voivat muuttaa tulosta. Historiallisen testin yksittäisen aikavälin signaali ei ole sama kuin live-signaalin korkeamman aikavälin vahvistus.</div>
 </main>
@@ -235,6 +248,28 @@ $("update").addEventListener("click",load);
 $("refresh").addEventListener("change",function(){setTimer();});
 window.addEventListener("resize",function(){if(window.Plotly)Plotly.Plots.resize($("chart"));});
 setTimer();load();
+})();
+</script>
+<script>
+(function(){
+const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/main/data/latest-report.json";
+const el=id=>document.getElementById(id);
+function n(v,d){return Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
+function safe(s){return String(s==null?"—":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function loadPaper(){
+ el("paperRefresh").disabled=true;el("paperUpdated").className="status";el("paperUpdated").textContent="Haetaan viimeisintä kahden tunnin raporttia…";
+ try{
+  const r=await fetch(base+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("Raporttia ei ole vielä julkaistu (HTTP "+r.status+")");
+  const d=await r.json();if(d.mode!=="paper")throw Error("Raportin tila ei ole paper");
+  const p=d.portfolio||{};el("paperCash").textContent=n(p.cash)+" USDT";el("paperEquity").textContent=n(p.equity)+" USDT";
+  el("paperPnl").textContent=n(p.realizedPnl)+" USDT";el("paperPnl").className="metric "+(Number(p.realizedPnl)>=0?"good":"bad");
+  el("paperPositions").textContent=n(p.openPositions,0);el("paperErrors").textContent=n((d.errors||[]).length,0);
+  el("paperRows").innerHTML=(d.symbols||[]).map(x=>"<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td></tr>").join("")||'<tr><td colspan="6">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
+  el("paperUpdated").className="status ok";el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · Lähde: "+(d.source||"—")+" · "+(d.notes||[]).join(" ");
+ }catch(e){el("paperUpdated").className="status error";el("paperUpdated").textContent=(e&&e.message?e.message:"Raportin haku epäonnistui")+". Tarkista GitHub Actions -ajon tila."}
+ finally{el("paperRefresh").disabled=false}
+}
+el("paperRefresh").addEventListener("click",loadPaper);loadPaper();
 })();
 </script>
 </body></html>
