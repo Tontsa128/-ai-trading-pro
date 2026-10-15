@@ -18,7 +18,7 @@ async function run(){
   const [one,four,day,m]=await Promise.all([bars(sym,"1h",500),bars(sym,"4h",300),bars(sym,"1d",300),market(sym)]);
   if(one.length<220||four.length<220||day.length<220)throw Error("Not enough closed candles");
   const a=E.analyzeSeries(one),higher=[E.analyzeSeries(four),E.analyzeSeries(day)],b=a.bar;
-  const sig=E.makeSignal(a,higher,m,{capital:s.cash,riskPct:.5,maxExposurePct:20,feePct,slippagePct:slipPct});
+  const sig=E.evaluateSignal(a,higher,m,{capital:s.cash,riskPct:.5,maxExposurePct:20,feePct,slippagePct:slipPct});
   prices[sym]=m.price;let action="NO_ACTION",reason=sig.reason,pos=s.positions[sym];
   const lastSeen=Number(s.lastCandleTimeBySymbol[sym]||0),newBars=one.filter(x=>x.closeTime>lastSeen);
   if(pos){
