@@ -122,3 +122,81 @@ def calculate_risk_plan(
         break_even,
         round_trip_friction_pct,
     )
+
+
+
+def gate_decision_by_net_costs(
+    decision: dict,
+    *,
+    equity_quote: float,
+    risk_fraction: float = 0.005,
+    fee_rate: float = 0.001,
+    slippage_bps: float = 5.0,
+    min_notional_quote: float = 10.0,
+) -> tuple[dict, RiskPlan | None]:
+    """Block decisive candidates when risk inputs fail or target cannot cover costs."""
+    from copy import deepcopy
+
+    result = deepcopy(decision)
+    level = str(result.get("level", "ODOTA"))
+    directions = {
+        "OSTA": "long",
+        "VAHVA OSTA": "long",
+        "MYY": "short",
+        "VAHVA MYY": "short",
+    }
+    side = directions.get(level)
+    if side is None:
+        return result, None
+
+    entry = result.get("price")
+    stop = result.get("stop")
+    target = result.get("target")
+    if entry is None or stop is None or target is None:
+        result["level"] = "EI TREIDIÄ"
+        result["direction"] = "ODOTA"
+        result["stop"] = None
+        result["target"] = None
+        result["rr"] = None
+        result["notes"] = list(result.get("notes", [])) + [
+            "Riskilaskennan hinta-, stop- tai tavoitetieto puuttuu; signaali estetty."
+        ]
+        return result, None
+
+    try:
+        plan = calculate_risk_plan(
+            entry_price=float(entry),
+            stop_price=float(stop),
+            target_price=float(target),
+            side=side,
+            equity_quote=equity_quote,
+            risk_fraction=risk_fraction,
+            fee_rate=fee_rate,
+            slippage_bps=slippage_bps,
+            min_notional_quote=min_notional_quote,
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        result["level"] = "EI TREIDIÄ"
+        result["direction"] = "ODOTA"
+        result["stop"] = None
+        result["target"] = None
+        result["rr"] = None
+        result["notes"] = list(result.get("notes", [])) + [
+            f"Riskilaskenta epäonnistui ({type(exc).__name__}); signaali estetty."
+        ]
+        return result, None
+
+    if not plan.eligible:
+        result["level"] = "EI TREIDIÄ"
+        result["direction"] = "ODOTA"
+        result["stop"] = None
+        result["target"] = None
+        result["rr"] = None
+        result["notes"] = list(result.get("notes", [])) + [plan.reason]
+        return result, plan
+
+    result["net_reward_risk_ratio"] = plan.net_reward_risk_ratio
+    result["notes"] = list(result.get("notes", [])) + [
+        f"Kulumalli huomioitu: nettopalkkioiden jälkeinen arvioitu R/R {plan.net_reward_risk_ratio:.2f}; ei toteutustakuu."
+    ]
+    return result, plan
