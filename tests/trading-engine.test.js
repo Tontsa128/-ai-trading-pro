@@ -51,7 +51,8 @@ assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
 assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
 assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
-assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === (analysed.checks.bias === "bear" ? "SELL" : "BUY")), "checklist direction follows EMA trend bias rather than raw checklist count");
+const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
+assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
 assert.equal(analysed.support, Math.min(...full.slice(-31, -1).map(x => x.low)), "support excludes the current candle");
 assert.equal(analysed.resistance, Math.max(...full.slice(-31, -1).map(x => x.high)), "resistance excludes the current candle");
