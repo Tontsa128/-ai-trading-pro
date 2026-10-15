@@ -35,6 +35,7 @@ def calculate_risk_plan(
     slippage_bps: float = 5.0,
     max_notional_fraction: float = 1.0,
     min_notional_quote: float = 10.0,
+    minimum_net_reward_risk_ratio: float = 1.2,
 ) -> RiskPlan:
     """Estimate unleveraged size and net reward/risk after round-trip costs.
 
@@ -46,7 +47,8 @@ def calculate_risk_plan(
     It is a planning estimate, not an executable order.
     """
     values = (entry_price, stop_price, target_price, equity_quote, risk_fraction,
-              fee_rate, slippage_bps, max_notional_fraction, min_notional_quote)
+              fee_rate, slippage_bps, max_notional_fraction, min_notional_quote,
+              minimum_net_reward_risk_ratio)
     if not all(math.isfinite(float(value)) for value in values):
         raise ValueError("All risk plan inputs must be finite numbers.")
     entry = float(entry_price)
@@ -71,6 +73,8 @@ def calculate_risk_plan(
         raise ValueError("slippage_bps must be in [0, 1000).")
     if max_notional <= 0 or max_notional > 1.0:
         raise ValueError("max_notional_fraction must be in (0, 1]; leverage is disabled.")
+    if minimum_net_reward_risk_ratio < 0.5 or minimum_net_reward_risk_ratio > 10.0:
+        raise ValueError("minimum_net_reward_risk_ratio must be between 0.5 and 10.")
 
     if side == "long" and not stop < entry < target:
         raise ValueError("For a long, stop < entry < target is required.")
@@ -91,6 +95,16 @@ def calculate_risk_plan(
             round_trip_friction_pct,
         )
 
+    net_rr = net_target_per_unit / stop_loss_per_unit
+    if net_rr < minimum_net_reward_risk_ratio:
+        return RiskPlan(
+            False,
+            f"Estimated net reward/risk {net_rr:.2f} is below the required {minimum_net_reward_risk_ratio:.2f}; no trade.",
+            side, risk_budget, None, None, None, None, net_rr,
+            stop_loss_per_unit / (stop_loss_per_unit + net_target_per_unit) * 100.0,
+            round_trip_friction_pct,
+        )
+
     quantity_by_risk = risk_budget / stop_loss_per_unit
     quantity_by_notional = equity * max_notional / entry
     quantity = min(quantity_by_risk, quantity_by_notional)
@@ -106,7 +120,6 @@ def calculate_risk_plan(
 
     estimated_loss = quantity * stop_loss_per_unit
     estimated_net_profit = quantity * net_target_per_unit
-    net_rr = net_target_per_unit / stop_loss_per_unit
     break_even = stop_loss_per_unit / (stop_loss_per_unit + net_target_per_unit) * 100.0
 
     return RiskPlan(
@@ -133,6 +146,7 @@ def gate_decision_by_net_costs(
     fee_rate: float = 0.001,
     slippage_bps: float = 5.0,
     min_notional_quote: float = 10.0,
+    minimum_net_reward_risk_ratio: float = 1.2,
 ) -> tuple[dict, RiskPlan | None]:
     """Block decisive candidates when risk inputs fail or target cannot cover costs."""
     from copy import deepcopy
@@ -174,6 +188,7 @@ def gate_decision_by_net_costs(
             fee_rate=fee_rate,
             slippage_bps=slippage_bps,
             min_notional_quote=min_notional_quote,
+            minimum_net_reward_risk_ratio=minimum_net_reward_risk_ratio,
         )
     except (TypeError, ValueError, OverflowError) as exc:
         result["level"] = "EI TREIDIÄ"
