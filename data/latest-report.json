@@ -1,22 +1,22 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-15T13:02:08.458Z",
+  "cycleStartedAt": "2026-10-15T13:03:41.030Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 80644.03,
-      "change24hPct": -2.609,
-      "spreadPct": 0.000012400173174322579,
+      "price": 80557.57,
+      "change24hPct": -2.718,
+      "spreadPct": 0.000012415645768169115,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -24,7 +24,7 @@
         "neutral"
       ],
       "blockedBy": [
-        "Hinta ei ole liian kaukana EMA 21:stä",
+        "Hinta on liian kaukana EMA 21:stä: 925.11 hinnan yksikköä (1.68 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h EPÄSELVÄ, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
       "supportDistanceAtr": 0.592,
@@ -49,9 +49,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2353.62,
-      "change24hPct": -5.061,
-      "spreadPct": 0.00042487652027057323,
+      "price": 2349.01,
+      "change24hPct": -5.219,
+      "spreadPct": 0.0004257121632443643,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -68,7 +68,7 @@
       "blockedBy": [
         "MACD-histogrammi +0.008691; vaaditaan < 0 (laskusuunnan ehto); ehto ei täyty",
         "RSI 32–50 (ei ylikuumentunut)",
-        "Hinta ei ole liian kaukana EMA 21:stä",
+        "Hinta on liian kaukana EMA 21:stä: 45.33 hinnan yksikköä (1.87 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
       "supportDistanceAtr": 1.309,
@@ -93,9 +93,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 101.96,
-      "change24hPct": -3.429,
-      "spreadPct": 0.009807286814107896,
+      "price": 101.83,
+      "change24hPct": -3.534,
+      "spreadPct": 0.009819806549815992,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -134,9 +134,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 718.77,
-      "change24hPct": -2.563,
-      "spreadPct": 0.0013912753125139518,
+      "price": 718.14,
+      "change24hPct": -2.642,
+      "spreadPct": 0.0013924764497407773,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -176,9 +176,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.3012,
-      "change24hPct": -4.316,
-      "spreadPct": 0.007685508972830881,
+      "price": 1.299,
+      "change24hPct": -4.492,
+      "spreadPct": 0.007698525732321412,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -218,9 +218,9 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.07951,
-      "change24hPct": -4.515,
-      "spreadPct": 0.012576243476068822,
+      "price": 0.07942,
+      "change24hPct": -4.646,
+      "spreadPct": 0.01259207958195555,
       "timeframe": "1h",
       "confirmations": [
         "4h",
