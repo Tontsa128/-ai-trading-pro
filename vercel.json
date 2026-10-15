@@ -4,5 +4,10 @@
   "buildCommand": null,
   "installCommand": null,
   "outputDirectory": "public",
-  "ignoreCommand": "node scripts/vercel-ignore-build.js"
+  "ignoreCommand": "node scripts/vercel-ignore-build.js",
+  "git": {
+    "deploymentEnabled": {
+      "paper-data": false
+    }
+  }
 }

@@ -45,6 +45,9 @@ for (const p of [
 
 assert.equal(shouldIgnoreBuild("paper-data", ["public/index.html"]), true,
   "the dedicated paper-data branch must never produce a Vercel deployment");
+const deploymentConfig = require("../vercel.json");
+assert.equal(deploymentConfig.git?.deploymentEnabled?.["paper-data"], false,
+  "Vercel Git integration must not create deployments from paper-data commits");
 assert.equal(shouldIgnoreBuild("main", ["data/paper-state.json", "data/reports/cycle.md"]), true);
 assert.equal(shouldIgnoreBuild("main", ["README.md", ".github/workflows/paper-trading-cycle.yml", "tests/paper-data-persistence.test.js"]), true,
   "documentation, workflow and test-only commits should not consume deployment builds");
