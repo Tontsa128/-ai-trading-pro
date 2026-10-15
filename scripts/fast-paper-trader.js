@@ -187,12 +187,20 @@ function connect() {
   });
 }
 async function seed(s) {
-  const trades = await json("/api/v3/aggTrades?symbol=" + s.symbol + "&limit=1000");
-  if (!Array.isArray(trades)) throw new Error("Invalid aggTrades response");
-  for (const t of trades) addTrade(s, Number(t.p), Number(t.q), Number(t.T));
-  // Discard the current unfinished bar but keep closed bars for indicator warm-up.
-  const last = s.bars[s.bars.length - 1];
-  if (last && last.closeTime === undefined) s.bars.pop();
+  const rows = await json("/api/v3/klines?symbol=" + s.symbol + "&interval=1s&limit=1000");
+  if (!Array.isArray(rows)) throw new Error("Invalid 1-second kline response");
+  const grouped = new Map();
+  for (const k of rows) {
+    const ts = Number(k[0]), time = bucket(ts), closeTime = Number(k[6]);
+    if (!Number.isFinite(ts) || closeTime >= Date.now() || time + barMs > Date.now()) continue;
+    const open = Number(k[1]), high = Number(k[2]), low = Number(k[3]), close = Number(k[4]), volume = Number(k[5]);
+    if (![open, high, low, close, volume].every(Number.isFinite) || Math.min(open, high, low, close) <= 0 || volume < 0) continue;
+    const b = grouped.get(time);
+    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1 });
+    else { b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume; }
+  }
+  s.bars = Array.from(grouped.values()).sort((a, b) => a.time - b.time).slice(-400);
+  if (s.bars.length) s.lastPrice = s.bars[s.bars.length - 1].close;
 }
 function equity() {
   return state.cash + Object.entries(state.positions).reduce((sum, [symbol, p]) =>
