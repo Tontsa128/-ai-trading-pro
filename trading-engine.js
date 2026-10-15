@@ -145,10 +145,15 @@
       var stopDistance=1.5*b.atr, targetDistance=2.5*b.atr;
       stop=direction==="BUY"?entry-stopDistance:entry+stopDistance;
       target=direction==="BUY"?entry+targetDistance:entry-targetDistance;
-      var costPerUnit=stopDistance+(entry+stop)*(fee+slip);
-      qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;
-      notional=qty*entry; estLoss=qty*costPerUnit;
-      estGain=qty*(targetDistance-(entry+target)*(fee+slip));
+      if (direction==="BUY") {
+        var costPerUnit=stopDistance+(entry+stop)*(fee+slip);
+        qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;
+        notional=qty*entry; estLoss=qty*costPerUnit;
+        estGain=qty*(targetDistance-(entry+target)*(fee+slip));
+      } else {
+        // A spot sell exits an existing holding; holdings were not provided, so never invent a sell quantity.
+        qty=0; notional=0; estLoss=0; estGain=0;
+      }
     }
     return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,
       riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,
