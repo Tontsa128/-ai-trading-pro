@@ -82,8 +82,9 @@ function addTrade(s, price, qty, ts) {
   if (!(price > 0) || !(qty >= 0) || !Number.isFinite(ts)) return;
   const time = bucket(ts);
   let b = s.bars[s.bars.length - 1];
+  if (b && time < b.time) return; // Ignore late/out-of-order events after reconnect.
   if (!b || b.time !== time) {
-    if (b && time > b.time) {
+    if (b && time > b.time && b.closeTime === undefined) {
       s.bars.push({ ...b, closeTime: b.time + barMs - 1 });
       if (s.bars.length > 400) s.bars.shift();
       onClosedBar(s, s.bars[s.bars.length - 1]);
