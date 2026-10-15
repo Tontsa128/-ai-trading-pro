@@ -816,7 +816,7 @@ def signal_box(ai):
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>Score {ai["score"]:+d}/100</div>',
+        f'<div class="signal {cls}">{level}<br>Tekninen score {ai["score"]:+d}/100</div>',
         unsafe_allow_html=True,
     )
 
@@ -991,6 +991,7 @@ def run_app():
         )
     except Exception as journal_error:
         journal_write_ok = False
+        risk_plan = None
         original_level = ai.get("level", "ODOTA")
         ai["level"] = "EI TREIDIÄ"
         ai["score"] = 0
@@ -1023,7 +1024,7 @@ def run_app():
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Binance spot nyt", spot_price_label, spot_delta_label)
     c2.metric("Signaalin sulku", f"{ai['price']:,.4f}")
-    c3.metric("Score", f"{ai['score']} / 100")
+    c3.metric("Tekninen score", f"{ai['score']} / 100")
     c4.metric("Trend", ai["bias"])
     c5.metric("Päivitetty", now_local())
 
