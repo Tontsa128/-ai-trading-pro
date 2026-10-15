@@ -123,26 +123,36 @@
       resistance:Math.max.apply(null,series.slice(-30).map(function(x){return x.high;})),
       high:series};
   }
-  function makeSignal(main, higher, market, options) {
+  function evaluateSignal(main, higher, market, options) {
     var opts=Object.assign({},COST_DEFAULTS,options||{});
     var checks=main.checks, b=main.bar;
     var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
-    var priceAgeMs=Date.now()-Number(market.closeTime||0);
+    var priceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);
     var common=[
       {name:"Riittävästi historiadataa",ok:main.high.length>=220},
-      {name:"Markkinahinta tuore (alle 5 min)",ok:Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=300000},
+      {name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 5 min)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=300000)},
       {name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},
       {name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},
       {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}
     ];
     var upConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bull";});
     var downConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bear";});
-    var long=main.longCore&&upConfirmed&&common.every(function(x){return x.ok;});
-    var short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;});
+    var supportRoom=main.support>0&&Number.isFinite(b.atr)?(b.close-main.support)/b.atr:NaN;
+    var resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-b.close)/b.atr:NaN;
+    var longSpace=Number.isFinite(resistanceRoom)&&resistanceRoom>=1.5;
+    var shortSpace=Number.isFinite(supportRoom)&&supportRoom>=1.5;
+    var long=main.longCore&&upConfirmed&&common.every(function(x){return x.ok;})&&longSpace;
+    var short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;})&&shortSpace;
     var direction=long?"BUY":short?"SELL":"WAIT";
-    var checklist=(direction==="BUY"?checks.bull:direction==="SELL"?checks.bear:checks.bullN>=checks.bearN?checks.bull:checks.bear).map(function(x){return {name:x.name,ok:x.ok};});
-    common.forEach(function(x){checklist.push(x);});
-    checklist.push({name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:direction==="BUY"?upConfirmed:direction==="SELL"?downConfirmed:false});
+    var side=direction==="BUY"?"BUY":direction==="SELL"?"SELL":checks.bullN>=checks.bearN?"BUY":"SELL";
+    var directional=(side==="BUY"?checks.bull:checks.bear).map(function(x){return {name:x.name,ok:x.ok,group:"Trendi",direction:side};});
+    var dataChecks=common.slice(0,4).map(function(x){return {name:x.name,ok:x.ok,group:"Data OK",direction:side};});
+    var timingChecks=[
+      {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side},
+      {name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 1,5 ATR":"Myynnille tilaa tukeen vähintään 1,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side},
+      {name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side}
+    ];
+    var checklist=dataChecks.concat(directional,timingChecks);
     var passes=checklist.filter(function(x){return x.ok;}).length;
     var capital=Math.max(0,number(opts.capital)||0), riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5));
     var exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25));
@@ -176,13 +186,24 @@
     var fee=Math.max(0,number(opts.feePct)||0)/100, slip=Math.max(0,number(opts.slippagePct)||0)/100;
     var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100;
     var exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100;
+    var higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[];
+    var assumedSpreadPct=Math.max(0,number(opts.assumedSpreadPct)||0.10);
     var inPositionUntil=-1;
     for (var i=220;i<series.length-2;i++) {
       if (i<=inPositionUntil) continue;
-      var b=series[i], s=explainCandle(b);
-      var candidate=b.close>b.ema200&&b.ema50>b.ema200&&b.ema9>b.ema21&&b.macdHist>0&&
-        b.rsi>=50&&b.rsi<=68&&b.adx>=18&&b.pdi>b.mdi&&b.volumeRatio>=0.8&&b.atrPct<=3&&Math.abs(b.close-b.ema21)<=1.6*b.atr;
-      if (!candidate) continue;
+      var b=series[i], prefix=series.slice(0,i+1), main;
+      try { main=analyzeSeries(prefix); } catch (_) { continue; }
+      var higher=[];
+      for (var h=0;h<higherSeries.length;h++) {
+        var hist=higherSeries[h].filter(function(x){return x.closeTime<=b.closeTime;});
+        if (hist.length<220) { higher=[]; break; }
+        try { higher.push(analyzeSeries(hist)); } catch (_) { higher=[]; break; }
+      }
+      if (higher.length<2) continue;
+      var halfSpread=b.close*assumedSpreadPct/200;
+      var decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},
+        Object.assign({},opts,{capital:equity,historical:true}));
+      if (decision.direction!=="BUY") continue;
       var entryBar=series[i+1], entry=entryBar.open, atr=b.atr;
       if (!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0) continue;
       var stop=entry-1.5*atr,target=entry+2.5*atr;
@@ -208,7 +229,7 @@
     return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,
       startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,
       maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),
-      note:"Suljettujen kynttilöiden yhden aikavälin long-only-koe. Kulu ja lipsuma vähennetty, samaan kynttilään osuneet stop ja tavoite käsitellään stopina. Ei sisällä live-signaalin korkeamman aikavälin vahvistusta; mennyt tulos ei ennusta tulevaa."};
+      note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; jos niitä ei anneta, kauppoja ei avata. Kulut ja lipsuma vähennetään, ja saman kynttilän stop/tavoite osuma käsitellään stopina. Historiallinen tulos ei ennusta tulevaa."};
   }
-  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,makeSignal:makeSignal,backtest:backtest,defaults:COST_DEFAULTS};
+  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,backtest:backtest,defaults:COST_DEFAULTS};
 })(window);
