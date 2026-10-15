@@ -101,6 +101,8 @@ python -m rahasampo.strategy_backtest_cli \
 
 Repeat separately with `--symbol ETHUSDT` and `--symbol SOLUSDT`; keep each instrument's report separate. A longer sample is generally preferable, but the configured download cap and endpoint timeout are intentional safeguards. The CLI excludes the current incomplete candle and records the actual UTC start/end of the downloaded data.
 
+`--timeframe` is the strategy/signal interval. For a downloaded run, `--source-timeframe` defaults to `1m`, so the historical engine can reconstruct all four live higher-timeframe filters even when you test 3m, 5m or 15m signals. For a local CSV, the source interval defaults to the selected signal interval; pass `--source-timeframe 1m` when the file contains 1-minute candles but the signal interval is slower. Source data must be at least as fine as the signal interval, and the signal interval must be an integer multiple of the source interval.
+
 Review `strategy_report.json` before interpreting performance. Fewer than 10 resolved trades deliberately yields no random-benchmark claim. The replay is causally timestamped, but it is not yet an exact execution simulator: EMA/RSI warm-up history can differ slightly from the app's rolling fetch window, higher timeframes are reconstructed from the input series, and spread, order-book depth, queue priority, latency, partial fills, minimum lot sizes and stop gaps are not fully modeled. Validate the replay against captured live signals before using its results.
 
 ## Live market watchlist
