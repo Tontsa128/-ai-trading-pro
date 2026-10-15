@@ -109,8 +109,8 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 "use strict";
 var $=function(id){return document.getElementById(id);}, timer=null, busy=false, refreshToken=0;
 var periods=["1m","3m","5m","15m","1h","4h","1d","3d","1w"];
-function fmt(n,d){if(!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("en-US",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
-function fmtPrice(n){var v=Number(n);return fmt(v,v<0.01?6:v<1?5:2);}
+function fmt(n,d){if(n===null||n===undefined||n===""||!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("en-US",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
+function fmtPrice(n){if(n===null||n===undefined||n==="")return "—";var v=Number(n);return fmt(v,v<0.01?6:v<1?5:2);}
 function money(n){return fmt(n,2)+" USDT";}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function status(msg,type){$("status").className="status "+(type||"");$("status").textContent=msg;}
@@ -313,7 +313,7 @@ setTimer();load();runHistoricalBacktest();
 (function(){
 const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/main/data/latest-report.json";
 const el=id=>document.getElementById(id);
-function n(v,d){return Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
+function n(v,d){return v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
 function trendFi(v){return v==="bull"?"NOUSU":v==="bear"?"LASKU":"EPÄSELVÄ"}
 function safe(s){return String(s==null?"—":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function loadPaper(){

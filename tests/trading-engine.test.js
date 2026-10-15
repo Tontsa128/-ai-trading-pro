@@ -31,8 +31,15 @@ assert.ok(dashboardSource.includes("function trendFi(v)") && dashboardSource.inc
   "paper table uses the same Finnish labels as the live timeframe panel");
 assert.ok(dashboardSource.includes("Volyymi / 20 kynttilää"),
   "paper table exposes measured volume ratio as its own column");
+assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
+  "missing numeric values are rendered as unavailable rather than zero");
+
 assert.ok(dashboardSource.includes("x.detail"),
   "live signal checklist displays numeric diagnostic details");
+const paperScriptSource = fs.readFileSync(path.join(__dirname, "../scripts/paper-trading-cycle.js"), "utf8");
+assert.ok(paperScriptSource.includes('"HTTP "+r.status+" from "+host+url'),
+  "paper collector reports the exact public data endpoint that fails");
+
 
 
 const now = 50000;
