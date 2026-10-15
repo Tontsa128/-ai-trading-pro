@@ -74,6 +74,14 @@ class BacktestCliInputTests(unittest.TestCase):
             self.assertEqual(report["input_signal_count"], 1)
             self.assertTrue(report["research_only"])
 
+    def test_rejects_off_grid_minute_candle_timestamps(self):
+        index = pd.date_range("2026-01-01T00:00:30Z", periods=40, freq="min")
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "ohlcv.csv"
+            self.make_ohlcv(index).to_csv(path, index=False)
+            with self.assertRaisesRegex(ValueError, "align to UTC candle-open boundaries"):
+                read_ohlcv_csv(path, timeframe="1m")
+
     def test_rejects_out_of_order_ohlcv_rows(self):
         index = pd.date_range("2026-01-01T00:00:00Z", periods=40, freq="min")
         frame = self.make_ohlcv(index)
