@@ -52,9 +52,6 @@ jobs:
       - name: Validate fast worker syntax
         run: node --check scripts/fast-paper-trader.js
       - name: Listen to public market stream and simulate trades
-        env:
-          FAST_INTERVAL_SECONDS: \${{ github.event.inputs.interval_seconds || '5' }}
-          FAST_SESSION_SECONDS: \${{ github.event.inputs.session_seconds || '210' }}
         run: node scripts/fast-paper-trader.js
       - name: Validate fast paper report
         run: |
