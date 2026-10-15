@@ -35,6 +35,9 @@ jobs:
   fast-paper:
     runs-on: ubuntu-latest
     timeout-minutes: 4
+    env:
+      FAST_INTERVAL_SECONDS: ${{ github.event.inputs.interval_seconds || '5' }}
+      FAST_SESSION_SECONDS: ${{ github.event.inputs.session_seconds || '210' }}
     steps:
       - name: Checkout persistent paper portfolio
         uses: actions/checkout@v4
@@ -55,12 +58,12 @@ jobs:
         run: node scripts/fast-paper-trader.js
       - name: Validate fast paper report
         run: |
-          node -e "const s=require('./data/fast-paper-state.json'); const r=require('./data/fast-paper-latest.json'); if(s.mode!=='paper'||r.mode!=='paper'||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated fast paper state/report')"
+          node -e "const i=process.env.FAST_INTERVAL_SECONDS||'5'; const s=require('./data/fast-paper-state-'+i+'s.json'); const r=require('./data/fast-paper-latest-'+i+'s.json'); if(s.mode!=='paper'||r.mode!=='paper'||r.intervalSeconds!==Number(i)||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated '+i+'s paper state/report')"
       - name: Persist virtual portfolio and session report
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/fast-paper-state.json data/fast-paper-latest.json data/fast-reports/
+          git add data/fast-paper-state-*.json data/fast-paper-latest-*.json data/fast-reports/
           if git diff --cached --quiet; then
             echo "No fast paper report changes to persist"
           else
