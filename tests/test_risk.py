@@ -34,6 +34,17 @@ class RiskPlanTests(unittest.TestCase):
         self.assertGreater(plan.position_quantity, 0)
         self.assertLessEqual(plan.position_notional_quote, 5000.0)
 
+    def test_positive_but_too_low_net_reward_risk_is_rejected(self):
+        plan = calculate_risk_plan(
+            entry_price=100.0, stop_price=99.0, target_price=101.5,
+            side="long", equity_quote=1000.0, fee_rate=0.001, slippage_bps=5.0,
+            minimum_net_reward_risk_ratio=1.2,
+        )
+        self.assertFalse(plan.eligible)
+        self.assertIsNotNone(plan.net_reward_risk_ratio)
+        self.assertLess(plan.net_reward_risk_ratio, 1.2)
+        self.assertIn("below the required", plan.reason)
+
     def test_rejects_invalid_direction_and_leverage(self):
         with self.assertRaises(ValueError):
             calculate_risk_plan(
