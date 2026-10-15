@@ -1,6 +1,7 @@
 name: Fast paper trading (5s / 15s)
 
 on:
+  pull_request:
   schedule:
     - cron: "*/5 * * * *"
   workflow_dispatch:
@@ -52,11 +53,14 @@ jobs:
       - name: Validate fast worker syntax
         run: node --check scripts/fast-paper-trader.js
       - name: Listen to public market stream and simulate trades
+        if: github.event_name != 'pull_request'
         run: node scripts/fast-paper-trader.js
       - name: Validate fast paper report
+        if: github.event_name != 'pull_request'
         run: |
           node -e "const i=process.env.FAST_INTERVAL_SECONDS||'5'; const s=require('./data/fast-paper-state-'+i+'s.json'); const r=require('./data/fast-paper-latest-'+i+'s.json'); if(s.mode!=='paper'||r.mode!=='paper'||r.intervalSeconds!==Number(i)||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated '+i+'s paper state/report')"
       - name: Persist virtual portfolio and session report
+        if: github.event_name != 'pull_request'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
