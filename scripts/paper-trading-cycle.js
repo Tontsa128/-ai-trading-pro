@@ -45,7 +45,7 @@ async function run(){
    }
   }
   const newCount=newBars.length;s.lastCandleTimeBySymbol[sym]=Math.max(lastSeen,...one.map(x=>x.closeTime));
-  rows.push({symbol:sym,price:m.price,change24hPct:m.change,spreadPct:sig.spreadPct,timeframe:"1h",confirmations:["4h","1d"],lastClosedCandleAt:new Date(b.closeTime).toISOString(),newClosedCandles:newCount,signal:sig.direction,passed:sig.passed,total:sig.total,indicators:{rsi:b.rsi,adx:b.adx,atr:b.atr,atrPct:b.atrPct,ema9:b.ema9,ema21:b.ema21,ema50:b.ema50,ema200:b.ema200,macdHist:b.macdHist,volumeRatio:b.volumeRatio},action,reason,position:s.positions[sym]||null});
+  rows.push({symbol:sym,price:m.price,change24hPct:m.change,spreadPct:sig.spreadPct,timeframe:"1h",confirmations:["4h","1d"],lastClosedCandleAt:new Date(b.closeTime).toISOString(),newClosedCandles:newCount,signal:sig.direction,trendBias:sig.trendBias,higherBias:sig.higherBias,blockedBy:sig.blockingReasons,supportDistanceAtr:Number.isFinite(sig.supportDistanceAtr)?Number(sig.supportDistanceAtr.toFixed(3)):null,resistanceDistanceAtr:Number.isFinite(sig.resistanceDistanceAtr)?Number(sig.resistanceDistanceAtr.toFixed(3)):null,passed:sig.passed,total:sig.total,indicators:{rsi:b.rsi,adx:b.adx,atr:b.atr,atrPct:b.atrPct,ema9:b.ema9,ema21:b.ema21,ema50:b.ema50,ema200:b.ema200,macdHist:b.macdHist,volumeRatio:b.volumeRatio},action,reason,position:s.positions[sym]||null});
   s.stats.signals[sig.direction]=(s.stats.signals[sig.direction]||0)+1;
  }catch(e){errors.push({symbol:sym,error:String(e.message||e),at:new Date().toISOString()});s.stats.errors++}}
  if(!rows.length)throw Error("No symbol data was collected; state was not advanced");
