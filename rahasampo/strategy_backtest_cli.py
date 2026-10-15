@@ -17,12 +17,16 @@ from .backtest import backtest_signal_candidates
 from .backtest_cli import calculate_atr, read_ohlcv_csv
 from .data_quality import select_closed_candles
 from .strategy_replay import generate_strategy_candidates
+from .historical_data import fetch_binance_historical_klines
 from .triple_barrier import compare_strategy_to_random, run_random_entry_baseline
 
 
 def run_cli(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Offline backtest using Rahasampo's V27 strategy")
-    parser.add_argument("--ohlcv", required=True, help="CSV: timestamp,open,high,low,close,volume (UTC candle-open times)")
+    source_group = parser.add_mutually_exclusive_group(required=True)
+    source_group.add_argument("--ohlcv", help="Local CSV: timestamp,open,high,low,close,volume (UTC candle-open times)")
+    source_group.add_argument("--download-days", type=int, help="Download this many recent days of public Binance history")
+    parser.add_argument("--max-download-bars", type=int, default=200_000, help="Safety cap for downloaded candles")
     parser.add_argument("--symbol", default="BTCUSDT")
     parser.add_argument("--timeframe", default="1m", choices=["1m", "3m", "5m", "15m"])
     parser.add_argument("--window-bars", type=int, default=420, help="Signal engine lookback; default matches app's initial data window")
@@ -44,7 +48,17 @@ def run_cli(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        history = read_ohlcv_csv(args.ohlcv, timeframe=args.timeframe, min_rows=120)
+        if args.download_days is not None:
+            history = fetch_binance_historical_klines(
+                args.symbol,
+                args.timeframe,
+                days=args.download_days,
+                max_bars=args.max_download_bars,
+            )
+            data_source = "binance_public_historical_api"
+        else:
+            history = read_ohlcv_csv(args.ohlcv, timeframe=args.timeframe, min_rows=120)
+            data_source = "local_csv"
         history = select_closed_candles(history, args.timeframe)
         if len(history) < 120:
             raise ValueError("Fewer than 120 fully closed candles remain after filtering.")
@@ -117,7 +131,10 @@ def run_cli(argv: list[str] | None = None) -> int:
             "research_only": True,
             "instrument": args.symbol,
             "timeframe": args.timeframe,
+            "source": data_source,
             "source_rows_after_closed_candle_filter": len(history),
+            "data_start_utc": history.index[0].isoformat(),
+            "data_end_utc": history.index[-1].isoformat(),
             "replay_diagnostics": diagnostics.to_dict(),
             "backtest": report.to_dict(),
             "random_baseline": baseline,
