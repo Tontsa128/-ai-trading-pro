@@ -1,0 +1,69 @@
+name: Fast paper trading (5s / 15s)
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+    inputs:
+      interval_seconds:
+        description: "Paper signal candle size"
+        required: true
+        type: choice
+        options:
+          - "5"
+          - "15"
+        default: "5"
+      session_seconds:
+        description: "How long to listen (seconds; max 210)"
+        required: true
+        type: choice
+        options:
+          - "60"
+          - "120"
+          - "180"
+          - "210"
+        default: "210"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fast-paper-trading
+  cancel-in-progress: false
+
+jobs:
+  fast-paper:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Checkout persistent paper portfolio
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test existing trading engine
+        run: npm test
+      - name: Validate fast worker syntax
+        run: node --check scripts/fast-paper-trader.js
+      - name: Listen to public market stream and simulate trades
+        env:
+          FAST_INTERVAL_SECONDS: \${{ github.event.inputs.interval_seconds || '5' }}
+          FAST_SESSION_SECONDS: \${{ github.event.inputs.session_seconds || '210' }}
+        run: node scripts/fast-paper-trader.js
+      - name: Validate fast paper report
+        run: |
+          node -e "const s=require('./data/fast-paper-state.json'); const r=require('./data/fast-paper-latest.json'); if(s.mode!=='paper'||r.mode!=='paper'||!Array.isArray(r.symbols)||!Array.isArray(r.sessionTrades)) process.exit(1); console.log('Validated fast paper state/report')"
+      - name: Persist virtual portfolio and session report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/fast-paper-state.json data/fast-paper-latest.json data/fast-reports/
+          if git diff --cached --quiet; then
+            echo "No fast paper report changes to persist"
+          else
+            git commit -m "Record fast paper trading session"
+            git push
+          fi
