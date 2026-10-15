@@ -214,7 +214,7 @@ async function runHistoricalBacktest(){
  try{
   var symbols=Array.from(new Set(["BTCUSDT","ETHUSDT","SOLUSDT",$("symbol").value]));
   var results=await Promise.all(symbols.map(async function(sym){
-   var data=await Promise.all([getHistoricalBars(sym,"1h",2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",300)]);
+   var data=await Promise.all([getHistoricalBars(sym,"1h",2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",500)]);
    var bars=data[0],higher=data.slice(1);
    var result=TradingEngine.backtest(bars,Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10}));
    return {symbol:sym,bars:bars,higher:higher,result:result};
