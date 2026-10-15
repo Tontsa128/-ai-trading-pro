@@ -61,10 +61,17 @@
     var pdi=atr.map(function (a,i) { return a > 0 && plusAvg[i] !== null ? 100*plusAvg[i]/a : null; });
     var mdi=atr.map(function (a,i) { return a > 0 && minusAvg[i] !== null ? 100*minusAvg[i]/a : null; });
     var dx=atr.map(function (_,i) {
-      if (!Number.isFinite(pdi[i]) || !Number.isFinite(mdi[i]) || pdi[i]+mdi[i] === 0) return 0;
+      if (!Number.isFinite(pdi[i]) || !Number.isFinite(mdi[i]) || pdi[i]+mdi[i] === 0) return null;
       return 100*Math.abs(pdi[i]-mdi[i])/(pdi[i]+mdi[i]);
     });
-    var adx=wilder(dx,PERIOD);
+    // ADX needs a second 14-period warm-up after directional indicators become available.
+    var adx=Array(bars.length).fill(null), dxSeed=0, previousAdx=null;
+    for (var ai=PERIOD;ai<dx.length;ai++) {
+      var dxValue=Number.isFinite(dx[ai])?dx[ai]:0;
+      if (ai<2*PERIOD-1) dxSeed+=dxValue;
+      else if (ai===2*PERIOD-1) { previousAdx=(dxSeed+dxValue)/PERIOD; adx[ai]=previousAdx; }
+      else { previousAdx=(previousAdx*(PERIOD-1)+dxValue)/PERIOD; adx[ai]=previousAdx; }
+    }
     var e12=ema(closes,12), e26=ema(closes,26);
     var macd=e12.map(function(v,i){ return v-e26[i]; });
     var macdSignal=ema(macd,9);
