@@ -75,7 +75,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  </section>
 </div>
 <section class="panel" style="margin-top:12px">
- <div class="section-title"><div><h3 style="margin:0">Historiallinen strategiakoe</h3><div class="sub">Enintään 500 aiempaa kynttilää · long-only spot · kulut ja lipsuma mukana</div></div><span class="pill">Ei ennuste tulevasta</span></div>
+ <div class="section-title"><div><h3 style="margin:0">Historiallinen strategiakoe</h3><div class="sub">1 h · enintään 2 500 sulkeutunutta kynttilää / pari · useita pareja · kulut ja lipsuma mukana</div></div><button id="backtestRun" style="width:auto">Aja historiatesti</button></div>
  <div class="metrics">
   <div class="metric"><small>Kauppoja kokeessa</small><strong id="btTrades">—</strong></div>
   <div class="metric"><small>Voittavien osuus</small><strong id="btWin">—</strong></div>
@@ -84,8 +84,8 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="metric"><small>Suurin lasku huipusta</small><strong id="btDd">—</strong></div>
   <div class="metric"><small>Voitto/tappio-suhde</small><strong id="btPf">—</strong></div>
  </div>
- <div id="backtestNote" class="sub">Historiallista koetta ei ole vielä tehty.</div>
- <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
+ <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa. Tämä long-only-testi ei vielä sisällä live-signaalin 4 h / 1 d -vahvistuksia.</div>
+ <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja</th><th>Voitto-%</th><th>Nettotulos</th><th>Max. lasku</th><th>Profit factor</th><th>Arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="8">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
 </section>
 <section class="panel" style="margin-top:12px">
  <div class="section-title"><div><h3 style="margin:0">Paper Trading · 2 h</h3><div class="sub">Virtuaalisalkku ja viimeisin automaattinen raportti GitHub Actionsista</div></div><button id="paperRefresh" style="width:auto">Päivitä raportti</button></div>
@@ -98,7 +98,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  </div>
  <div id="paperUpdated" class="status">Haetaan viimeisintä paperitreidausraporttia…</div>
  <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th></tr></thead><tbody id="paperRows"><tr><td colspan="6">Raporttia ei vielä ole.</td></tr></tbody></table></div>
- <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
+ <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
 <div class="foot">Markkinadata: Binance Spot API (julkinen markkinadata). Hinnat ja laskelmat esitetään USDT:ssä, eivät euroissa. Omat todelliset kulut, täyttöhinta, likviditeetti, verotus ja pörssin saatavuus voivat muuttaa tulosta. Historiallisen testin yksittäisen aikavälin signaali ei ole sama kuin live-signaalin korkeamman aikavälin vahvistus.</div>
@@ -137,6 +137,25 @@ async function getBars(symbol,iv,limit){
  if(bars.length<220)throw new Error(iv+"-aikaväliltä saatiin vain "+bars.length+" sulkeutunutta kynttilää; tarvitaan vähintään 220.");
  return TradingEngine.enrich(bars);
 }
+async function getHistoricalBars(symbol,iv,total){
+ var all=[],endTime=Date.now(),attempts=0;
+ while(all.length<total&&attempts<Math.ceil(total/800)+3){
+  var limit=Math.min(1000,total-all.length);
+  var url="/api/v3/klines?symbol="+encodeURIComponent(symbol)+"&interval="+encodeURIComponent(iv)+"&limit="+limit+"&endTime="+endTime;
+  var raw=await fetchJson(url);
+  if(!Array.isArray(raw)||!raw.length)break;
+  var parsed=TradingEngine.parseKlines(raw,Date.now());
+  all=parsed.concat(all);
+  endTime=Number(raw[0][0])-1;
+  attempts++;
+  if(raw.length<limit)break;
+ }
+ var unique=new Map();
+ all.forEach(function(b){unique.set(b.time,b);});
+ all=Array.from(unique.values()).sort(function(a,b){return a.time-b.time;}).slice(-total);
+ if(all.length<220)throw new Error(symbol+": vain "+all.length+" historiallista sulkeutunutta kynttilää saatiin.");
+ return TradingEngine.enrich(all);
+}
 function paintChecklist(sig){
  var list=sig.checklist.map(function(x){return '<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';}).join("");
  $("checklist").innerHTML=list;
@@ -169,13 +188,40 @@ function renderRisk(sig){
  '<p class="sub">'+esc(sig.reason)+'</p>';
 }
 function renderBacktest(result){
- $("btTrades").textContent=String(result.count);$("btWin").textContent=fmt(result.winRate,1)+"%";
- $("btPnl").textContent=money(result.netPnl);$("btPnl").className=result.netPnl>=0?"good":"bad";
- $("btPct").textContent=fmt(result.netPct,2)+"%";$("btPct").className=result.netPct>=0?"good":"bad";
- $("btDd").textContent=fmt(result.maxDrawdownPct,2)+"%";$("btPf").textContent=Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞";
- $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+money(result.endEquity)+".";
+ var enough=result.count>=100;
+ $("btTrades").textContent=String(result.count);
+ $("btWin").textContent=enough?fmt(result.winRate,1)+"%":"—";
+ $("btPnl").textContent=enough?money(result.netPnl):"—";$("btPnl").className=enough?(result.netPnl>=0?"good":"bad"):"";
+ $("btPct").textContent=enough?fmt(result.netPct,2)+"%":"—";$("btPct").className=enough?(result.netPct>=0?"good":"bad"):"";
+ $("btDd").textContent=enough?fmt(result.maxDrawdownPct,2)+"%":"—";
+ $("btPf").textContent=enough?(Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞"):"—";
+ $("btWarning").className="status "+(enough?"ok":"error");
+ $("btWarning").textContent=enough?"Otos sisältää "+result.count+" kauppaa. Tämä on alustava historiallinen tulos, ei näyttö tulevasta kannattavuudesta.":"VAROITUS: vain "+result.count+" kauppaa (vähintään 100 on alustava tarkistusraja). Tulosmittarit näytetään viivana (—), koska otos on liian pieni johtopäätöksiin.";
+ $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h eikä vielä sisällä live-signaalin 4 h / 1 d -vahvistuksia.";
  var rows=result.trades.slice(-10).reverse();
- $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Ehtoja täyttäviä historiallisia kauppoja ei löytynyt tästä otoksesta. Se ei osoita, että strategia olisi kannattava.</td></tr>';
+ $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Kauppoja ei löytynyt. Tämä ei osoita strategian kannattavuutta.</td></tr>';
+}
+async function runHistoricalBacktest(){
+ var button=$("backtestRun");button.disabled=true;
+ $("btWarning").className="status";$("btWarning").textContent="Haetaan historiaa sivuttain 1 000 kynttilän erissä. Tämä voi kestää hetken…";
+ $("btCompareRows").innerHTML='<tr><td colspan="8">Historiadataa haetaan…</td></tr>';
+ try{
+  var symbols=Array.from(new Set(["BTCUSDT","ETHUSDT","SOLUSDT",$("symbol").value]));
+  var results=await Promise.all(symbols.map(async function(sym){
+   var bars=await getHistoricalBars(sym,"1h",2500);
+   return {symbol:sym,bars:bars,result:TradingEngine.backtest(bars,options())};
+  }));
+  var selected=results.find(function(x){return x.symbol===$("symbol").value;})||results[0];
+  renderBacktest(selected.result);
+  $("btCompareRows").innerHTML=results.map(function(x){
+   var r=x.result,ok=r.count>=100;
+   return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Alustava otos":"Liian vähän kauppoja")+"</td></tr>";
+  }).join("");
+  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". "+selected.result.note+" Testi ei vielä käytä live-signaalin korkeampien aikavälien vahvistuksia.";
+ }catch(e){
+  $("btWarning").className="status error";$("btWarning").textContent="Historiatesti epäonnistui: "+(e&&e.message?e.message:"tuntematon virhe")+". Yritä myöhemmin tai valitse toinen pari.";
+  $("btCompareRows").innerHTML='<tr><td colspan="8">Testiä ei voitu laskea.</td></tr>';
+ }finally{button.disabled=false;}
 }
 function renderChart(series,signal,symbol,chartCount){
  var d=series.slice(-chartCount),x=d.map(function(b){return new Date(b.time);});
@@ -226,7 +272,7 @@ async function load(){
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
-  var bt=TradingEngine.backtest(main,opts);renderBacktest(bt);renderChart(main,signal,symbol,Number($("chartCount").value));
+  renderChart(main,signal,symbol,Number($("chartCount").value));
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää.","ok");
  }catch(e){
@@ -244,10 +290,11 @@ async function load(){
 }
 function setTimer(){if(timer)clearInterval(timer);var secs=Number($("refresh").value);if(secs)timer=setInterval(load,secs*1000);}
 $("update").addEventListener("click",load);
+$("backtestRun").addEventListener("click",runHistoricalBacktest);
 ["symbol","interval","chartCount","capital","riskPct","exposurePct","feePct","slippagePct"].forEach(function(id){$(id).addEventListener("change",function(){if(id==="symbol"||id==="interval"||id==="capital"||id==="riskPct"||id==="exposurePct"||id==="feePct"||id==="slippagePct")load();});});
 $("refresh").addEventListener("change",function(){setTimer();});
 window.addEventListener("resize",function(){if(window.Plotly)Plotly.Plots.resize($("chart"));});
-setTimer();load();
+setTimer();load();runHistoricalBacktest();
 })();
 </script>
 <script>
