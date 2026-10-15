@@ -74,8 +74,8 @@ def backtest_signal_candidates(
     max_holding_bars: int = 20,
     stop_atr: float = 1.25,
     target_atr: float = 2.2,
-    fee_rate: float = 0.0004,
-    slippage_bps: float = 2.0,
+    fee_rate: float = 0.001,
+    slippage_bps: float = 5.0,
     bootstrap_samples: int = 2000,
     seed: int = 42,
 ) -> tuple[pd.DataFrame, BacktestReport]:
