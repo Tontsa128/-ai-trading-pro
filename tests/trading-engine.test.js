@@ -12,6 +12,8 @@ assert.ok(dashboardSource.includes("higherSeries:higher"),
   "dashboard backtest passes its 4h and 1d series into the strategy engine");
 assert.ok(!dashboardSource.includes("Testi ei vielä käytä live-signaalin korkeampien aikavälien vahvistuksia."),
   "dashboard must not claim higher-timeframe confirmation is missing when it is passed to backtest");
+assert.ok(dashboardSource.includes("startIndex:splitIndex") && dashboardSource.includes("viimeiset 30 %"),
+  "dashboard separates the last 30% of history as a holdout test window");
 
 
 const now = 50000;
@@ -105,5 +107,13 @@ assert.equal(bt.count, 0, "backtest without higher-timeframe data fails closed")
 assert.ok(Number.isFinite(bt.netPnl) && Number.isFinite(bt.maxDrawdownPct), "backtest metrics are finite");
 const alignedBt = E.backtest(full, {...opts, higherSeries: [full, full]});
 assert.ok(Number.isFinite(alignedBt.netPnl) && Number.isFinite(alignedBt.maxDrawdownPct), "aligned backtest metrics are finite");
+
+assert.equal(alignedBt.startIndex, 220, "full-history backtest preserves the default warm-up period");
+const holdoutStart = 400;
+const holdoutBt = E.backtest(full, {...opts, higherSeries: [full, full], startIndex: holdoutStart});
+assert.equal(holdoutBt.startIndex, holdoutStart, "backtest supports an explicit holdout start index");
+assert.ok(holdoutBt.trades.every(t => t.entryTime >= full[holdoutStart + 1].time),
+  "holdout trades cannot be opened before the holdout window");
+assert.ok(holdoutBt.trades.every(t => t.exitTime > t.entryTime), "holdout trades still exit after entry");
 assert.ok(alignedBt.trades.every(t => Number.isFinite(t.pnl) && t.entryTime < t.exitTime), "backtest trades have valid timing and P/L");
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");

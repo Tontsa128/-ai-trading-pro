@@ -191,7 +191,9 @@
     var higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[];
     var assumedSpreadPct=Math.max(0,number(opts.assumedSpreadPct)||0.10);
     var inPositionUntil=-1;
-    for (var i=220;i<series.length-2;i++) {
+    var requestedStart=Number(opts.startIndex);
+    var startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220;
+    for (var i=startIndex;i<series.length-2;i++) {
       if (i<=inPositionUntil) continue;
       var b=series[i], prefix=series.slice(0,i+1), main;
       try { main=analyzeSeries(prefix); } catch (_) { continue; }
@@ -229,7 +231,7 @@
     var wins=trades.filter(function(t){return t.win;}), losses=trades.filter(function(t){return !t.win;});
     var grossWins=wins.reduce(function(a,t){return a+t.pnl;},0), grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
     return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,
-      startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,
+      startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,
       maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),
       note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; jos niitä ei anneta, kauppoja ei avata. Kulut ja lipsuma vähennetään, ja saman kynttilän stop/tavoite osuma käsitellään stopina. Historiallinen tulos ei ennusta tulevaa."};
   }
