@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-15T13:00:01.403Z",
+  "cycleStartedAt": "2026-10-15T13:02:08.458Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
-      "symbol": "ETHUSDT",
-      "price": 2351.05,
-      "change24hPct": -5.086,
-      "spreadPct": 0.0004253427731165622,
+      "symbol": "BTCUSDT",
+      "price": 80644.03,
+      "change24hPct": -2.609,
+      "spreadPct": 0.000012400173174322579,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -17,6 +17,48 @@
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
       "newClosedCandles": 1,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "neutral",
+        "neutral"
+      ],
+      "blockedBy": [
+        "Hinta ei ole liian kaukana EMA 21:stä",
+        "Moniaikavälivahvistus: 1 h LASKU, 4 h EPÄSELVÄ, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
+      ],
+      "supportDistanceAtr": 0.592,
+      "resistanceDistanceAtr": 6.532,
+      "passed": 12,
+      "total": 14,
+      "indicators": {
+        "rsi": 34.73934306275362,
+        "adx": 33.77450495506328,
+        "atr": 550.3347001867586,
+        "atrPct": 0.6832033328323226,
+        "ema9": 81082.27627888476,
+        "ema21": 81477.22066902625,
+        "ema50": 82122.6794123304,
+        "ema200": 83032.1034226172,
+        "macdHist": -7.269963502423195,
+        "volumeRatio": 1.4097663169108037
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 2353.62,
+      "change24hPct": -5.061,
+      "spreadPct": 0.00042487652027057323,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -51,16 +93,16 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 101.76,
-      "change24hPct": -3.536,
-      "spreadPct": 0.009827526902859925,
+      "price": 101.96,
+      "change24hPct": -3.429,
+      "spreadPct": 0.009807286814107896,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -92,16 +134,16 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 718,
-      "change24hPct": -2.604,
-      "spreadPct": 0.0013927673591029052,
+      "price": 718.77,
+      "change24hPct": -2.563,
+      "spreadPct": 0.0013912753125139518,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -134,16 +176,16 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.2989,
-      "change24hPct": -4.352,
-      "spreadPct": 0.00769911845093652,
+      "price": 1.3012,
+      "change24hPct": -4.316,
+      "spreadPct": 0.007685508972830881,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -176,16 +218,16 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.07962,
-      "change24hPct": -4.383,
-      "spreadPct": 0.012558869701739405,
+      "price": 0.07951,
+      "change24hPct": -4.515,
+      "spreadPct": 0.012576243476068822,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-10-15T12:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -216,13 +258,7 @@
       "position": null
     }
   ],
-  "errors": [
-    {
-      "symbol": "BTCUSDT",
-      "error": "HTTP 451",
-      "at": "2026-10-15T13:00:07.885Z"
-    }
-  ],
+  "errors": [],
   "newTrades": [],
   "portfolio": {
     "initialCash": 1000,
