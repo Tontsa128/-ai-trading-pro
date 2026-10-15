@@ -51,6 +51,12 @@ assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
 assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
 assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
+assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === (analysed.checks.bias === "bear" ? "SELL" : "BUY")), "checklist direction follows EMA trend bias rather than raw checklist count");
+assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
+assert.equal(analysed.support, Math.min(...full.slice(-31, -1).map(x => x.low)), "support excludes the current candle");
+assert.equal(analysed.resistance, Math.max(...full.slice(-31, -1).map(x => x.high)), "resistance excludes the current candle");
+assert.ok(Array.isArray(signal.blockingReasons), "signal exposes failed conditions for diagnosis");
+assert.equal(signal.trendBias, analysed.checks.bias, "signal exposes the main timeframe trend bias");
 const historicalSignal = E.evaluateSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: 1, bid: 100, ask: 100.01}, {...opts, historical: true});
 assert.equal(historicalSignal.priceAgeMs, 0, "historical evaluation does not fail the live freshness gate");
