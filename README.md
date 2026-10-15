@@ -45,7 +45,7 @@ streamlit run app.py
 
 ## Offline CSV backtest
 
-The current strategy is not yet automatically exported to this research runner. It accepts a historical OHLCV CSV plus a separate candidate-signal CSV so the replay engine and cost model can be tested without using live orders.
+There are now two offline paths. `rahasampo.backtest_cli` remains a generic engine test that accepts a separately prepared candidate-signal CSV. For a full strategy replay, use `rahasampo.strategy_backtest_cli`: it calls the same pure scoring engine used by the Streamlit app, derives only completed higher-timeframe candles from the supplied OHLCV file, applies the fee/risk gate and the three-bar cooldown / eight-signals-per-UTC-day limit, and then simulates entries at the next candle open. No live API calls are used by the replay.
 
 OHLCV CSV columns: `timestamp,open,high,low,close,volume`. Timestamps must be candle-open times in UTC and rows must be chronological. Signal CSV columns: `timestamp,side`, where timestamp exactly matches a candle in the OHLCV file and side is `long` or `short`.
 
@@ -66,6 +66,27 @@ python -m rahasampo.backtest_cli \
 ```
 
 The command writes the trade-level journal and a JSON report with fees/slippage assumptions and a random-entry comparison when there are enough eligible non-overlapping bars. Defaults are a 0.10% fee per side and 5 basis points of adverse slippage per fill: this is a conservative starting point for basic spot taker orders, not a measured fill model. Check the exact fee tier for the account/venue and override `--fee-rate` as required. The random benchmark matches the accepted strategy trades' long/short ratio and samples an exact number of non-overlapping random entries. This is a research tool; it does not automatically generate the existing app's strategy signals and does not place orders.
+
+The strategy replay supports `1m`, `3m`, `5m` and `15m` source candles. It requires a long history: because the existing strategy requires at least 110 closed candles on three higher timeframes, early candles are skipped during warmup (for 1-minute history the 4-hour filter can require more than 18 days of complete data). The generated signal audit marks each decisive candidate as accepted or blocked by cost/risk, cooldown, or daily limit.
+
+```bash
+python -m rahasampo.strategy_backtest_cli \
+  --ohlcv data/btcusdt_1m.csv \
+  --symbol BTCUSDT \
+  --timeframe 1m \
+  --window-bars 420 \
+  --paper-equity 1000 \
+  --risk-fraction 0.005 \
+  --fee-rate 0.001 \
+  --slippage-bps 5 \
+  --minimum-net-rr 1.2 \
+  --max-holding-bars 20 \
+  --signals-out strategy_signals.csv \
+  --trades-out strategy_trades.csv \
+  --report-out strategy_report.json
+```
+
+Review `strategy_report.json` before interpreting performance. Fewer than 10 resolved trades deliberately yields no random-benchmark claim. The replay is causally timestamped, but it is not yet an exact execution simulator: EMA/RSI warm-up history can differ slightly from the app's rolling fetch window, higher timeframes are reconstructed from the input series, and spread, order-book depth, queue priority, latency, partial fills, minimum lot sizes and stop gaps are not fully modeled. Validate the replay against captured live signals before using its results.
 
 ## Live market watchlist
 
