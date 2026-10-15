@@ -103,7 +103,7 @@
       {name:"MACD-histogrammi negatiivinen (laskupainotteinen)",ok:b.macdHist<0},
       {name:"RSI 32–50 (ei ylikuumentunut)",ok:b.rsi>=32&&b.rsi<=50},
       {name:"ADX vähintään 18 ja myyjien suunta vahvempi",ok:b.adx>=18&&b.mdi>b.pdi},
-      {name:"Volyymi vähintään 0,8× edeltävän 20 kynttilän keskiarvo",ok:b.volumeRatio>=0.8}
+      {name:"Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo",ok:Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO}
     ];
     var bullN=bull.filter(function(x){return x.ok;}).length, bearN=bear.filter(function(x){return x.ok;}).length;
     var bias="neutral";

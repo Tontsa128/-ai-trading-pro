@@ -54,6 +54,30 @@ assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
 assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
+
+const bearRaw = [];
+let previousBearClose = 200;
+for (let i = 0; i < 520; i++) {
+  const close = 200 - i * 0.1 + Math.sin(i / 6) * 0.5;
+  const open = previousBearClose;
+  const high = Math.max(open, close) + 0.2;
+  const low = Math.min(open, close) - 0.2;
+  bearRaw.push({time:1700000000000+i*300000,closeTime:1700000299999+i*300000,
+    open,high,low,close,volume:100+10*(1+Math.sin(i*1.3))});
+  previousBearClose = close;
+}
+const bearAnalysis = E.analyzeSeries(E.enrich(bearRaw));
+assert.equal(bearAnalysis.checks.bias, "bear", "synthetic falling market has bearish EMA bias");
+const bearSignal = E.evaluateSignal(bearAnalysis, [bearAnalysis, bearAnalysis],
+  {price:bearAnalysis.bar.close,closeTime:Date.now(),bid:bearAnalysis.bar.close*0.9999,
+    ask:bearAnalysis.bar.close*1.0001}, opts);
+const bearVolumeGate = bearSignal.checklist.find(x => x.group === "Trendi" && x.name.includes("Volyymi"));
+assert.ok(bearVolumeGate, "bearish checklist includes its volume condition");
+assert.ok(bearVolumeGate.name.includes("0,5×"), "bearish checklist label uses the same 0.5x threshold as signal logic");
+assert.equal(bearVolumeGate.ok,
+  Number.isFinite(bearAnalysis.bar.volumeRatio) && bearAnalysis.bar.volumeRatio >= 0.5,
+  "bearish checklist result uses the same 0.5x volume gate as signal logic");
+
 assert.equal(analysed.support, Math.min(...full.slice(-31, -1).map(x => x.low)), "support excludes the current candle");
 assert.equal(analysed.resistance, Math.max(...full.slice(-31, -1).map(x => x.high)), "resistance excludes the current candle");
 assert.ok(Array.isArray(signal.blockingReasons), "signal exposes failed conditions for diagnosis");

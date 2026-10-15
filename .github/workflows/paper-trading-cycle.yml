@@ -8,6 +8,9 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/paper-trading-cycle.yml"
+      - "trading-engine.js"
+      - "public/trading-engine.js"
+      - "scripts/paper-trading-cycle.js"
 
 permissions:
   contents: write
