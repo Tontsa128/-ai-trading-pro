@@ -93,6 +93,7 @@ class StrategyReplayTests(unittest.TestCase):
                 "--max-download-bars", "200000",
                 "--symbol", "ETHUSDT",
                 "--timeframe", "15m",
+                "--source-timeframe", "15m",
                 "--max-holding-bars", "5",
                 "--signals-out", str(signals),
                 "--trades-out", str(trades),
