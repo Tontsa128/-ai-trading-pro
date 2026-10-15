@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07111f"><title>Rahasampo Radar Vercel</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101d30;--line:#263750;--muted:#9db0c8;--green:#28d7a0;--red:#ff647c;--gold:#ffd166}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#132642 0,#07111f 55%);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#edf5ff}
+main{max-width:1400px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.brand{font-size:clamp(22px,4vw,32px);font-weight:850;letter-spacing:-.7px}.sub,.muted{color:var(--muted)}.tag{border:1px solid #35506d;border-radius:999px;padding:5px 10px;font-size:12px;color:#b8cbe2}
+.controls,.metrics,.grid{display:grid;gap:12px}.controls{grid-template-columns:repeat(auto-fit,minmax(145px,1fr));margin:20px 0}.panel,.metric{background:linear-gradient(150deg,#122239,#0c1728);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}.metric small{display:block;color:var(--muted);margin-bottom:5px}.metric strong{font-size:clamp(19px,3vw,27px);overflow-wrap:anywhere}.metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0}.grid{grid-template-columns:minmax(0,2fr) minmax(270px,1fr);margin-top:12px}.signal{font-size:clamp(25px,4vw,40px);font-weight:900;letter-spacing:-1px}.signal.buy{color:var(--green)}.signal.sell{color:var(--red)}.signal.wait{color:var(--gold)}select,button{width:100%;padding:11px 12px;border:1px solid #38506b;border-radius:10px;background:#0b1728;color:#edf5ff;font:inherit}button{cursor:pointer;background:#173c5b;font-weight:700}button:hover{filter:brightness(1.2)}label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}#chart{height:540px;width:100%}.status{padding:10px 12px;border-radius:10px;background:#172b42;color:#c8d9ee;margin:12px 0}.status.error{color:#ffb4bd;background:#381c2a}.status.ok{color:#91f4d3;background:#10352f}ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);padding:18px 2px}.pill{display:inline-block;padding:3px 8px;border-radius:99px;background:#20334b;color:#d4e4f7;font-size:12px}
+@media(max-width:850px){main{padding:12px}.grid{grid-template-columns:1fr}#chart{height:390px}.panel{padding:12px}}
+</style></head>
+<body><main>
+<header class="top"><div><div class="brand">◈ Rahasampo Radar <span style="color:var(--green)">PRO</span></div><div class="sub">AI Trading Pro · selainpohjainen markkinaseuranta</div></div><span class="tag">VERCEL WEB · SPOT-MARKKINA</span></header>
+<div class="controls">
+<div><label for="symbol">Kaupankäyntipari</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option></select></div>
+<div><label for="interval">Aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
+<div><label for="limit">Kynttilöitä</label><select id="limit"><option>80</option><option selected>150</option><option>250</option><option>500</option></select></div>
+<div><label for="refresh">Päivitys</label><select id="refresh"><option value="0">Manuaalinen</option><option value="15">15 sekuntia</option><option value="30" selected>30 sekuntia</option><option value="60">60 sekuntia</option></select></div>
+<div style="display:flex;align-items:end"><button id="update">↻ Päivitä markkina</button></div>
+</div>
+<div id="status" class="status">Yhdistetään markkinadataan…</div>
+<section class="metrics">
+<div class="metric"><small>Viimeisin hinta (USDT)</small><strong id="price">—</strong></div>
+<div class="metric"><small>24 h muutos</small><strong id="change">—</strong></div>
+<div class="metric"><small>RSI (14)</small><strong id="rsi">—</strong></div>
+<div class="metric"><small>EMA 9 / EMA 21</small><strong id="ema">—</strong></div>
+<div class="metric"><small>Tekninen suunta</small><strong id="signal" class="signal wait">ODOTA</strong></div>
+</section>
+<div class="grid"><section class="panel"><div class="top"><div><strong>Hintakaavio</strong><div class="sub">Kynttilät ja EMA-indikaattorit</div></div><span id="timestamp" class="pill">—</span></div><div id="chart"></div></section>
+<aside class="panel"><h3 style="margin-top:0">Signaalin perustelut</h3><div id="summary" class="sub">Odotetaan dataa.</div><h3>Markkinatasot</h3><ul id="levels"><li>Ei vielä saatavilla.</li></ul><h3>Turvallisuus</h3><p class="sub">Tämä näkymä on analyysi- ja opetustyökalu. Se ei lähetä toimeksiantoja eikä takaa signaalien osumatarkkuutta. Älä käytä signaalia yksin sijoituspäätökseen.</p><span class="pill">Ei automaattisia kauppoja</span></aside></div>
+<div class="foot">Lähde: Binance Spot API. Jos lähde ei vastaa, käyttöliittymä näyttää virheen eikä esitä keksittyä hintaa. Selainversio on erillinen käyttöliittymä; alkuperäinen Streamlit-sovellus ja sen oppimismuisti säilyvät GitHubissa.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);let timer=null;
+const fmt=(n,d=2)=>Number(n).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+function ema(a,span){let k=2/(span+1),out=[];a.forEach((v,i)=>out.push(i? v*k+out[i-1]*(1-k):v));return out}
+function rsi(a,p=14){let gains=0,loss=0;for(let i=1;i<=p;i++){let d=a[i]-a[i-1];gains+=Math.max(d,0);loss+=Math.max(-d,0)}let ag=gains/p,al=loss/p;for(let i=p+1;i<a.length;i++){let d=a[i]-a[i-1];ag=(ag*(p-1)+Math.max(d,0))/p;al=(al*(p-1)+Math.max(-d,0))/p}return al===0?100:100-100/(1+ag/al)}
+function status(msg,type=''){ $('status').className='status '+type;$('status').textContent=msg}
+async function load(){ $('update').disabled=true;status('Haetaan tuoretta markkinadataa…');try{
+const s=$('symbol').value,iv=$('interval').value,n=+$('limit').value;
+const [kr,dr]=await Promise.all([
+fetch('https://api.binance.com/api/v3/klines?symbol='+s+'&interval='+iv+'&limit='+n,{cache:'no-store'}),
+fetch('https://api.binance.com/api/v3/ticker/24hr?symbol='+s,{cache:'no-store'})
+]);
+if(!kr.ok)throw Error('Kynttilädata ei saatavilla (HTTP '+kr.status+').');if(!dr.ok)throw Error('24 tunnin tilasto ei saatavilla.');
+const raw=await kr.json(),day=await dr.json();if(!Array.isArray(raw)||raw.length<30)throw Error('Markkinadataa ei saatu riittävästi.');
+const t=raw.map(x=>new Date(x[0])),o=raw.map(x=>+x[1]),h=raw.map(x=>+x[2]),l=raw.map(x=>+x[3]),c=raw.map(x=>+x[4]),v=raw.map(x=>+x[5]),e9=ema(c,9),e21=ema(c,21),e50=ema(c,50),rv=rsi(c.slice(-15));
+$('price').textContent=fmt(+day.lastPrice,day.lastPrice<1?6:2);$('change').textContent=fmt(+day.priceChangePercent,2)+'%';$('change').style.color=+day.priceChangePercent>=0?'var(--green)':'var(--red)';$('rsi').textContent=fmt(rv,1);$('ema').textContent=fmt(e9.at(-1),c.at(-1)<1?5:2)+' / '+fmt(e21.at(-1),c.at(-1)<1?5:2);
+let score=0,notes=[];if(e9.at(-1)>e21.at(-1)){score+=1;notes.push('EMA 9 on EMA 21:n yläpuolella (lyhyt nousutrendi).')}else{score-=1;notes.push('EMA 9 on EMA 21:n alapuolella (lyhyt laskutrendi).')}
+if(c.at(-1)>e50.at(-1)){score++;notes.push('Hinta on EMA 50:n yläpuolella.')}else{score--;notes.push('Hinta on EMA 50:n alapuolella.')}
+if(rv<30){score++;notes.push('RSI on alle 30: mahdollisesti ylimyyty, ei yksin ostosignaali.')}else if(rv>70){score--;notes.push('RSI on yli 70: mahdollisesti yliostettu, ei yksin myyntisignaali.')}else notes.push('RSI ei ole äärialueella.');
+if(+day.priceChangePercent>0.5)score++;if(+day.priceChangePercent<-.5)score--;
+const sig=score>=2?'NOUSUPAINOTUS':score<=-2?'LASKUPAINOTUS':'ODOTA';$('signal').textContent=sig;$('signal').className='signal '+(score>=2?'buy':score<=-2?'sell':'wait');$('summary').innerHTML='<span class="pill">Heuristinen signaali · ei ennuste</span><ul>'+notes.map(n=>'<li>'+n+'</li>').join('')+'</ul>';
+const sup=Math.min(...l.slice(-30)),res=Math.max(...h.slice(-30));$('levels').innerHTML='<li>Lähiajan tuki: <b>'+fmt(sup,c.at(-1)<1?6:2)+'</b></li><li>Lähiajan vastus: <b>'+fmt(res,c.at(-1)<1?6:2)+'</b></li><li>Volyymi viime kynttilässä: <b>'+fmt(v.at(-1),2)+'</b></li>';
+const traces=[{type:'candlestick',x:t,open:o,high:h,low:l,close:c,name:s,increasing:{line:{color:'#28d7a0'}},decreasing:{line:{color:'#ff647c'}}},{type:'scatter',x:t,y:e9,mode:'lines',name:'EMA 9',line:{color:'#ffd166',width:1.5}},{type:'scatter',x:t,y:e21,mode:'lines',name:'EMA 21',line:{color:'#67b7ff',width:1.5}},{type:'scatter',x:t,y:e50,mode:'lines',name:'EMA 50',line:{color:'#c084fc',width:1.5}}];
+Plotly.react('chart',traces,{paper_bgcolor:'#101d30',plot_bgcolor:'#101d30',font:{color:'#dce9fa'},margin:{l:55,r:18,t:12,b:45},xaxis:{gridcolor:'#263750',rangeslider:{visible:false}},yaxis:{gridcolor:'#263750',side:'right'},legend:{orientation:'h',y:1.1},autosize:true},{responsive:true,displaylogo:false});
+$('timestamp').textContent='Päivitetty '+new Date().toLocaleTimeString('fi-FI');status('Live-data vastaanotettu onnistuneesti · '+raw.length+' kynttilää · '+s,'ok');
+}catch(e){status('Datan haku epäonnistui: '+e.message+' Tarkista yhteys tai yritä hetken kuluttua.','error')}finally{$('update').disabled=false}}
+function setTimer(){if(timer)clearInterval(timer);const secs=+$('refresh').value;if(secs)timer=setInterval(load,secs*1000)}
+$('update').addEventListener('click',load);['symbol','interval','limit'].forEach(id=>$(id).addEventListener('change',load));$('refresh').addEventListener('change',setTimer);window.addEventListener('resize',()=>{if(window.Plotly)Plotly.Plots.resize($('chart'))});setTimer();load();
+</script></body></html>
