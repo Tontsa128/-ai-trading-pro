@@ -176,7 +176,7 @@
     }
     return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,
       riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,
-      checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,
+      checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return x.name;}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,
       reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":
         direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":
         "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
