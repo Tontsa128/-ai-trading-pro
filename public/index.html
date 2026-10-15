@@ -4,7 +4,7 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#07111f">
 <meta name="description" content="Rahasampo Radar - kryptomarkkinan analyysi- ja riskienhallintatyökalu. Ei automaattista kaupankäyntiä.">
-<title>Rahasampo Radar PRO — markkina-analyysi</title>
+<title>Rahasampo Radar — markkina-analyysi</title>
 <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
 <style>
 :root{color-scheme:dark;--bg:#07111f;--panel:#101d30;--line:#263750;--muted:#9db0c8;--green:#28d7a0;--red:#ff647c;--gold:#ffd166;--blue:#67b7ff}
@@ -19,12 +19,12 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 </head>
 <body><main>
 <header class="top">
- <div><div class="brand">◈ Rahasampo Radar <span style="color:var(--green)">PRO</span></div><div class="sub">AI Trading Pro · tekninen analyysi, riskilaskenta ja historiallinen koe</div></div>
+ <div><div class="brand">◈ Rahasampo Radar</div><div class="sub">Kryptomarkkinan analyysi · riskilaskenta · paper trading</div></div>
  <span class="tag">BINANCE SPOT DATA · EI AUTOMAATTISIA TOIMEKSIANTOJA</span>
 </header>
 <div class="controls">
  <div><label for="symbol">Kaupankäyntipari</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option></select></div>
- <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
+ <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div>
  <div><label for="chartCount">Kaavion kynttilät</label><select id="chartCount"><option>80</option><option selected>150</option><option>250</option><option>500</option></select></div>
  <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0">Manuaalinen</option><option value="30">30 sekuntia</option><option value="60" selected>60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
  <div style="display:flex;align-items:end"><button id="update">↻ Päivitä markkina</button></div>
@@ -84,7 +84,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="metric"><small>Suurin lasku huipusta</small><strong id="btDd">—</strong></div>
   <div class="metric"><small>Voitto/tappio-suhde</small><strong id="btPf">—</strong></div>
  </div>
- <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa. Tämä long-only-testi ei vielä sisällä live-signaalin 4 h / 1 d -vahvistuksia.</div>
+ <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa ja samaa evaluateSignal()-päätöspolkua kuin live-signaali sekä 4 h / 1 d -vahvistuksia. Historiallinen spread on arvio, ei toteutunut order book -data.</div>
  <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja</th><th>Voitto-%</th><th>Nettotulos</th><th>Max. lasku</th><th>Profit factor</th><th>Arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="8">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
 </section>
 <section class="panel" style="margin-top:12px">
@@ -203,7 +203,7 @@ function renderBacktest(result){
  $("btPf").textContent=enough?(Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞"):"—";
  $("btWarning").className="status "+(enough?"ok":"error");
  $("btWarning").textContent=enough?"Otos sisältää "+result.count+" kauppaa. Tämä on alustava historiallinen tulos, ei näyttö tulevasta kannattavuudesta.":"VAROITUS: vain "+result.count+" kauppaa (vähintään 100 on alustava tarkistusraja). Tulosmittarit näytetään viivana (—), koska otos on liian pieni johtopäätöksiin.";
- $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h eikä vielä sisällä live-signaalin 4 h / 1 d -vahvistuksia.";
+ $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h spot; päätöspolku käyttää evaluateSignal()-funktiota 4 h / 1 d -vahvistuksilla. Historiallinen spread on arvio.";
  var rows=result.trades.slice(-10).reverse();
  $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Kauppoja ei löytynyt. Tämä ei osoita strategian kannattavuutta.</td></tr>';
 }
