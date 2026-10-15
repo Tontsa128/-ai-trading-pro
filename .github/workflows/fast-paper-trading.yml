@@ -43,7 +43,7 @@ jobs:
       - name: Checkout persistent paper portfolio
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.head.sha || 'main' }}
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
