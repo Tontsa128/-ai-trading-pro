@@ -34,7 +34,7 @@ jobs:
         with:
           node-version: 20
       - name: Validate application tests and paper-data publisher
-        run: npm test && bash -n scripts/persist-paper-data.sh
+        run: npm test && node tests/paper-data-persistence.test.js && bash -n scripts/persist-paper-data.sh
       - name: Restore portfolio and report history from paper-data branch
         run: |
           git fetch origin +refs/heads/paper-data:refs/remotes/origin/paper-data
