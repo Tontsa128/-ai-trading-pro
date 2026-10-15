@@ -5,6 +5,15 @@ require("../trading-engine.js");
 const E = global.TradingEngine;
 assert.ok(E, "engine exposes its public API");
 
+const fs = require("node:fs");
+const path = require("node:path");
+const dashboardSource = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
+assert.ok(dashboardSource.includes("higherSeries:higher"),
+  "dashboard backtest passes its 4h and 1d series into the strategy engine");
+assert.ok(!dashboardSource.includes("Testi ei vielä käytä live-signaalin korkeampien aikavälien vahvistuksia."),
+  "dashboard must not claim higher-timeframe confirmation is missing when it is passed to backtest");
+
+
 const now = 50000;
 const candle = (t, closeTime, open, high, low, close, volume) =>
   [t, String(open), String(high), String(low), String(close), String(volume), closeTime];

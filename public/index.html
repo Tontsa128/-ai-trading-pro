@@ -225,7 +225,7 @@ async function runHistoricalBacktest(){
    var r=x.result,ok=r.count>=100;
    return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Alustava otos":"Liian vähän kauppoja")+"</td></tr>";
   }).join("");
-  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". "+selected.result.note+" Testi ei vielä käytä live-signaalin korkeampien aikavälien vahvistuksia.";
+  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". "+selected.result.note+" Kunkin 1 h päätöshetken kohdalla käytetään vain siihen mennessä sulkeutuneita 4 h / 1 d -kynttilöitä, jotta tulevaa tietoa ei vuoda päätökseen.";
  }catch(e){
   $("btWarning").className="status error";$("btWarning").textContent="Historiatesti epäonnistui: "+(e&&e.message?e.message:"tuntematon virhe")+". Yritä myöhemmin tai valitse toinen pari.";
   $("btCompareRows").innerHTML='<tr><td colspan="8">Testiä ei voitu laskea.</td></tr>';
