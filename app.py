@@ -13,7 +13,7 @@ from rahasampo.decision import classify_score
 from rahasampo.cross_exchange import get_spot_price_check
 from rahasampo.guardrails import apply_signal_guardrails
 from rahasampo.signal_journal import journal_counts, record_decision
-from rahasampo.market_data import fetch_binance_klines
+from rahasampo.market_data import fetch_binance_klines, fetch_binance_24h_tickers
 
 
 # ============================================================
@@ -156,6 +156,16 @@ def cached_spot_price_check(symbol_code):
         "checked_at_utc": result.checked_at_utc,
         "message": result.message,
     }
+
+
+@st.cache_data(ttl=5, show_spinner=False)
+def cached_market_overview():
+    """A cached informational watchlist; never feeds the selected signal calculation."""
+    return fetch_binance_24h_tickers(
+        list(SYMBOLS.values()),
+        total_timeout_seconds=3.0,
+        request_timeout_seconds=0.75,
+    )
 
 
 @st.cache_data(ttl=2, show_spinner=False)
@@ -684,11 +694,9 @@ def ai_engine(df):
         notes.append("VWAP ohitettiin: täyttä UTC-session dataa ei ole ladattu")
 
     if live.RSI < 30:
-        score += 10
-        notes.append(f"RSI {live.RSI:.1f}: ylimyyty")
+        notes.append(f"RSI {live.RSI:.1f}: ylimyyty — ei yksinään ostosignaali")
     elif live.RSI > 70:
-        score -= 10
-        notes.append(f"RSI {live.RSI:.1f}: yliostettu")
+        notes.append(f"RSI {live.RSI:.1f}: yliostettu — ei yksinään myyntisignaali")
     else:
         notes.append(f"RSI {live.RSI:.1f}: neutraali")
 
@@ -899,6 +907,26 @@ def run_app():
     st.title("💰 Rahasampo Radar V27 PRO — Research Preview")
     raw, source = load_data()
 
+    with st.expander("🌐 Markkinakatsaus — 24 tunnin muutos", expanded=True):
+        try:
+            watch = cached_market_overview().copy()
+            watch = watch.rename(columns={
+                "symbol": "Kohde",
+                "last_price": "Viimeisin hinta (USDT)",
+                "change_24h_pct": "Muutos 24 h (%)",
+                "quote_volume_24h": "Vaihto 24 h (USDT)",
+                "retrieved_at_utc": "Haettu (UTC)",
+            })
+            watch["Viimeisin hinta (USDT)"] = watch["Viimeisin hinta (USDT)"].map(lambda x: f"{x:,.8f}".rstrip("0").rstrip("."))
+            watch["Muutos 24 h (%)"] = watch["Muutos 24 h (%)"].map(lambda x: f"{x:+.2f}%")
+            watch["Vaihto 24 h (USDT)"] = watch["Vaihto 24 h (USDT)"].map(lambda x: f"{x:,.0f}")
+            watch["Haettu (UTC)"] = pd.to_datetime(watch["Haettu (UTC)"], utc=True).dt.strftime("%H:%M:%S")
+            st.caption("Binancen julkinen spot-ticker. 24 h -muutos ja vaihto ovat tilannekuvaa, eivät kaupankäyntisignaali tai toteutuskelpoisuuden takuu.")
+            st.dataframe(watch, use_container_width=True, hide_index=True)
+        except Exception as watch_error:
+            st.info(f"Markkinakatsaus ei ole juuri nyt saatavilla ({type(watch_error).__name__}); valitun kohteen datan tarkistus on tästä erillinen.")
+
+
     if source != LIVE_DATA_SOURCE:
         st.error(source)
         st.warning("NO TRADE — kelvollista live-dataa ei ole vahvistettu. Välimuistia ei käytetä signaalin muodostamiseen.")
@@ -933,7 +961,7 @@ def run_app():
         cooldown_bars=3,
         daily_signal_limit=8,
     )
-    remember(ai)
+    journal_write_ok = True
     try:
         record_decision(
             symbol=symbol,
@@ -943,24 +971,47 @@ def run_app():
             data_source=source,
         )
     except Exception as journal_error:
+        journal_write_ok = False
+        original_level = ai.get("level", "ODOTA")
+        ai["level"] = "EI TREIDIÄ"
+        ai["score"] = 0
+        ai["direction"] = "ODOTA"
+        ai["stop"] = None
+        ai["target"] = None
+        ai["rr"] = None
+        ai["notes"] = (
+            list(ai.get("notes", []))
+            + [f"Päiväkirjan kirjoitus epäonnistui ({type(journal_error).__name__}); alkuperäinen luokitus {original_level} estettiin."]
+        )[:28]
         st.warning(
             "Signaalipäiväkirjan tallennus epäonnistui: "
-            f"{type(journal_error).__name__}. Tarkista paikallinen tallennus."
+            f"{type(journal_error).__name__}. Toiminnallinen signaali estettiin."
         )
+
+    if journal_write_ok:
+        remember(ai)
 
     signal_box(ai)
 
+    cross_check = st.session_state.cross_exchange_check or {}
+    spot_price = cross_check.get("primary_price")
+    spot_price_label = f"{float(spot_price):,.4f}" if spot_price is not None else "—"
+    spot_delta = None
+    if spot_price is not None and ai.get("price"):
+        spot_delta = (float(spot_price) / float(ai["price"]) - 1.0) * 100.0
+    spot_delta_label = f"{spot_delta:+.3f}% vs. sulku" if spot_delta is not None else None
+
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Hinta", f"{ai['price']:,.4f}")
-    c2.metric("Score", f"{ai['score']} / 100")
-    c3.metric("Trend", ai["bias"])
-    c4.metric("Candle", ai["power"])
+    c1.metric("Binance spot nyt", spot_price_label, spot_delta_label)
+    c2.metric("Signaalin sulku", f"{ai['price']:,.4f}")
+    c3.metric("Score", f"{ai['score']} / 100")
+    c4.metric("Trend", ai["bias"])
     c5.metric("Päivitetty", now_local())
 
     cross_check = st.session_state.cross_exchange_check or {}
     deviation = cross_check.get("deviation_pct")
     cross_status = f"Binance/Bybit ero {deviation:.3f}%" if deviation is not None else "Binance/Bybit ristiintarkistus OK"
-    st.caption(f"{source} | {cross_status} | TF: {tf} | Päivitys {refresh}s | signaali viimeisestä suljetusta kynttilästä | ajat Suomen ajassa")
+    st.caption(f"{source} | {cross_status} | TF: {tf} | Päivitys {refresh}s | signaali ja stop/target-laskelma perustuvat viimeiseen suljettuun kynttilään, eivät toimeksiannon toteutushintaan | ajat Suomen ajassa")
 
     if st.session_state.last_error:
         st.warning(f"Datavaroitus: {st.session_state.last_error}")
@@ -972,7 +1023,7 @@ def run_app():
     with a:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("🎯 Entry / Stop / Target")
-        st.write(f"Nykyhinta: **{ai['price']:,.4f}**")
+        st.write(f"Suljetun kynttilän viitehinta: **{ai['price']:,.4f}**")
         st.write(f"Support: **{ai['support']:,.4f}**")
         st.write(f"Resistance: **{ai['resistance']:,.4f}**")
         if ai["stop"] is not None:
