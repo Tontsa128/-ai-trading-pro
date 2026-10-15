@@ -90,3 +90,103 @@ def fetch_binance_klines(
         "Binance OHLCV unavailable from all configured endpoints. "
         + (" | ".join(errors) if errors else "Total timeout budget exhausted.")
     )
+
+
+
+BINANCE_24H_TICKER_URLS = (
+    "https://api.binance.com/api/v3/ticker/24hr",
+    "https://api1.binance.com/api/v3/ticker/24hr",
+    "https://api2.binance.com/api/v3/ticker/24hr",
+    "https://data-api.binance.vision/api/v3/ticker/24hr",
+)
+
+
+def fetch_binance_24h_tickers(
+    symbols: list[str] | tuple[str, ...],
+    *,
+    total_timeout_seconds: float = 3.0,
+    request_timeout_seconds: float = 1.0,
+) -> pd.DataFrame:
+    """Fetch a validated multi-symbol spot watchlist from Binance's 24h ticker.
+
+    The returned observation time is the local UTC retrieval time, not an
+    exchange-provided per-trade timestamp. Prices and 24h change are display
+    data only and are not substitutes for order-book or execution validation.
+    """
+    import json
+    import re
+
+    if not isinstance(symbols, (list, tuple)) or not symbols:
+        raise ValueError("symbols must be a non-empty list or tuple.")
+    requested = tuple(symbols)
+    if any(not isinstance(symbol, str) or not re.fullmatch(r"[A-Z0-9]{2,30}", symbol) for symbol in requested):
+        raise ValueError("symbols must contain uppercase exchange symbols.")
+    if len(set(requested)) != len(requested):
+        raise ValueError("symbols must not contain duplicates.")
+    if not math.isfinite(total_timeout_seconds) or total_timeout_seconds <= 0:
+        raise ValueError("total_timeout_seconds must be finite and positive.")
+    if not math.isfinite(request_timeout_seconds) or request_timeout_seconds <= 0:
+        raise ValueError("request_timeout_seconds must be finite and positive.")
+
+    deadline = time.monotonic() + total_timeout_seconds
+    params = {"symbols": json.dumps(list(requested), separators=(",", ":"))}
+    errors: list[str] = []
+
+    for url in BINANCE_24H_TICKER_URLS:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        try:
+            response = requests.get(
+                url,
+                params=params,
+                timeout=min(request_timeout_seconds, remaining),
+                headers={"User-Agent": "RahasampoRadar/27"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, list) or not payload:
+                raise ValueError("24h ticker payload was not a non-empty list.")
+
+            by_symbol: dict[str, dict] = {}
+            for position, item in enumerate(payload):
+                if not isinstance(item, dict):
+                    raise ValueError(f"Malformed 24h ticker row at position {position}.")
+                symbol = item.get("symbol")
+                if not isinstance(symbol, str) or symbol in by_symbol:
+                    raise ValueError(f"Invalid or duplicate ticker symbol at position {position}.")
+                by_symbol[symbol] = item
+            if set(by_symbol) != set(requested):
+                missing = sorted(set(requested) - set(by_symbol))
+                extra = sorted(set(by_symbol) - set(requested))
+                raise ValueError(f"Ticker symbols did not match request (missing={missing}, extra={extra}).")
+
+            retrieved_at = pd.Timestamp.now(tz="UTC")
+            rows = []
+            for symbol in requested:
+                item = by_symbol[symbol]
+                last_price = float(item["lastPrice"])
+                change_pct = float(item["priceChangePercent"])
+                quote_volume = float(item["quoteVolume"])
+                if not all(math.isfinite(value) for value in (last_price, change_pct, quote_volume)):
+                    raise ValueError(f"Non-finite ticker metric for {symbol}.")
+                if last_price <= 0 or quote_volume < 0:
+                    raise ValueError(f"Invalid ticker price or quote volume for {symbol}.")
+                rows.append({
+                    "symbol": symbol,
+                    "last_price": last_price,
+                    "change_24h_pct": change_pct,
+                    "quote_volume_24h": quote_volume,
+                    "retrieved_at_utc": retrieved_at,
+                })
+            return pd.DataFrame(
+                rows,
+                columns=["symbol", "last_price", "change_24h_pct", "quote_volume_24h", "retrieved_at_utc"],
+            )
+        except Exception as exc:
+            errors.append(f"{url}: {type(exc).__name__}: {str(exc)[:160]}")
+
+    raise RuntimeError(
+        "Binance 24h watchlist unavailable from all configured endpoints. "
+        + (" | ".join(errors) if errors else "Total timeout budget exhausted.")
+    )
