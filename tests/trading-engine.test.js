@@ -5,6 +5,19 @@ require("../trading-engine.js");
 const E = global.TradingEngine;
 assert.ok(E, "engine exposes its public API");
 
+assert.equal(typeof E.explainCandle, "function", "engine exposes candle checklist evaluation for direct testing");
+const macdFixture = {
+  close: 95, ema200: 100, ema50: 98, ema9: 94, ema21: 96,
+  macdHist: -0.0125, rsi: 40, adx: 30, pdi: 8, mdi: 20, volumeRatio: 0.8
+};
+const negativeMacdGate = E.explainCandle(macdFixture).bear.find(x => x.name.includes("MACD-histogrammi"));
+assert.equal(negativeMacdGate.ok, true, "negative MACD histogram must pass the bearish MACD condition");
+const positiveMacdGate = E.explainCandle({...macdFixture, macdHist: 0.0125}).bear.find(x => x.name.includes("MACD-histogrammi"));
+assert.equal(positiveMacdGate.ok, false, "positive MACD histogram must fail the bearish MACD condition");
+const zeroMacdGate = E.explainCandle({...macdFixture, macdHist: 0}).bear.find(x => x.name.includes("MACD-histogrammi"));
+assert.equal(zeroMacdGate.ok, false, "zero MACD histogram is not strictly negative");
+
+
 const fs = require("node:fs");
 const path = require("node:path");
 const dashboardSource = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
@@ -14,6 +27,12 @@ assert.ok(!dashboardSource.includes("Testi ei vielä käytä live-signaalin kork
   "dashboard must not claim higher-timeframe confirmation is missing when it is passed to backtest");
 assert.ok(dashboardSource.includes("startIndex:splitIndex") && dashboardSource.includes("viimeiset 30 %"),
   "dashboard separates the last 30% of history as a holdout test window");
+assert.ok(dashboardSource.includes("function trendFi(v)") && dashboardSource.includes("EPÄSELVÄ"),
+  "paper table uses the same Finnish labels as the live timeframe panel");
+assert.ok(dashboardSource.includes("Volyymi / 20 kynttilää"),
+  "paper table exposes measured volume ratio as its own column");
+assert.ok(dashboardSource.includes("x.detail"),
+  "live signal checklist displays numeric diagnostic details");
 
 
 const now = 50000;
@@ -88,6 +107,14 @@ assert.ok(bearVolumeGate.name.includes("0,5×"), "bearish checklist label uses t
 assert.equal(bearVolumeGate.ok,
   Number.isFinite(bearAnalysis.bar.volumeRatio) && bearAnalysis.bar.volumeRatio >= 0.5,
   "bearish checklist result uses the same 0.5x volume gate as signal logic");
+const lowVolumeBar = {...bearAnalysis.bar, volumeRatio: 0.43};
+const lowVolumeMain = {...bearAnalysis, bar: lowVolumeBar, checks: E.explainCandle(lowVolumeBar)};
+const lowVolumeSignal = E.evaluateSignal(lowVolumeMain, [bearAnalysis, bearAnalysis],
+  {price:lowVolumeBar.close,closeTime:Date.now(),bid:lowVolumeBar.close*0.9999,ask:lowVolumeBar.close*1.0001}, opts);
+assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0.43×") && x.includes("vaatimus ≥ 0.50×")),
+  "volume blocker states the measured ratio and the required minimum");
+assert.ok(lowVolumeSignal.blockingReasons.every(x => !x.includes("neutral")),
+  "visible blocker explanations use Finnish trend terminology rather than raw neutral enums");
 
 assert.equal(analysed.support, Math.min(...full.slice(-31, -1).map(x => x.low)), "support excludes the current candle");
 assert.equal(analysed.resistance, Math.max(...full.slice(-31, -1).map(x => x.high)), "resistance excludes the current candle");

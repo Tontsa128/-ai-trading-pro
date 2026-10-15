@@ -86,6 +86,52 @@
         macdHist:hist[i],volumeRatio:volumeRatio[i]});
     });
   }
+  function trendLabelFi(bias) {
+    return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "EPÄSELVÄ";
+  }
+  function fixed(value, digits) {
+    return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla";
+  }
+  function signedFixed(value, digits) {
+    return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla";
+  }
+  function describeCheck(x, b, main, higher, checks, side, supportRoom, resistanceRoom, spreadPct, priceAgeMs, upConfirmed, downConfirmed) {
+    if (x.name.indexOf("MACD-histogrammi") === 0) {
+      var bearishMacd = x.name.indexOf("negatiivinen") >= 0;
+      var requirement = bearishMacd ? "< 0 (laskusuunnan ehto)" : "> 0 (noususuunnan ehto)";
+      return "MACD-histogrammi " + signedFixed(b.macdHist, 6) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Volyymi") === 0) {
+      var ratio = Number.isFinite(b.volumeRatio) ? b.volumeRatio.toFixed(2) + "×" : "ei saatavilla";
+      return "Volyymi " + ratio + " (" + (x.ok ? "vaatimus ≥ 0.50× täyttyy" : "vaatimus ≥ 0.50× ei täyty") + ")";
+    }
+    if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) {
+      var fourHour = higher[0] && higher[0].checks ? higher[0].checks.bias : "neutral";
+      var daily = higher[1] && higher[1].checks ? higher[1].checks.bias : "neutral";
+      var requiredBias = side === "SELL" ? "bear" : "bull";
+      return "Moniaikavälivahvistus: 1 h " + trendLabelFi(checks.bias) + ", 4 h " + trendLabelFi(fourHour) + ", 1 d " + trendLabelFi(daily) +
+        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias);
+    }
+    if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
+      var supportDistance = b.close - main.support;
+      var supportMin = 0.5 * b.atr;
+      return "Tuen etäisyys " + fixed(supportDistance, 2) + " hinnan yksikköä (" + fixed(supportRoom, 2) +
+        " ATR); vaatimus ≥ " + fixed(supportMin, 2) + " (" + fixed(0.5, 2) + " ATR)";
+    }
+    if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) {
+      var resistanceDistance = main.resistance - b.close;
+      var resistanceMin = 0.5 * b.atr;
+      return "Vastuksen etäisyys " + fixed(resistanceDistance, 2) + " hinnan yksikköä (" + fixed(resistanceRoom, 2) +
+        " ATR); vaatimus ≥ " + fixed(resistanceMin, 2) + " (" + fixed(0.5, 2) + " ATR)";
+    }
+    if (x.name.indexOf("Osto/myyntihajonta") === 0) {
+      return "Nykyinen hajonta " + fixed(spreadPct, 4) + " %; raja 0.1500 %";
+    }
+    if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
+      return "Markkinahinnan ikä " + fixed(priceAgeMs / 1000, 1) + " sekuntia";
+    }
+    return x.name;
+  }
   function explainCandle(b) {
     var bull = [
       {name:"Hinta EMA 200:n yläpuolella",ok:b.close>b.ema200},
@@ -147,12 +193,14 @@
     var short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;})&&shortSpace;
     var direction=long?"BUY":short?"SELL":"WAIT";
     var side=direction==="BUY"?"BUY":direction==="SELL"?"SELL":checks.bias==="bear"?"SELL":checks.bias==="bull"?"BUY":checks.bearN>checks.bullN?"SELL":"BUY";
-    var directional=(side==="BUY"?checks.bull:checks.bear).map(function(x){return {name:x.name,ok:x.ok,group:"Trendi",direction:side};});
+    var directional=(side==="BUY"?checks.bull:checks.bear).map(function(x){
+      return {name:x.name,ok:x.ok,group:"Trendi",direction:side,detail:describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)};
+    });
     var dataChecks=common.slice(0,4).map(function(x){return {name:x.name,ok:x.ok,group:"Data OK",direction:side};});
     var timingChecks=[
-      {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side},
-      {name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side},
-      {name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side}
+      {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side,detail:"Etäisyys EMA 21:stä "+fixed(Math.abs(b.close-b.ema21),2)+" hinnan yksikköä ("+fixed(Math.abs(b.close-b.ema21)/b.atr,2)+" ATR); sallittu enintään 1.60 ATR"},
+      {name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side,detail:describeCheck({name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)},
+      {name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side,detail:describeCheck({name:"Kaksi suurempaa aikaväliä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)}
     ];
     var checklist=dataChecks.concat(directional,timingChecks);
     var passes=checklist.filter(function(x){return x.ok;}).length;
@@ -176,7 +224,7 @@
     }
     return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,
       riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,
-      checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return x.name;}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,
+      checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,
       reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":
         direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":
         "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -235,5 +283,5 @@
       maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),
       note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; jos niitä ei anneta, kauppoja ei avata. Kulut ja lipsuma vähennetään, ja saman kynttilän stop/tavoite osuma käsitellään stopina. Historiallinen tulos ei ennusta tulevaa."};
   }
-  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,backtest:backtest,defaults:COST_DEFAULTS};
+  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,backtest:backtest,defaults:COST_DEFAULTS};
 })(window);

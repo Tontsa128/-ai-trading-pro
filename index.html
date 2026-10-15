@@ -97,7 +97,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="metric"><small>Keruun virheet</small><strong id="paperErrors">—</strong></div>
  </div>
  <div id="paperUpdated" class="status">Haetaan viimeisintä paperitreidausraporttia…</div>
- <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Trendit 1h / 4h / 1d</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th><th>Miksi ODOTA?</th></tr></thead><tbody id="paperRows"><tr><td colspan="8">Raporttia ei vielä ole.</td></tr></tbody></table></div>
+ <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Trendit 1h / 4h / 1d</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th><th>Volyymi / 20 kynttilää</th><th>Miksi ODOTA?</th></tr></thead><tbody id="paperRows"><tr><td colspan="9">Raporttia ei vielä ole.</td></tr></tbody></table></div>
  <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/main/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
@@ -161,7 +161,7 @@ function paintChecklist(sig){
  sig.checklist.forEach(function(x){
   var group=x.group||"Ehdot";
   if(group!==lastGroup){list+='<div class="sub" style="font-weight:800;margin:12px 0 4px">'+esc(group)+'</div>';lastGroup=group;}
-  list+='<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+'</span></div>';
+  list+='<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+(x.detail?'<small class="sub" style="display:block;margin-top:3px">'+esc(x.detail)+'</small>':'')+'</span></div>';
  });
  var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":sig.checks.bias==="bear"?"MYY — ei vahvistettu":sig.checks.bias==="bull"?"OSTA — ei vahvistettu":(sig.checks.bearN>sig.checks.bullN?"MYY — ei vahvistettu":"OSTA — ei vahvistettu");
  $("checklist").innerHTML='<div class="sub">Arvioitava suunta: <strong>'+esc(side)+'</strong></div>'+list;
@@ -314,6 +314,7 @@ setTimer();load();runHistoricalBacktest();
 const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/main/data/latest-report.json";
 const el=id=>document.getElementById(id);
 function n(v,d){return Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
+function trendFi(v){return v==="bull"?"NOUSU":v==="bear"?"LASKU":"EPÄSELVÄ"}
 function safe(s){return String(s==null?"—":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function loadPaper(){
  el("paperRefresh").disabled=true;el("paperUpdated").className="status";el("paperUpdated").textContent="Haetaan viimeisintä kahden tunnin raporttia…";
@@ -323,7 +324,7 @@ async function loadPaper(){
   const p=d.portfolio||{};el("paperCash").textContent=n(p.cash)+" USDT";el("paperEquity").textContent=n(p.equity)+" USDT";
   el("paperPnl").textContent=n(p.realizedPnl)+" USDT";el("paperPnl").className="metric "+(Number(p.realizedPnl)>=0?"good":"bad");
   el("paperPositions").textContent=n(p.openPositions,0);el("paperErrors").textContent=n((d.errors||[]).length,0);
-  el("paperRows").innerHTML=(d.symbols||[]).map(x=>"<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+safe(x.trendBias||"?")+" / "+safe((x.higherBias||[])[0]||"?")+" / "+safe((x.higherBias||[])[1]||"?")+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td><td>"+safe((x.blockedBy||[]).join("; ")||"—")+"</td></tr>").join("")||'<tr><td colspan="8">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
+  el("paperRows").innerHTML=(d.symbols||[]).map(x=>{const v=x.indicators&&x.indicators.volumeRatio;const vol=Number.isFinite(Number(v))?n(v,2)+"×":"—";const higher=x.higherBias||[];return "<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+trendFi(x.trendBias)+" / "+trendFi(higher[0])+" / "+trendFi(higher[1])+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td><td>"+vol+"</td><td>"+safe((x.blockedBy||[]).join("; ")||"—")+"</td></tr>"}).join("")||'<tr><td colspan="9">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
   el("paperUpdated").className="status ok";el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · Lähde: "+(d.source||"—")+" · "+(d.notes||[]).join(" ");
  }catch(e){el("paperUpdated").className="status error";el("paperUpdated").textContent=(e&&e.message?e.message:"Raportin haku epäonnistui")+". Tarkista GitHub Actions -ajon tila."}
  finally{el("paperRefresh").disabled=false}
