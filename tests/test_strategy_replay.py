@@ -6,6 +6,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from unittest.mock import patch
+
 from rahasampo.strategy_backtest_cli import run_cli
 from rahasampo.strategy_replay import (
     _bias_at,
@@ -76,6 +78,33 @@ class StrategyReplayTests(unittest.TestCase):
         self.assertEqual(diagnostics.accepted_candidates, len(candidates))
         self.assertIn("status", audit.columns)
         self.assertTrue(all(c["side"] in {"long", "short"} for c in candidates))
+
+    @patch("rahasampo.strategy_backtest_cli.fetch_binance_historical_klines")
+    def test_strategy_backtest_cli_can_download_history_without_csv(self, download):
+        frame = make_ohlcv(periods=1800)
+        download.return_value = frame
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            signals = root / "signals.csv"
+            trades = root / "trades.csv"
+            report_path = root / "report.json"
+            exit_code = run_cli([
+                "--download-days", "35",
+                "--max-download-bars", "200000",
+                "--symbol", "ETHUSDT",
+                "--timeframe", "15m",
+                "--max-holding-bars", "5",
+                "--signals-out", str(signals),
+                "--trades-out", str(trades),
+                "--report-out", str(report_path),
+            ])
+            self.assertEqual(exit_code, 0)
+            download.assert_called_once()
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+            self.assertEqual(report["source"], "binance_public_historical_api")
+            self.assertEqual(report["instrument"], "ETHUSDT")
+            self.assertIn("data_start_utc", report)
+            self.assertIn("data_end_utc", report)
 
     def test_strategy_backtest_cli_writes_auditable_outputs_offline(self):
         frame = make_ohlcv(periods=1800)
