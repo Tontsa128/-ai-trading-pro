@@ -53,6 +53,9 @@ def read_ohlcv_csv(path: str | Path, *, timeframe: str, min_rows: int = 30) -> p
     interval = TIMEFRAME_SECONDS.get(timeframe)
     if interval is None:
         raise ValueError(f"Unsupported timeframe: {timeframe}.")
+    interval_ns = interval * 1_000_000_000
+    if (ohlcv.index.asi8 % interval_ns != 0).any():
+        raise ValueError("OHLCV timestamps must align to UTC candle-open boundaries for the selected timeframe.")
     gaps = ohlcv.index.to_series().diff().dt.total_seconds().dropna()
     if (gaps > interval * 2.5).any():
         raise ValueError("OHLCV CSV has missing candle intervals exceeding 2.5 bars.")
