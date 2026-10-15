@@ -107,5 +107,15 @@ class BinanceMarketDataTests(unittest.TestCase):
                 fetch_binance_24h_tickers(symbols)
 
 
+    @patch("rahasampo.market_data.requests.get")
+    def test_24h_watchlist_rejects_non_finite_ticker_numbers(self, get):
+        malformed = [
+            {"symbol": "BTCUSDT", "lastPrice": "nan", "priceChangePercent": "1", "quoteVolume": "10"},
+        ]
+        get.side_effect = [response(malformed) for _ in BINANCE_24H_TICKER_URLS]
+        with self.assertRaisesRegex(RuntimeError, "watchlist unavailable"):
+            fetch_binance_24h_tickers(["BTCUSDT"], total_timeout_seconds=30)
+
+
 if __name__ == "__main__":
     unittest.main()
