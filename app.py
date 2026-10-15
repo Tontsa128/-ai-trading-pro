@@ -14,6 +14,7 @@ from rahasampo.cross_exchange import get_spot_price_check
 from rahasampo.guardrails import apply_signal_guardrails
 from rahasampo.signal_journal import journal_counts, record_decision
 from rahasampo.market_data import fetch_binance_klines, fetch_binance_24h_tickers
+from rahasampo.risk import gate_decision_by_net_costs
 
 
 # ============================================================
@@ -113,6 +114,13 @@ tf = st.sidebar.radio("Aikaväli", TIMEFRAMES, index=0)
 refresh = st.sidebar.radio("Live-päivitys", [2, 3, 5, 10], index=0)
 candles = st.sidebar.slider("Kynttilöitä", 80, 300, 170, 10)
 
+st.sidebar.subheader("🛡️ Simuloitu riskinhallinta")
+paper_equity = st.sidebar.number_input("Testipääoma (USDT, ei oikea saldo)", min_value=50.0, max_value=1_000_000_000.0, value=1000.0, step=100.0)
+risk_percent = st.sidebar.number_input("Riskibudjetti / treidi (%)", min_value=0.1, max_value=2.0, value=0.5, step=0.1)
+fee_percent = st.sidebar.number_input("Taker-maksu / puoli (%)", min_value=0.0, max_value=5.0, value=0.1, step=0.025, format="%.3f")
+slippage_bps = st.sidebar.number_input("Slippage / täyttö (bps)", min_value=0.0, max_value=999.0, value=5.0, step=1.0)
+
+st.sidebar.caption("Vain paperilaskelma. Ei toimeksiantoja; short-suunnan laskelma ei tarkoita, että spot-tili voi myydä lainattua omaisuutta.")
 st.sidebar.divider()
 
 show_fast = st.sidebar.checkbox("EMA9 / EMA21", True)
@@ -953,6 +961,14 @@ def run_app():
     df = add_indicators(raw)
     signal_df = add_indicators(closed_raw)
     ai = ai_engine(signal_df)
+    ai, risk_plan = gate_decision_by_net_costs(
+        ai,
+        equity_quote=paper_equity,
+        risk_fraction=risk_percent / 100.0,
+        fee_rate=fee_percent / 100.0,
+        slippage_bps=slippage_bps,
+        min_notional_quote=10.0,
+    )
     ai, guardrail_reason = apply_signal_guardrails(
         ai,
         symbol=symbol,
@@ -961,6 +977,9 @@ def run_app():
         cooldown_bars=3,
         daily_signal_limit=8,
     )
+    if ai.get("level") not in {"OSTA", "VAHVA OSTA", "MYY", "VAHVA MYY"} and risk_plan is not None and risk_plan.eligible:
+        # Guardrails can block otherwise eligible candidates; never display them as an active plan.
+        risk_plan = None
     journal_write_ok = True
     try:
         record_decision(
@@ -1066,6 +1085,23 @@ def run_app():
             st.dataframe(pd.DataFrame(st.session_state.memory), use_container_width=True, hide_index=True)
         else:
             st.info("Ei vielä signaaleja.")
+
+    with st.expander("🛡️ Riskilaskelma ja kulut", expanded=risk_plan is not None):
+        st.caption("Arvio perustuu viimeisen suljetun kynttilän hintaan. Se ei mallinna toimeksiantokirjaa, spreadiä, täyttöjä, stopin ohitushyppyjä, pörssin minimitikkeitä tai viiveitä.")
+        if risk_plan is None:
+            st.info("Ei aktiivista OSTA/MYY-kandidaattia, jolle riskimäärä voitaisiin laskea. Watch/wait/EI TREIDIÄ -tilat eivät ole toimeksiantosuosituksia.")
+        elif not risk_plan.eligible:
+            st.error("EI TREIDIÄ — kulut tai riskirajat estivät signaalin.")
+            st.write(risk_plan.reason)
+            st.write(f"Arvioitu kierroksen kitka tavoitehintaan asti: {risk_plan.round_trip_friction_pct:.3f}%")
+        elif ai.get("level") in {"OSTA", "VAHVA OSTA", "MYY", "VAHVA MYY"}:
+            r1, r2, r3, r4 = st.columns(4)
+            r1.metric("Simuloitu määrä", f"{risk_plan.position_quantity:.8f}".rstrip("0").rstrip("."))
+            r2.metric("Positio (USDT)", f"{risk_plan.position_notional_quote:,.2f}")
+            r3.metric("Arvioitu tappio stopissa", f"{risk_plan.estimated_max_loss_quote:,.2f} USDT")
+            r4.metric("Arvioitu nettovoitto targetissa", f"{risk_plan.estimated_net_target_profit_quote:,.2f} USDT")
+            st.write(f"Nettopohjainen R/R: **{risk_plan.net_reward_risk_ratio:.2f}** | Break-even-osumatarkkuus tällä yksinkertaistetulla mallilla: **{risk_plan.break_even_win_rate_pct:.1f}%**")
+            st.warning("Tämä on USDT-määräinen paperilaskelma, ei order quantity -validointi. MYY on vain laskennallinen short-suunta; spot-short edellyttää erillisiä tuotteita/luottoa ja kulujen mallinnusta.")
 
     with st.expander("📘 Pysyvä signaalipäiväkirja"):
         try:
