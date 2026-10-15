@@ -1,0 +1,9 @@
+{
+  "name": "rahasampo-radar-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static market-analysis dashboard and deterministic spot-risk research engine",
+  "scripts": {
+    "test": "node tests/trading-engine.test.js"
+  }
+}
