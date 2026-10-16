@@ -107,7 +107,7 @@ selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 symbol = SYMBOLS[selected_name]
 
 tf = st.sidebar.radio("Aikaväli", TIMEFRAMES, index=0)
-refresh = st.sidebar.radio("Live-päivitys", [2, 3, 5, 10], index=0)
+refresh = st.sidebar.radio("REST-päivitysväli — suljetut kynttilät (s)", [2, 3, 5, 10], index=0)
 candles = st.sidebar.slider("Kynttilöitä", 80, 300, 170, 10)
 
 st.sidebar.divider()
@@ -117,7 +117,7 @@ show_slow = st.sidebar.checkbox("EMA50 / EMA100", True)
 show_vwap = st.sidebar.checkbox("VWAP", False)
 show_levels = st.sidebar.checkbox("Support / Resistance", True)
 show_patterns = st.sidebar.checkbox("Pattern-merkinnät", True)
-live_on = st.sidebar.toggle("Live päällä", True)
+automatic_refresh = st.sidebar.toggle("Automaattinen päivitys päällä", True)
 
 st.sidebar.divider()
 learning_on = st.sidebar.toggle("Oppiminen päällä", True)
@@ -1089,7 +1089,7 @@ def run_app():
     signal_box(ai)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Hinta", f"{ai['price']:,.4f}")
+    c1.metric("Viimeisin suljettu hinta", f"{ai['price']:,.4f}")
     c2.metric("Score", f"{ai['score']} / 100")
     c3.metric("Trend", ai["bias"])
     c4.metric("Candle", ai["power"])
@@ -1175,6 +1175,6 @@ def run_app():
 
 run_app()
 
-if live_on:
+if automatic_refresh:
     time.sleep(refresh)
     st.rerun()
