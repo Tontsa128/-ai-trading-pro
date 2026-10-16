@@ -59,6 +59,7 @@ h1 {font-size:1.45rem!important;}
 .good{color:#22c55e;font-weight:800;}
 .bad{color:#ef4444;font-weight:800;}
 .neutral{color:#facc15;font-weight:800;}
+.stale{background:linear-gradient(90deg,#7f1d1d,#b91c1c);color:white;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -106,7 +107,7 @@ selected_name = st.sidebar.selectbox("Kohde", list(SYMBOLS.keys()), index=0)
 symbol = SYMBOLS[selected_name]
 
 tf = st.sidebar.radio("Aikaväli", TIMEFRAMES, index=0)
-refresh = st.sidebar.radio("Live-päivitys", [2, 3, 5, 10], index=0)
+refresh = st.sidebar.radio("REST-päivitysväli — suljetut kynttilät (s)", [2, 3, 5, 10], index=0)
 candles = st.sidebar.slider("Kynttilöitä", 80, 300, 170, 10)
 
 st.sidebar.divider()
@@ -116,7 +117,7 @@ show_slow = st.sidebar.checkbox("EMA50 / EMA100", True)
 show_vwap = st.sidebar.checkbox("VWAP", False)
 show_levels = st.sidebar.checkbox("Support / Resistance", True)
 show_patterns = st.sidebar.checkbox("Pattern-merkinnät", True)
-live_on = st.sidebar.toggle("Live päällä", True)
+automatic_refresh = st.sidebar.toggle("Automaattinen päivitys päällä", True)
 
 st.sidebar.divider()
 learning_on = st.sidebar.toggle("Oppiminen päällä", True)
@@ -156,10 +157,11 @@ def get_klines(symbol_code, interval_code, limit_count):
     ]
 
     last_error = ""
+    now_ms = int(time.time() * 1000)
 
     for url in urls:
         try:
-            r = requests.get(
+            response = requests.get(
                 url,
                 params={
                     "symbol": symbol_code,
@@ -167,75 +169,99 @@ def get_klines(symbol_code, interval_code, limit_count):
                     "limit": int(limit_count),
                 },
                 timeout=8,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": "RahasampoRadar/1.0"},
             )
 
-            if r.status_code != 200:
-                last_error = f"{r.status_code}: {r.text[:120]}"
+            if response.status_code in (418, 429):
+                raise RuntimeError(f"Binance rate limit HTTP {response.status_code}")
+            if response.status_code != 200:
+                last_error = f"HTTP {response.status_code}: {response.text[:120]}"
                 continue
 
-            raw = r.json()
-            rows = []
+            raw = response.json()
+            if not isinstance(raw, list):
+                last_error = "Binance palautti virheellisen kynttilädatamuodon."
+                continue
 
-            for k in raw:
+            rows = []
+            for candle in raw:
+                if not isinstance(candle, list) or len(candle) < 7:
+                    continue
+                open_time, close_time = int(candle[0]), int(candle[6])
+                # Only fully closed OHLC candles may feed indicators or signals.
+                if close_time >= now_ms:
+                    continue
+
+                values = [float(candle[i]) for i in (1, 2, 3, 4, 5)]
+                open_price, high, low, close, volume = values
+                if (
+                    not all(np.isfinite(v) for v in values)
+                    or min(open_price, high, low, close) <= 0
+                    or volume < 0
+                    or high < max(open_price, close, low)
+                    or low > min(open_price, close, high)
+                ):
+                    continue
+
                 rows.append({
-                    "Date": pd.to_datetime(k[0], unit="ms", utc=True).tz_convert(APP_TZ),
-                    "Open": float(k[1]),
-                    "High": float(k[2]),
-                    "Low": float(k[3]),
-                    "Close": float(k[4]),
-                    "Volume": float(k[5]),
+                    "Date": pd.to_datetime(open_time, unit="ms", utc=True).tz_convert(APP_TZ),
+                    "Open": open_price,
+                    "High": high,
+                    "Low": low,
+                    "Close": close,
+                    "Volume": volume,
+                    "CloseTimeMs": close_time,
                 })
 
-            return pd.DataFrame(rows).set_index("Date")
+            if not rows:
+                last_error = "Binance ei palauttanut kelvollisia sulkeutuneita kynttilöitä."
+                continue
 
-        except Exception as e:
-            last_error = str(e)
+            frame = pd.DataFrame(rows).set_index("Date").sort_index()
+            return frame[~frame.index.duplicated(keep="last")]
 
-    raise RuntimeError(last_error)
+        except Exception as error:
+            last_error = str(error)
+            if "rate limit" in last_error.lower():
+                raise RuntimeError(last_error)
 
-
-def demo_data(limit_count=360, base=78000):
-    now = pd.Timestamp.now(tz=APP_TZ).floor("min")
-    idx = pd.date_range(end=now, periods=limit_count, freq="min")
-    price = float(base)
-    rows = []
-
-    for _ in idx:
-        o = price
-        price *= 1 + np.random.normal(0, 0.0011)
-        c = price
-        h = max(o, c) * (1 + abs(np.random.normal(0, 0.0008)))
-        l = min(o, c) * (1 - abs(np.random.normal(0, 0.0008)))
-        v = abs(np.random.normal(100, 25))
-        rows.append([o, h, l, c, v])
-
-    return pd.DataFrame(rows, index=idx, columns=["Open", "High", "Low", "Close", "Volume"])
+    raise RuntimeError(last_error or "Markkinadata ei ole saatavilla.")
 
 
 def load_data():
+    required = max(candles + 230, 420)
     try:
-        if st.session_state.df is None:
-            st.session_state.df = get_klines(symbol, tf, max(candles + 230, 420))
+        existing = st.session_state.df
+        if (
+            existing is None
+            or existing.empty
+            or "CloseTimeMs" not in existing.columns
+        ):
+            fresh = get_klines(symbol, tf, required)
         else:
-            latest = get_klines(symbol, tf, 10)
-            df = pd.concat([st.session_state.df, latest])
-            df = df[~df.index.duplicated(keep="last")]
-            df = df.sort_index().tail(max(candles + 230, 420))
-            st.session_state.df = df
+            newest = get_klines(symbol, tf, 10)
+            fresh = pd.concat([existing, newest])
+            fresh = fresh[~fresh.index.duplicated(keep="last")]
+            fresh = fresh.sort_index().tail(required)
 
+        if fresh.empty or len(fresh) < 220:
+            raise RuntimeError(f"Liian vähän sulkeutuneita kynttilöitä ({len(fresh)}); signaalia ei muodosteta.")
+
+        st.session_state.df = fresh
         st.session_state.last_error = ""
-        return st.session_state.df.copy(), "Binance live OHLC"
+        return fresh.copy(), "Binance Spot — sulkeutunut OHLCV / REST", True
 
-    except Exception as e:
-        st.session_state.last_error = str(e)
+    except Exception as error:
+        st.session_state.last_error = str(error)
+        cached = st.session_state.df
 
-        if st.session_state.df is None:
-            base = 78000 if symbol == "BTCUSDT" else 3000
-            st.session_state.df = demo_data(max(candles + 230, 420), base)
-            return st.session_state.df.copy(), "Demo-varadata"
+        if cached is not None and not cached.empty and "CloseTimeMs" in cached.columns:
+            # Keep history visible, but callers must suppress all actionable signals.
+            return cached.copy(), "DATA STALE — viimeisin välimuistihistoria", False
 
-        return st.session_state.df.copy(), "Vanha data käytössä"
+        # Never synthesize random prices when real market data is unavailable.
+        st.session_state.df = None
+        return None, "DATA FAIL — oikeaa markkinadataa ei saatu", False
 
 
 # ============================================================
@@ -285,36 +311,49 @@ def add_indicators(df):
 
 
 @st.cache_data(ttl=20, show_spinner=False)
-def higher_tf_bias(symbol_code):
+def higher_tf_bias(symbol_code, main_interval):
     result = {}
+    frames = ["1m", "3m", "5m", "15m", "1h", "4h", "1d"]
+    try:
+        index = frames.index(main_interval)
+        higher_frames = frames[index + 1:index + 3]
+    except ValueError:
+        higher_frames = []
 
-    for htf in ["5m", "15m", "1h", "4h"]:
+    if len(higher_frames) != 2:
+        return "EPÄSELVÄ", {"vahvistus": "Kaksi aidosti korkeampaa aikaväliä puuttuu"}
+
+    for higher_frame in higher_frames:
         try:
-            d = add_indicators(get_klines(symbol_code, htf, 180))
-            last = d.iloc[-2]
+            data = add_indicators(get_klines(symbol_code, higher_frame, 240))
+            if data.empty or len(data) < 220:
+                raise RuntimeError("Ylempää aikaväliä varten ei ole riittävästi sulkeutuneita kynttilöitä")
+            last = data.iloc[-1]
 
             if last.Close > last.EMA50 > last.EMA100:
-                result[htf] = "NOUSU"
+                result[higher_frame] = "NOUSU"
             elif last.Close < last.EMA50 < last.EMA100:
-                result[htf] = "LASKU"
+                result[higher_frame] = "LASKU"
             else:
-                result[htf] = "EPÄSELVÄ"
+                result[higher_frame] = "EPÄSELVÄ"
 
         except Exception:
-            result[htf] = "?"
+            result[higher_frame] = "EI DATAA"
 
-    bull = sum(v == "NOUSU" for v in result.values())
-    bear = sum(v == "LASKU" for v in result.values())
+    if any(value == "EI DATA" for value in result.values()):
+        return "EPÄSELVÄ", result
 
-    if bull >= 3:
+    bull = sum(value == "NOUSU" for value in result.values())
+    bear = sum(value == "LASKU" for value in result.values())
+
+    if bull == 2:
         return "VAHVA NOUSU", result
-    if bear >= 3:
+    if bear == 2:
         return "VAHVA LASKU", result
-    if bull >= 2:
+    if bull == 1:
         return "NOUSU", result
-    if bear >= 2:
+    if bear == 1:
         return "LASKU", result
-
     return "EPÄSELVÄ", result
 
 
@@ -709,7 +748,10 @@ def ai_engine(df):
     score = 0
     notes = []
 
-    bias, details = higher_tf_bias(symbol)
+    bias, details = higher_tf_bias(symbol, tf)
+    higher_data_ok = len(details) == 2 and all(
+        value in {"NOUSU", "LASKU", "EPÄSELVÄ"} for value in details.values()
+    )
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -805,7 +847,7 @@ def ai_engine(df):
     if score > 0:
         direction_temp = "OSTA"
     elif score < 0:
-        direction_temp = "MYY"
+        direction_temp = "LASKU"
 
     ai_temp = {
         "bias": bias,
@@ -827,7 +869,7 @@ def ai_engine(df):
         level = "⚡ NOPEA OSTA"
         final = max(final, 58)
     elif alert == "NOPEA MYY":
-        level = "⚡ NOPEA MYY"
+        level = "⚠ VÄLTÄ UUSIA OSTOJA"
         final = min(final, -58)
     elif final >= 65:
         level = "VAHVA OSTA"
@@ -836,29 +878,30 @@ def ai_engine(df):
     elif final >= 18:
         level = "TARKKAILU OSTA"
     elif final <= -65:
-        level = "VAHVA MYY"
+        level = "VAHVA LASKU — VÄLTÄ UUSIA OSTOJA"
     elif final <= -38:
-        level = "MYY"
+        level = "VÄLTÄ UUSIA OSTOJA"
     elif final <= -18:
-        level = "TARKKAILU MYY"
+        level = "TARKKAILU: LASKUTRENDI"
     else:
         level = "ODOTA"
 
-    if no_trade and abs(final) < 18:
+    if not higher_data_ok:
+        level = "DATA STALE"
+        final = 0
+        notes.append("Ylemmän aikavälin data puuttuu; kaupankäyntisignaali estetty.")
+    elif no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
-    confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
+    confidence = 0 if not higher_data_ok else int(min(95, max(45, 50 + abs(final) * 0.45)))
 
     atr = max(float(live.ATR), price * 0.001)
 
-    if "OSTA" in level:
+    actionable_buy = level in {"OSTA", "VAHVA OSTA", "⚡ NOPEA OSTA"}
+    if actionable_buy:
         stop = price - atr * 1.25
         target = price + atr * 2.2
         direction = "OSTA"
-    elif "MYY" in level:
-        stop = price + atr * 1.25
-        target = price - atr * 2.2
-        direction = "MYY"
     else:
         stop = None
         target = None
@@ -883,6 +926,8 @@ def ai_engine(df):
         "target": target,
         "rr": rr,
         "direction": direction,
+        "actionable": actionable_buy,
+        "spot_policy": "long-only",
         "structure": structure,
         "triangle": triangle_name,
         "triangle_lines": triangle_lines,
@@ -898,21 +943,26 @@ def signal_box(ai):
     level = ai["level"]
     conf = ai["confidence"]
 
-    if "OSTA" in level and "TARKKAILU" not in level:
-        cls = "buy"
-    elif "MYY" in level and "TARKKAILU" not in level:
+    if level == "DATA STALE":
+        cls = "stale"
+    elif level in {
+        "VÄLTÄ UUSIA OSTOJA",
+        "⚠ VÄLTÄ UUSIA OSTOJA",
+        "VAHVA LASKU — VÄLTÄ UUSIA OSTOJA",
+        "TARKKAILU: LASKUTRENDI",
+    }:
         cls = "sell"
+    elif "OSTA" in level and "TARKKAILU" not in level:
+        cls = "buy"
     elif "TARKKAILU OSTA" in level:
         cls = "watchbuy"
-    elif "TARKKAILU MYY" in level:
-        cls = "watchsell"
     elif "EI TREIDIÄ" in level:
         cls = "notrade"
     else:
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>{conf}%</div>',
+        f'<div class="signal {cls}">{level}<br><small>Heuristinen vahvuusindeksi {conf}/100 — ei voittotodennäköisyys</small></div>',
         unsafe_allow_html=True,
     )
 
@@ -986,7 +1036,7 @@ def draw_chart(df, ai):
 
 
 def remember(ai):
-    if ai["level"] in ["ODOTA", "EI TREIDIÄ"]:
+    if ai["level"] in ["ODOTA", "EI TREIDIÄ", "DATA STALE"] or not ai.get("actionable", False):
         return
 
     item = {
@@ -1008,23 +1058,45 @@ def remember(ai):
 
 
 def run_app():
-    raw, source = load_data()
+    st.title("💰 Rahasampo Radar V26 PRO")
+    raw, source, market_data_ok = load_data()
+
+    if raw is None or raw.empty:
+        st.error("DATA FAIL — oikeaa Binance-kynttilädataa ei saatu. Signaali ja riskitasot on estetty.")
+        st.caption(source)
+        if st.session_state.last_error:
+            st.code(st.session_state.last_error)
+        st.stop()
+
     df = add_indicators(raw)
     ai = ai_engine(df)
-    remember(ai)
-
-    st.title("💰 Rahasampo Radar V26 PRO")
+    if not market_data_ok:
+        ai = dict(ai)
+        ai.update({
+            "level": "DATA STALE",
+            "score": 0,
+            "confidence": 0,
+            "stop": None,
+            "target": None,
+            "rr": None,
+            "direction": "ODOTA",
+            "actionable": False,
+            "notes": ["Markkinadatahaku epäonnistui. Näytetään viimeisin välimuistihistoria; kaikki kaupankäyntisignaalit on estetty."],
+        })
+    else:
+        remember(ai)
 
     signal_box(ai)
 
     c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Hinta", f"{ai['price']:,.4f}")
+    c1.metric("Viimeisin suljettu hinta", f"{ai['price']:,.4f}")
     c2.metric("Score", f"{ai['score']} / 100")
     c3.metric("Trend", ai["bias"])
     c4.metric("Candle", ai["power"])
     c5.metric("Päivitetty", now_local())
 
-    st.caption(f"{source} | TF: {tf} | Live {refresh}s | Suomen aika")
+    last_closed_utc = pd.to_datetime(int(df["CloseTimeMs"].iloc[-1]), unit="ms", utc=True).isoformat()
+    st.caption(f"{source} | TF: {tf} | REST-päivitysväli {refresh}s | viimeisin sulkeutunut kynttilä UTC: {last_closed_utc}")
 
     if st.session_state.last_error:
         st.warning(f"Datavaroitus: {st.session_state.last_error}")
@@ -1065,17 +1137,20 @@ def run_app():
 
     with d:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🧠 Opeta AI:ta")
-        st.write("Kun signaali oli hyvä tai huono, tallenna tulos.")
-        colw, coll = st.columns(2)
-        with colw:
-            if st.button("✅ Tämä onnistui", use_container_width=True):
-                save_learning_result("win", ai)
-                st.success("Tallennettu voitolliseksi malliksi.")
-        with coll:
-            if st.button("❌ Tämä epäonnistui", use_container_width=True):
-                save_learning_result("loss", ai)
-                st.error("Tallennettu virheeksi.")
+        st.subheader("🧠 Sääntöpohjaisen mallin arviointi")
+        if not market_data_ok or ai["level"] == "DATA STALE":
+            st.warning("Oppimistuloksen tallennus on lukittu, koska pää- tai ylemmän aikavälin markkinadata ei ole tuore/kelvollinen.")
+        else:
+            st.write("Kirjaa tulos vasta toteutuneen paperikaupan jälkeen. Tämä säätää heuristista muistipainoa, ei kouluta koneoppimismallia.")
+            colw, coll = st.columns(2)
+            with colw:
+                if st.button("✅ Tämä onnistui", use_container_width=True):
+                    save_learning_result("win", ai)
+                    st.success("Tallennettu arviointimuistiin.")
+            with coll:
+                if st.button("❌ Tämä epäonnistui", use_container_width=True):
+                    save_learning_result("loss", ai)
+                    st.error("Tallennettu arviointimuistiin.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("🧠 Miksi AI sanoo näin?"):
@@ -1100,6 +1175,6 @@ def run_app():
 
 run_app()
 
-if live_on:
+if automatic_refresh:
     time.sleep(refresh)
     st.rerun()

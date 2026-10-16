@@ -1,26 +1,47 @@
 "use strict";
-
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-
-const html = fs.readFileSync("public/index.html", "utf8");
-const scripts = [];
-const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
-let match;
-while ((match = re.exec(html)) !== null) {
-  if (/\bsrc\s*=/i.test(match[1])) continue;
-  if (match[2].trim()) scripts.push({ body: match[2], offset: match.index });
-}
-assert.ok(scripts.length > 0, "expected at least one inline script");
-for (const script of scripts) {
-  try {
-    new Function(script.body);
-  } catch (error) {
-    error.message = "Inline script at HTML offset " + script.offset + ": " + error.message;
-    throw error;
-  }
-}
-assert.match(html, /function renderNativeCandleChart\s*\(/, "native SVG chart fallback must be present");
-assert.match(html, /return renderNativeCandleChart\(series,signal,symbol,chartCount\)/, "missing Plotly should use local chart");
-assert.match(html, /\.catch\(function\(\)\{renderNativeCandleChart/, "asynchronous Plotly failures should fall back locally");
-console.log("Dashboard inline script tests passed: " + scripts.length + " inline script(s) parse; SVG candlestick fallback is wired.");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const html=fs.readFileSync("public/index.html","utf8");
+const scripts=[];const re=/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;let m;while((m=re.exec(html))!==null){if(/\bsrc\s*=/i.test(m[1]))continue;if(m[2].trim())scripts.push(m[2]);}
+assert.ok(scripts.length>0,"expected inline dashboard script");
+for(const body of scripts)assert.doesNotThrow(()=>new Function(body));
+assert.match(html,/long-only spot/i,"dashboard explicitly identifies spot policy");
+assert.match(html,/VÄLTÄ UUSIA OSTOJA/,"bearish spot state is not presented as a short signal");
+assert.match(html,/Lyhyt momentum \/ MACD/,"trend and short momentum are separated");
+assert.match(html,/ADX \/ DI\+ \/ DI−/,"dashboard exposes ADX and both directional indicators");
+assert.match(fs.readFileSync("public/trading-engine.js","utf8"),/name:"RSI 50–68"/,"RSI requirement is explicit in the shared evaluator");
+assert.match(html,/Spread/,"dashboard exposes spread");
+assert.match(html,/0\.0001 %/,"tiny spreads are not rounded to a misleading zero");
+assert.match(html,/OOS winrate/);assert.match(html,/OOS netto/);assert.match(html,/OOS DD/);assert.match(html,/OOS PF/);
+assert.match(html,/pieni otos/,"small OOS samples are warned about rather than hidden");
+assert.match(html,/RAPORTTI VANHENTUNUT/,"stale paper reports are visually flagged");
+assert.match(html,/Math\.max\(0,\(Date\.now\(\)-started\)\/1000\)/,"report age is clamped at zero");
+assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
+assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
+assert.match(html,/strategyVersion/,"strategy version is visible");
+assert.match(html,/function renderNativeCandleChart\(/,"chart has a native SVG fallback if the Plotly CDN is unavailable");
+assert.match(html,/return renderNativeCandleChart\(series,sig,sym,count\)/,"chart falls back to native SVG on missing/broken Plotly");
+assert.match(html,/<script src=".\/live-market.js"><\/script>/,"dashboard loads the browser WebSocket feed");
+assert.match(html,/id="liveStatus"/,"dashboard has a separate explicit live-stream state");
+assert.match(html,/id="bidAsk"/,"dashboard exposes live bid/ask");
+assert.match(html,/id="marketAge"/,"dashboard exposes separate market data ages");
+assert.match(html,/LIVE DATA STALE/,"stale stream explicitly blocks signals");
+assert.match(html,/higherTimeframes:highers/,"backtest receives selected higher timeframe labels");
+assert.match(html,/Kynttiläkaavio/,"candlestick chart is the main chart heading");
+assert.match(html,/id="chartCount"><option>30<\/option><option selected>50<\/option>/,"default view prioritizes a readable candle count");
+assert.match(html,/id="showEma"/,"EMA overlays can be switched off for candle clarity");
+assert.match(html,/function findCandlePatterns\(/,"candlestick-pattern detector is present");
+assert.match(html,/name:"Vasara"/,"hammer pattern is identified");
+assert.match(html,/Käänteinen vasara/,"inverted hammer pattern is identified");
+assert.match(html,/Tähdenlento/,"shooting-star pattern is identified");
+assert.match(html,/id="patternList"/,"identified patterns are listed below the chart");
+assert.ok(html.indexOf("Kynttiläkaavio")<html.indexOf('<section class="metrics">'),"large candlestick chart appears before metric cards");
+assert.match(html,/lightweight-charts@5\.0\.8\/dist\/lightweight-charts\.standalone\.production\.js/,"uses TradingView Lightweight Charts for finance-style rendering");
+assert.match(html,/function startCandleStream\(/,"chart has a dedicated live candle stream");
+assert.match(html,/@kline_/,"subscribes to exchange-native live kline updates");
+assert.match(html,/liveCandleSeries\.update\(bar\)/,"updates the currently forming candle without reloading the whole chart");
+assert.match(html,/KYNTTILÄDATA VANHENTUNUT/,"live candle feed has an explicit stale-data warning");
+assert.match(html,/id="candleOhlc"/,"chart displays live OHLC values");
+assert.match(html,/candleEventLatency/,"chart displays an estimated exchange-event latency");
+assert.match(html,/liveChart\.timeScale\(\)\.fitContent\(\)/,"chart fits historical data on initial load");
+console.log("Dashboard tests passed: inline JS parses and transparency/freshness requirements are present.");

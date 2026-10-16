@@ -5,6 +5,25 @@
   "installCommand": null,
   "outputDirectory": "public",
   "ignoreCommand": "node scripts/vercel-ignore-build.js",
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0, must-revalidate"
+        },
+        {
+          "key": "CDN-Cache-Control",
+          "value": "no-store"
+        },
+        {
+          "key": "Vercel-CDN-Cache-Control",
+          "value": "no-store"
+        }
+      ]
+    }
+  ],
   "git": {
     "deploymentEnabled": {
       "paper-data": false
