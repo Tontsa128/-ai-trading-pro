@@ -4,14 +4,20 @@ Trading dashboard and deterministic indicator engine for research and education.
 
 ## Browser dashboard
 
-- Public Binance Spot market data: closed OHLCV candles, 24-hour ticker, and bid/ask book ticker. Public market-data endpoints do not require a user API key.
+- Binance Spot market data: closed OHLCV candles and 24-hour change are loaded through the REST proxy; last-trade price and bid/ask for the dashboard come directly from the public Binance Spot WebSocket stream. Public market data does not require a user API key.
 - Supported pairs: BTC, ETH, SOL, BNB, XRP and DOGE against USDT.
 - Indicators: EMA 9/21/50/200, Wilder RSI, ATR, MACD, ADX and relative volume.
-- Conservative signal gates: requires a trend/momentum setup plus confirmation from two higher timeframes, recent price data, a sufficiently narrow spread and non-extreme volatility. If a required check fails or data cannot be validated, it returns `ODOTA`.
-- Spot risk calculator estimates position sizing for a BUY using account value, a configurable risk fraction, a maximum exposure cap, estimated exchange fees and slippage. SELL signals do not invent a sell quantity because the app does not know the user's holdings.
-- Historical test: paginated 1h history (up to 2,500 closed candles per pair, fetched in batches of at most 1,000), plus aligned 4h/1d history for BTC, ETH, SOL and the selected pair. Live, backtest and paper trading call the same `evaluateSignal()` function. The backtest remains long-only spot; historical spread is an estimate because past order-book quotes are not fetched. If fewer than 100 trades exist, return, win-rate, drawdown and profit-factor metrics are shown as `—` with a warning rather than treated as evidence.
+- Conservative long-only spot signal gates require trend/momentum agreement plus two genuinely higher timeframes, fresh trade and bid/ask updates, acceptable spread and non-extreme volatility. When the stream is stale/disconnected or a required check fails, the UI blocks a usable signal and displays `DATA STALE` or `ODOTA`.
+- The strategy is long-only spot. A bearish trend is shown as `VÄLTÄ UUSIA OSTOJA`; it never creates a short position. Position sizing includes configurable risk, exposure cap, estimated fees and slippage.
+- Historical test: up to 500 closed candles for the selected analysis interval plus up to 300 candles for each corresponding higher timeframe. The browser, 2-hour paper collector and backtest load the same `trading-engine.js` source and use the shared `evaluateSignal()`/`makeSignal()` decision path; the separate 5s/15s EMA experiment deliberately uses a different strategy. Historical spread is estimated because past order-book quotes are not fetched. OOS net P/L, win rate, drawdown and profit factor are displayed even for small samples, with an explicit warning when the sample is too small to be reliable.
 
-Signal diagnostics: the checklist chooses BUY/SELL context from the EMA trend bias before falling back to score counts, so a bearish trend is not accidentally shown with the bullish checklist while direction is WAIT. Higher-timeframe trend bias is separated from MACD histogram sign; MACD is labelled by what is actually measured (histogram positive/negative). The volume threshold is 0.5x the prior 20-candle average, and support/resistance are calculated from the prior 30 candles excluding the current candle. The support/resistance clearance guard is 0.5 ATR. These are hypotheses to validate, not proven improvements; compare results and drawdown over a larger sample.
+Signal diagnostics include RSI requirement ranges, ADX/DI+/DI−, separate long-trend and short-momentum descriptions, timestamps, spread precision and stale-data state. The analysis timeframe determines which two higher timeframes confirm it; the default 1h strategy uses 4h and 1d. The volume threshold is 0.5x the prior 20-candle average; support/resistance use the prior 30 candles excluding the current candle. These are testable hypotheses, not proven improvements.
+
+## Live market-data behavior
+
+`public/live-market.js` connects the browser directly to Binance Spot combined `@trade` and `@bookTicker` streams for the six supported pairs. It publishes coalesced UI updates four times per second; that is a display cadence, not a 250 ms exchange delay. It tracks trade-price receive age separately from bid/ask receive age, flags prices older than 5 seconds or quotes older than 3 seconds, detects a WebSocket idle period, times out a stalled connection attempt, and rotates across public endpoints. When data is stale, the dashboard blocks the signal instead of silently treating a cached price as live. REST is used for candle history and the 24-hour percentage change, not as a polling substitute for the live price.
+
+**No Internet-connected market feed can guarantee 100% zero-latency availability.** Network, exchange, browser scheduling and provider outages can cause delay or interruptions. The application reports observed local receive age and fails closed when it exceeds configured thresholds. Keep API keys out of browser code; the UI remains paper/research-only and does not submit real orders.
 
 ## Run tests
 
@@ -21,7 +27,7 @@ Requires Node.js 20 or newer:
 npm test
 ```
 
-GitHub Actions runs this test on pushes and pull requests to `main`.
+GitHub Actions runs this suite on pushes to `main` and `fix/**` branches and on pull requests to `main`.
 
 ## Vercel setup
 
