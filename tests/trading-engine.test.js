@@ -45,6 +45,15 @@ assert.equal(bs.direction,"WAIT");assert.equal(bs.spotExit,true);assert.match(bs
 const low={...ba,bar:{...ba.bar,volumeRatio:.43}};low.checks=E.explainCandle(low.bar);const ls=E.evaluateSignal(low,[ba,ba],{price:low.bar.close,closeTime:Date.now(),bid:low.bar.close*.9999,ask:low.bar.close*1.0001},opts);assert.ok(ls.blockingReasons.some(x=>x.includes("0.43×")&&x.includes("0.50×")));
 const ex={...analysed,overextended:true};const es=E.evaluateSignal(ex,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*.9999,ask:analysed.bar.close*1.0001},opts);assert.ok(es.blockingReasons.some(x=>x.includes("ehto ei täyty")));
 const vol={...analysed,highVolatility:true,bar:{...analysed.bar,atrPct:4.2}};const vs=E.evaluateSignal(vol,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*.9999,ask:analysed.bar.close*1.0001},opts);assert.ok(vs.blockingReasons.some(x=>x.includes("4.20 %")&&x.includes("ehto ei täyty")));
+const liveBelowEma={...analysed,bar:{...analysed.bar,ema200:analysed.bar.close-0.01,ema50:analysed.bar.close+0.01,ema9:analysed.bar.close+0.02,ema21:analysed.bar.close+0.01}};
+liveBelowEma.checks=E.explainCandle(liveBelowEma.bar);
+const liveBelow=E.evaluateSignal(liveBelowEma,[analysed,analysed],{price:liveBelowEma.bar.ema200-0.02,closeTime:Date.now(),bid:liveBelowEma.bar.ema200-0.03,ask:liveBelowEma.bar.ema200-0.01},opts);
+assert.equal(liveBelow.checklist.find(x=>x.name==="Hinta EMA 200:n yläpuolella").ok,false,"EMA200 price check must use current spot price, not only the last closed candle");
+assert.match(liveBelow.checklist.find(x=>x.name==="Hinta EMA 200:n yläpuolella").detail,/Live-hinta/);
+const tightSpread=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:100,ask:100.00001},opts);
+assert.equal(tightSpread.checklist.find(x=>x.name==="Osto/myyntihajonta hyväksyttävä").ok,true,"a tiny non-negative spread below the maximum must pass");
+const invalidSpread=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:100.01,ask:100},opts);
+assert.equal(invalidSpread.checklist.find(x=>x.name==="Osto/myyntihajonta hyväksyttävä").ok,false,"crossed bid/ask must fail closed");
 const historical=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:1,bid:100,ask:100.01},{...opts,historical:true});assert.equal(historical.priceAgeMs,0);
 const missingPriceTime=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,bid:100,ask:100.01},opts);assert.equal(missingPriceTime.priceAgeMs,null,"missing market timestamp is unavailable, not a misleading zero age");assert.equal(missingPriceTime.direction,"WAIT","missing market timestamp blocks the live signal");
 const stale=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now()-10*60*1000,bid:100,ask:100.01},opts);assert.equal(stale.direction,"WAIT");
