@@ -9,7 +9,7 @@ assert.match(html,/long-only spot/i,"dashboard explicitly identifies spot policy
 assert.match(html,/VÄLTÄ UUSIA OSTOJA/,"bearish spot state is not presented as a short signal");
 assert.match(html,/Lyhyt momentum \/ MACD/,"trend and short momentum are separated");
 assert.match(html,/ADX \/ DI\+ \/ DI−/,"dashboard exposes ADX and both directional indicators");
-assert.match(html,/RSI 50–68/,"RSI requirement is explicit");
+assert.match(fs.readFileSync("public/trading-engine.js","utf8"),/name:"RSI 50–68"/,"RSI requirement is explicit in the shared evaluator");
 assert.match(html,/Spread/,"dashboard exposes spread");
 assert.match(html,/0\.0001 %/,"tiny spreads are not rounded to a misleading zero");
 assert.match(html,/OOS winrate/);assert.match(html,/OOS netto/);assert.match(html,/OOS DD/);assert.match(html,/OOS PF/);
