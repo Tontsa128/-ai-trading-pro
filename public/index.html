@@ -115,7 +115,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  $("chart").innerHTML=out.join("");
  return true;
 }
-var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null;
+var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null,candleSocketOpenedAt=0;
 function chartStatus(message,type){var el=$("candleLiveStatus");if(el){el.className="status "+(type||"");el.textContent=message;}}
 function chart(series,sig,sym){
  var count=Number($("chartCount").value)||50,d=series.slice(-count),patterns=findCandlePatterns(d).slice(-12),showEma=$("showEma")&&$("showEma").checked;
@@ -157,14 +157,14 @@ function startCandleStream(symbol,interval){
  if(candleStreamKey===key&&candleSocket&&(candleSocket.readyState===WebSocket.OPEN||candleSocket.readyState===WebSocket.CONNECTING))return;
  candleStreamKey=key;stopCandleStream();candleReconnects=0;candleLastEventAt=0;
  if(candleWatchdogTimer)clearInterval(candleWatchdogTimer);
- candleWatchdogTimer=setInterval(function(){if(candleLastEventAt&&Date.now()-candleLastEventAt>8000)chartStatus("KYNTTILÄDATA VANHENTUNUT — viimeisimmästä Binance-kline-viestistä yli 8 s. Yhteys tarkistetaan.","error");},1000);
+ candleWatchdogTimer=setInterval(function(){var now=Date.now(),last=candleLastEventAt||candleSocketOpenedAt;if(last&&now-last>8000)chartStatus("KYNTTILÄDATA VANHENTUNUT — Binance-kline-viestiä ei ole saatu yli 8 sekuntiin. Yhteys tarkistetaan.","error");},1000);
  function connect(){
   if(candleStreamKey!==key)return;
   var urls=["wss://stream.binance.com:443/ws/"+symbol.toLowerCase()+"@kline_"+interval,"wss://data-stream.binance.vision:443/ws/"+symbol.toLowerCase()+"@kline_"+interval];
   var url=urls[candleReconnects%urls.length],ws;
   try{ws=new WebSocket(url);candleSocket=ws;}catch(e){schedule();return;}
   chartStatus("KYNTTILÄSTREAM: yhdistetään Binanceen ("+symbol+" / "+interval+")…","");
-  ws.onopen=function(){if(candleSocket!==ws)return;candleReconnects=0;chartStatus("KYNTTILÄSTREAM yhdistetty — odotetaan ensimmäistä kline-päivitystä.","warn");};
+  ws.onopen=function(){if(candleSocket!==ws)return;candleReconnects=0;candleSocketOpenedAt=Date.now();chartStatus("KYNTTILÄSTREAM yhdistetty — odotetaan ensimmäistä kline-päivitystä.","warn");};
   ws.onmessage=function(ev){
    if(candleSocket!==ws||candleStreamKey!==key)return;
    var msg;try{msg=JSON.parse(ev.data);}catch(e){return;}
@@ -173,7 +173,7 @@ function startCandleStream(symbol,interval){
    var bar={time:Math.floor(Number(k.t)/1000),open:Number(k.o),high:Number(k.h),low:Number(k.l),close:Number(k.c)};
    if(![bar.time,bar.open,bar.high,bar.low,bar.close].every(Number.isFinite)||bar.open<=0||bar.high<Math.max(bar.open,bar.close)||bar.low>Math.min(bar.open,bar.close))return;
    candleLastBar=bar;
-   if(liveCandleSeries){try{liveCandleSeries.update(bar);}catch(e){chartStatus("Kaavion kynttiläpäivitys epäonnistui; ladataan historia uudelleen.","error");}}
+   if(liveCandleSeries){try{liveCandleSeries.update(bar);}catch(e){chartStatus("Kaavion kynttiläpäivitys epäonnistui; ladataan historia uudelleen.","error");}}else if(latestChartBars&&historySymbol===symbol&&historyInterval===interval){var fallbackBars=latestChartBars.slice(),existing=fallbackBars.findIndex(function(b){return Math.floor(Number(b.time)/1000)===bar.time;});var fallbackBar={time:bar.time*1000,closeTime:(bar.time*1000)+intervalMs(interval)-1,open:bar.open,high:bar.high,low:bar.low,close:bar.close,volume:Number(k.v)||0};if(existing>=0)fallbackBars[existing]=Object.assign({},fallbackBars[existing],fallbackBar);else fallbackBars.push(fallbackBar);latestChartBars=fallbackBars;chart(fallbackBars,{direction:"WAIT"},symbol);}
    updateCandleReadout(k,msg.E);
    if(k.x&&latestChartBars&&historySymbol===symbol&&historyInterval===interval){load();runBT();}
   };
