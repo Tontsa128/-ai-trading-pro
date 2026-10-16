@@ -19,4 +19,10 @@ assert.match(html,/Math\.max\(0,\(Date\.now\(\)-started\)\/1000\)/,"report age i
 assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
 assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
 assert.match(html,/strategyVersion/,"strategy version is visible");
+assert.match(html,/<script src=".\/live-market.js"><\/script>/,"dashboard loads the browser WebSocket feed");
+assert.match(html,/id="liveStatus"/,"dashboard has a separate explicit live-stream state");
+assert.match(html,/id="bidAsk"/,"dashboard exposes live bid/ask");
+assert.match(html,/id="marketAge"/,"dashboard exposes separate market data ages");
+assert.match(html,/LIVE DATA STALE/,"stale stream explicitly blocks signals");
+assert.match(html,/higherTimeframes:highers/,"backtest receives selected higher timeframe labels");
 console.log("Dashboard tests passed: inline JS parses and transparency/freshness requirements are present.");
