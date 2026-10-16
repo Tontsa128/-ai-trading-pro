@@ -156,10 +156,11 @@ def get_klines(symbol_code, interval_code, limit_count):
     ]
 
     last_error = ""
+    now_ms = int(time.time() * 1000)
 
     for url in urls:
         try:
-            r = requests.get(
+            response = requests.get(
                 url,
                 params={
                     "symbol": symbol_code,
@@ -167,75 +168,99 @@ def get_klines(symbol_code, interval_code, limit_count):
                     "limit": int(limit_count),
                 },
                 timeout=8,
-                headers={"User-Agent": "Mozilla/5.0"},
+                headers={"User-Agent": "RahasampoRadar/1.0"},
             )
 
-            if r.status_code != 200:
-                last_error = f"{r.status_code}: {r.text[:120]}"
+            if response.status_code in (418, 429):
+                raise RuntimeError(f"Binance rate limit HTTP {response.status_code}")
+            if response.status_code != 200:
+                last_error = f"HTTP {response.status_code}: {response.text[:120]}"
                 continue
 
-            raw = r.json()
-            rows = []
+            raw = response.json()
+            if not isinstance(raw, list):
+                last_error = "Binance palautti virheellisen kynttilädatamuodon."
+                continue
 
-            for k in raw:
+            rows = []
+            for candle in raw:
+                if not isinstance(candle, list) or len(candle) < 7:
+                    continue
+                open_time, close_time = int(candle[0]), int(candle[6])
+                # Only fully closed OHLC candles may feed indicators or signals.
+                if close_time >= now_ms:
+                    continue
+
+                values = [float(candle[i]) for i in (1, 2, 3, 4, 5)]
+                open_price, high, low, close, volume = values
+                if (
+                    not all(np.isfinite(v) for v in values)
+                    or min(open_price, high, low, close) <= 0
+                    or volume < 0
+                    or high < max(open_price, close, low)
+                    or low > min(open_price, close, high)
+                ):
+                    continue
+
                 rows.append({
-                    "Date": pd.to_datetime(k[0], unit="ms", utc=True).tz_convert(APP_TZ),
-                    "Open": float(k[1]),
-                    "High": float(k[2]),
-                    "Low": float(k[3]),
-                    "Close": float(k[4]),
-                    "Volume": float(k[5]),
+                    "Date": pd.to_datetime(open_time, unit="ms", utc=True).tz_convert(APP_TZ),
+                    "Open": open_price,
+                    "High": high,
+                    "Low": low,
+                    "Close": close,
+                    "Volume": volume,
+                    "CloseTimeMs": close_time,
                 })
 
-            return pd.DataFrame(rows).set_index("Date")
+            if not rows:
+                last_error = "Binance ei palauttanut kelvollisia sulkeutuneita kynttilöitä."
+                continue
 
-        except Exception as e:
-            last_error = str(e)
+            frame = pd.DataFrame(rows).set_index("Date").sort_index()
+            return frame[~frame.index.duplicated(keep="last")]
 
-    raise RuntimeError(last_error)
+        except Exception as error:
+            last_error = str(error)
+            if "rate limit" in last_error.lower():
+                raise RuntimeError(last_error)
 
-
-def demo_data(limit_count=360, base=78000):
-    now = pd.Timestamp.now(tz=APP_TZ).floor("min")
-    idx = pd.date_range(end=now, periods=limit_count, freq="min")
-    price = float(base)
-    rows = []
-
-    for _ in idx:
-        o = price
-        price *= 1 + np.random.normal(0, 0.0011)
-        c = price
-        h = max(o, c) * (1 + abs(np.random.normal(0, 0.0008)))
-        l = min(o, c) * (1 - abs(np.random.normal(0, 0.0008)))
-        v = abs(np.random.normal(100, 25))
-        rows.append([o, h, l, c, v])
-
-    return pd.DataFrame(rows, index=idx, columns=["Open", "High", "Low", "Close", "Volume"])
+    raise RuntimeError(last_error or "Markkinadata ei ole saatavilla.")
 
 
 def load_data():
+    required = max(candles + 230, 420)
     try:
-        if st.session_state.df is None:
-            st.session_state.df = get_klines(symbol, tf, max(candles + 230, 420))
+        existing = st.session_state.df
+        if (
+            existing is None
+            or existing.empty
+            or "CloseTimeMs" not in existing.columns
+        ):
+            fresh = get_klines(symbol, tf, required)
         else:
-            latest = get_klines(symbol, tf, 10)
-            df = pd.concat([st.session_state.df, latest])
-            df = df[~df.index.duplicated(keep="last")]
-            df = df.sort_index().tail(max(candles + 230, 420))
-            st.session_state.df = df
+            newest = get_klines(symbol, tf, 10)
+            fresh = pd.concat([existing, newest])
+            fresh = fresh[~fresh.index.duplicated(keep="last")]
+            fresh = fresh.sort_index().tail(required)
 
+        if fresh.empty or len(fresh) < 220:
+            raise RuntimeError(f"Liian vähän sulkeutuneita kynttilöitä ({len(fresh)}); signaalia ei muodosteta.")
+
+        st.session_state.df = fresh
         st.session_state.last_error = ""
-        return st.session_state.df.copy(), "Binance live OHLC"
+        return fresh.copy(), "Binance Spot — sulkeutunut OHLCV / REST", True
 
-    except Exception as e:
-        st.session_state.last_error = str(e)
+    except Exception as error:
+        st.session_state.last_error = str(error)
+        cached = st.session_state.df
 
-        if st.session_state.df is None:
-            base = 78000 if symbol == "BTCUSDT" else 3000
-            st.session_state.df = demo_data(max(candles + 230, 420), base)
-            return st.session_state.df.copy(), "Demo-varadata"
+        if cached is not None and not cached.empty and "CloseTimeMs" in cached.columns:
+            # Keep history visible, but callers must suppress all actionable signals.
+            return cached.copy(), "DATA STALE — viimeisin välimuistihistoria", False
 
-        return st.session_state.df.copy(), "Vanha data käytössä"
+        # Never synthesize random prices when real market data is unavailable.
+        st.session_state.df = None
+        return None, "DATA FAIL — oikeaa markkinadataa ei saatu", False
 
 
 # ============================================================
