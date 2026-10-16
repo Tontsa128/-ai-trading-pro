@@ -9,7 +9,7 @@ assert.ok(E);
 assert.equal(typeof E.explainCandle,"function");
 assert.equal(typeof E.evaluateSignal,"function");
 assert.equal(typeof E.makeSignal,"function");
-assert.equal(E.STRATEGY_VERSION,"spot-long-v28");
+assert.equal(E.STRATEGY_VERSION,"spot-long-v29");
 assert.equal(fs.readFileSync(path.join(__dirname,"../public/trading-engine.js"),"utf8"),fs.readFileSync(path.join(__dirname,"../trading-engine.js"),"utf8"),"browser, paper and backtest must use the same strategy source");
 const paperCycleSource=fs.readFileSync(path.join(__dirname,"../scripts/paper-trading-cycle.js"),"utf8");
 assert.match(paperCycleSource,/newTrades\.push\(buyTrade\)/,"paper cycle report includes new entry trades");
