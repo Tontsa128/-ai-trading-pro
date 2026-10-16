@@ -21,7 +21,7 @@ Signal diagnostics include RSI requirement ranges, ADX/DI+/DI−, separate long-
 
 ## Legacy Streamlit application
 
-`app.py` is retained as a separate research interface. It polls Binance REST for **closed OHLCV candles** on its configured refresh loop; it is not the browser's direct WebSocket live-tick feed. If a request fails, the app shows `DATA STALE` from cached history or `DATA FAIL` when no real data is available, blocks actionable signals and never manufactures random demo prices. Its heuristic score is not a trained machine-learning model, and a bearish state means avoid new spot buys rather than short selling.
+`app.py` is retained as a separate, legacy research interface. It polls Binance REST for **closed OHLCV candles** on its configured refresh loop; it is not the browser's direct WebSocket live-tick feed. If a request or either required higher-timeframe source fails, the app shows `DATA STALE` from cached history or `DATA FAIL` when no real data is available, blocks actionable signals and never manufactures random demo prices. Its heuristic scoring logic is separate from `trading-engine.js` and is not a trained machine-learning model. A bearish state means avoid new spot buys rather than short selling; it is not used by the browser dashboard or shared paper/backtest evaluator.
 
 ## Run tests
 
