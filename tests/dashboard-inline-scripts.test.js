@@ -23,4 +23,8 @@ for (const script of scripts) {
 assert.match(html, /function renderNativeCandleChart\s*\(/, "native SVG chart fallback must be present");
 assert.match(html, /return renderNativeCandleChart\(series,signal,symbol,chartCount\)/, "missing Plotly should use local chart");
 assert.match(html, /\.catch\(function\(\)\{renderNativeCandleChart/, "asynchronous Plotly failures should fall back locally");
+assert.ok(html.includes("VANHA RAPORTTI") && html.includes("reportAgeSeconds"),
+  "two-hour paper report must show age and warn when stale");
+assert.ok(html.includes("REST-VARASYÖTE") && html.includes("wsMessages===0&&restUpdates>0"),
+  "fast paper report must warn when REST-sampled prices replace missing WebSocket trade events");
 console.log("Dashboard inline script tests passed: " + scripts.length + " inline script(s) parse; SVG candlestick fallback is wired.");
