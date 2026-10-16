@@ -74,6 +74,16 @@ assert.equal(sockets.length, 2, "reconnect creates a new socket");
 assert.match(sockets[1].url, /^wss:\/\/stream\.binance\.com:443\/stream\?/,
   "reconnect rotates to the next supported endpoint");
 
+// A fallback endpoint that worked and then failed must rotate again, not get pinned.
+sockets[1].open();
+sockets[1].message({stream:"btcusdt@trade",data:{e:"trade",s:"BTCUSDT",p:"65001.00",q:"0.03",T:now}});
+sockets[1].message({stream:"btcusdt@bookTicker",data:{s:"BTCUSDT",b:"65000.99",a:"65001.01"}});
+sockets[1].close();
+timeouts[timeouts.length - 1]();
+assert.equal(sockets.length, 3, "second reconnect creates a third socket");
+assert.match(sockets[2].url, /^wss:\\/\\/stream\\.binance\\.com:9443\\/stream\\?/,
+  "success followed by a disconnect rotates to the third endpoint");
+
 windowMock.RahasampoLiveMarket.stop();
 assert.ok(emitted.some(e => e.type === "market-live-close") ||
   emitted.some(e => e.type === "market-live-stale"),
