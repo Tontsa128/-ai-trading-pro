@@ -14,4 +14,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: python -m py_compile app.py
       - run: npm test && node tests/paper-data-persistence.test.js && bash -n scripts/persist-paper-data.sh
