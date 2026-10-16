@@ -3,16 +3,17 @@
 // Short-horizon PAPER research worker. No private API keys or order endpoints.
 const fs = require("node:fs");
 const path = require("node:path");
-const { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("./market-feed");
+const { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("./market-feed");
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
 const INTERVAL_SECONDS = Number(process.env.FAST_INTERVAL_SECONDS || 5);
 const SESSION_SECONDS = Number(process.env.FAST_SESSION_SECONDS || 240);
 const FEE_PCT = 0.10;       // per side, deliberately conservative
 const SLIPPAGE_PCT = 0.05;  // per side estimate
+const MAX_QUOTE_AGE_MS = 5000;
 const MAX_POSITION_PCT = 10;
 const MAX_OPEN_POSITIONS = 3;
-const MIN_EDGE_PCT = 0.35;  // must clear estimated round-trip costs plus a small buffer
+const MIN_EDGE_PCT = 0.35;  // Momentum filter only; not expected return or proof that costs are covered.
 const STOP_PCT = 0.40;
 const TARGET_PCT = 0.65;
 const ROOT = path.resolve(__dirname, "..");
@@ -29,6 +30,7 @@ let stopTimer;
 let quoteTimer;
 let stopping = false;
 let socketOpen = false;
+let websocketConnectedAtEnd = false;
 let socketMessages = 0;
 let socketErrors = 0;
 let consecutiveSocketFailures = 0;
@@ -148,12 +150,16 @@ function closePosition(s, reason, marketPrice, time) {
 function onClosedBar(s, bar) {
   const closes = s.bars.filter(x => x.closeTime !== undefined).map(x => x.close);
   if (closes.length < 30) return;
-  const fast = ema(closes.slice(-80), 9);
-  const slow = ema(closes.slice(-80), 21);
-  const prevFast = ema(closes.slice(-81, -1), 9);
-  const prevSlow = ema(closes.slice(-81, -1), 21);
+  // Use the same full history for current and previous EMA values so rolling-window
+  // re-seeding cannot create artificial crossovers at the 80-candle boundary.
+  const fast = ema(closes, 9);
+  const slow = ema(closes, 21);
+  const priorCloses = closes.slice(0, -1);
+  const prevFast = ema(priorCloses, 9);
+  const prevSlow = ema(priorCloses, 21);
   const momentum = (closes[closes.length - 1] / closes[closes.length - 4] - 1) * 100;
   const spreadPct = s.bid > 0 && s.ask >= s.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null;
+  const quoteFresh = isFreshQuote(s.lastQuoteAt, Date.now(), MAX_QUOTE_AGE_MS);
   const p = state.positions[s.symbol];
   if (p) {
     p.lastPrice = bar.close;
@@ -164,7 +170,7 @@ function onClosedBar(s, bar) {
   }
   const crossUp = prevFast !== null && prevSlow !== null && prevFast <= prevSlow && fast > slow;
   const enoughEdge = momentum >= MIN_EDGE_PCT;
-  const spreadOk = spreadPct !== null && spreadPct <= 0.08;
+  const spreadOk = quoteFresh && spreadPct !== null && spreadPct <= 0.08;
   if (crossUp && enoughEdge && spreadOk && Object.keys(state.positions).length < MAX_OPEN_POSITIONS) {
     const equity = state.cash + Object.values(state.positions).reduce((a, x) => a + x.qty * (x.lastPrice || x.entry), 0);
     const budget = Math.min(state.cash, equity * MAX_POSITION_PCT / 100);
@@ -174,11 +180,13 @@ function onClosedBar(s, bar) {
     const costBasis = fill * qty + fee;
     if (qty > 0 && costBasis <= state.cash && Number.isFinite(fill)) {
       state.cash -= costBasis;
-      state.positions[s.symbol] = { qty, entry: fill, entryTime: new Date(bar.closeTime).toISOString(),
+      // This decision is made only after the closed bar is observed; never timestamp the fill in the past.
+      const entryTime = new Date(Math.max(Date.now(), bar.closeTime + 1)).toISOString();
+      state.positions[s.symbol] = { qty, entry: fill, entryTime,
         costBasis, entryFee: fee, stop: fill * (1 - STOP_PCT / 100),
         target: fill * (1 + TARGET_PCT / 100), lastPrice: bar.close };
       const trade = { symbol: s.symbol, side: "PAPER_BUY", intervalSeconds: INTERVAL_SECONDS,
-        entryTime: new Date(bar.closeTime).toISOString(), entry: fill, qty, costBasis, fee,
+        entryTime, entry: fill, qty, costBasis, fee,
         stop: state.positions[s.symbol].stop, target: state.positions[s.symbol].target,
         reason: "5/15-second EMA cross + momentum; simulated only" };
       state.trades.push(trade); events.push(trade);
@@ -198,6 +206,7 @@ async function handleMessage(raw) {
   } else if (event.type === "bookTicker") {
     s.bid = event.bid;
     s.ask = event.ask;
+    s.lastQuoteAt = now;
     s.lastUpdateAt = now;
     s.lastFeed = "websocket";
   }
@@ -281,6 +290,7 @@ async function pollQuotes() {
         }
         s.bid = q.bid;
         s.ask = q.ask;
+        s.lastQuoteAt = now;
         restPolls += 1;
         s.lastUpdateAt = now;
         if (s.lastTradeAt && now - s.lastTradeAt <= 2500) {
@@ -338,7 +348,7 @@ function writeReport() {
     intervalSeconds: INTERVAL_SECONDS, sessionStartedAt: new Date(startedAt).toISOString(),
     sessionEndedAt: new Date(now).toISOString(), requestedSessionSeconds: SESSION_SECONDS,
     feedStatus: {
-      websocketConnectedAtEnd: socketOpen, websocketMessages: socketMessages,
+      websocketConnectedAtEnd: websocketConnectedAtEnd, websocketMessages: socketMessages,
       websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
       websocketDisabled: websocketDisabled,
       websocketEndpointsTried: websocketEndpointsTried,
@@ -355,6 +365,7 @@ function writeReport() {
         spreadPct: s?.bid > 0 && s?.ask >= s?.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null,
         lastUpdateAt: lastUpdateAt ? new Date(lastUpdateAt).toISOString() : null,
         marketAgeMs: lastUpdateAt ? Math.max(0, now - lastUpdateAt) : null,
+        quoteAgeMs: Number.isFinite(s?.lastQuoteAt) ? Math.max(0, now - s.lastQuoteAt) : null,
         feed: s?.lastFeed || "seed-history-only",
         closedBars: s?.bars.filter(b => b.closeTime !== undefined).length || 0,
         position: state.positions[symbol] || null };
@@ -391,7 +402,7 @@ function writeReport() {
 }
 async function main() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-  for (const symbol of SYMBOLS) symbols.set(symbol, { symbol, bars: [], bid: null, ask: null, lastPrice: null });
+  for (const symbol of SYMBOLS) symbols.set(symbol, { symbol, bars: [], bid: null, ask: null, lastQuoteAt: null, lastPrice: null });
   for (const s of symbols.values()) {
     try { await seed(s); } catch (e) { errors.push({ symbol: s.symbol, error: String(e.message || e) }); }
   }
@@ -406,6 +417,7 @@ async function main() {
       stopping = true;
       clearTimeout(reconnectTimer);
       clearTimeout(quoteTimer);
+      websocketConnectedAtEnd = socketOpen;
       socketOpen = false;
       try { if (socket) socket.close(); } catch {}
       resolve();
@@ -415,4 +427,4 @@ async function main() {
   if (errors.length >= SYMBOLS.length) process.exitCode = 1;
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });
-process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); try { socket?.close(); } catch {} writeReport(); process.exit(130); });
+process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); websocketConnectedAtEnd = socketOpen; socketOpen = false; try { socket?.close(); } catch {} writeReport(); process.exit(130); });
