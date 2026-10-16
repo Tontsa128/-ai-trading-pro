@@ -441,7 +441,10 @@ const el=id=>document.getElementById(id);
 function n(v,d){return v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
 function trendFi(v){return v==="bull"?"NOUSU":v==="bear"?"LASKU":"EPÄSELVÄ"}
 function safe(s){return String(s==null?"—":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+let paperBusy=false;
 async function loadPaper(){
+ if(paperBusy)return;
+ paperBusy=true;
  el("paperRefresh").disabled=true;el("paperUpdated").className="status";el("paperUpdated").textContent="Haetaan viimeisintä kahden tunnin raporttia…";
  try{
   const r=await fetch(base+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("Raporttia ei ole vielä julkaistu (HTTP "+r.status+")");
@@ -450,11 +453,18 @@ async function loadPaper(){
   el("paperPnl").textContent=n(p.realizedPnl)+" USDT";el("paperPnl").className="metric "+(Number(p.realizedPnl)>=0?"good":"bad");
   el("paperPositions").textContent=n(p.openPositions,0);el("paperErrors").textContent=n((d.errors||[]).length,0);
   el("paperRows").innerHTML=(d.symbols||[]).map(x=>{const v=x.indicators&&x.indicators.volumeRatio;const vol=Number.isFinite(Number(v))?n(v,2)+"×":"—";const higher=x.higherBias||[];return "<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+trendFi(x.trendBias)+" / "+trendFi(higher[0])+" / "+trendFi(higher[1])+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td><td>"+vol+"</td><td>"+safe((x.blockedBy||[]).join("; ")||"—")+"</td></tr>"}).join("")||'<tr><td colspan="9">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
-  el("paperUpdated").className="status ok";el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · Lähde: "+(d.source||"—")+" · "+(d.notes||[]).join(" ");
+  const cycleStarted=Date.parse(d.cycleStartedAt);
+  const ageSeconds=Number.isFinite(cycleStarted)?Math.max(0,(Date.now()-cycleStarted)/1000):Infinity;
+  const stale=!Number.isFinite(ageSeconds)||ageSeconds>3*60*60;
+  const errorCount=Array.isArray(d.errors)?d.errors.length:0;
+  el("paperUpdated").className="status "+(stale||errorCount?"error":"ok");
+  el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · raportin ikä: "+(Number.isFinite(ageSeconds)?Math.round(ageSeconds)+" s":"tuntematon")+(stale?" · VANHA RAPORTTI — tarkista GitHub Actions -ajot":"")+" · lähde: "+(d.source||"—")+" · "+(d.notes||[]).join(" ");
  }catch(e){el("paperUpdated").className="status error";el("paperUpdated").textContent=(e&&e.message?e.message:"Raportin haku epäonnistui")+". Tarkista GitHub Actions -ajon tila."}
- finally{el("paperRefresh").disabled=false}
+ finally{el("paperRefresh").disabled=false;paperBusy=false}
 }
-el("paperRefresh").addEventListener("click",loadPaper);loadPaper();
+el("paperRefresh").addEventListener("click",loadPaper);
+loadPaper();
+setInterval(function(){if(!document.hidden)loadPaper();},60000);
 })();
 </script>
 
