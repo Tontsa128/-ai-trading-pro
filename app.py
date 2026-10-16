@@ -340,6 +340,9 @@ def higher_tf_bias(symbol_code, main_interval):
         except Exception:
             result[higher_frame] = "EI DATAA"
 
+    if any(value == "EI DATA" for value in result.values()):
+        return "EPÄSELVÄ", result
+
     bull = sum(value == "NOUSU" for value in result.values())
     bear = sum(value == "LASKU" for value in result.values())
 
@@ -746,6 +749,9 @@ def ai_engine(df):
     notes = []
 
     bias, details = higher_tf_bias(symbol, tf)
+    higher_data_ok = len(details) == 2 and all(
+        value in {"NOUSU", "LASKU", "EPÄSELVÄ"} for value in details.values()
+    )
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -880,7 +886,11 @@ def ai_engine(df):
     else:
         level = "ODOTA"
 
-    if no_trade and abs(final) < 18:
+    if not higher_data_ok:
+        level = "DATA STALE"
+        final = 0
+        notes.append("Ylemmän aikavälin data puuttuu; kaupankäyntisignaali estetty.")
+    elif no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
     confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
@@ -1026,7 +1036,7 @@ def draw_chart(df, ai):
 
 
 def remember(ai):
-    if ai["level"] in ["ODOTA", "EI TREIDIÄ"]:
+    if ai["level"] in ["ODOTA", "EI TREIDIÄ", "DATA STALE"] or not ai.get("actionable", False):
         return
 
     item = {
@@ -1128,8 +1138,8 @@ def run_app():
     with d:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("🧠 Sääntöpohjaisen mallin arviointi")
-        if not market_data_ok:
-            st.warning("Oppimistuloksen tallennus on lukittu, koska markkinadata ei ole tuore.")
+        if not market_data_ok or ai["level"] == "DATA STALE":
+            st.warning("Oppimistuloksen tallennus on lukittu, koska pää- tai ylemmän aikavälin markkinadata ei ole tuore/kelvollinen.")
         else:
             st.write("Kirjaa tulos vasta toteutuneen paperikaupan jälkeen. Tämä säätää heuristista muistipainoa, ei kouluta koneoppimismallia.")
             colw, coll = st.columns(2)
