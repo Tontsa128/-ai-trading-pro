@@ -11,6 +11,9 @@ assert.match(app, /if not market_data_ok:/, "stale feed must enter a separate sa
 assert.match(app, /"level": "DATA STALE"/, "stale data is clearly marked in the UI model");
 assert.match(app, /higher_tf_bias\(symbol, tf\)/, "higher timeframe confirmations are selected relative to the active timeframe");
 assert.match(app, /higher_frames = frames\[index \+ 1:index \+ 3\]/, "confirmations use strictly higher timeframes");
+assert.match(app, /if any\(value == "EI DATA" for value in result\.values\(\)\):/, "missing higher timeframe data fails closed");
+assert.match(app, /if not higher_data_ok:/, "missing HTF data suppresses signals");
+assert.match(app, /confidence = 0 if not higher_data_ok/, "stale HTF status does not show a heuristic strength score");
 assert.match(app, /last = data\.iloc\[-1\]/, "closed higher-timeframe candles use the latest closed bar");
 assert.match(app, /REST-päivitysväli/, "legacy Streamlit source does not claim its OHLC polling is a WebSocket stream");
 assert.match(app, /Heuristinen vahvuusindeksi .* ei voittotodennäköisyys/, "score strength is not misrepresented as win probability");
