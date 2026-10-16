@@ -36,4 +36,12 @@ assert.match(html,/Käänteinen vasara/,"inverted hammer pattern is identified")
 assert.match(html,/Tähdenlento/,"shooting-star pattern is identified");
 assert.match(html,/id="patternList"/,"identified patterns are listed below the chart");
 assert.ok(html.indexOf("Kynttiläkaavio")<html.indexOf('<section class="metrics">'),"large candlestick chart appears before metric cards");
+assert.match(html,/lightweight-charts@5\.0\.8\/dist\/lightweight-charts\.standalone\.production\.js/,"uses TradingView Lightweight Charts for finance-style rendering");
+assert.match(html,/function startCandleStream\(/,"chart has a dedicated live candle stream");
+assert.match(html,/@kline_/,"subscribes to exchange-native live kline updates");
+assert.match(html,/liveCandleSeries\.update\(bar\)/,"updates the currently forming candle without reloading the whole chart");
+assert.match(html,/KYNTTILÄDATA VANHENTUNUT/,"live candle feed has an explicit stale-data warning");
+assert.match(html,/id="candleOhlc"/,"chart displays live OHLC values");
+assert.match(html,/candleEventLatency/,"chart displays an estimated exchange-event latency");
+assert.match(html,/liveChart\.timeScale\(\)\.fitContent\(\)/,"chart fits historical data on initial load");
 console.log("Dashboard tests passed: inline JS parses and transparency/freshness requirements are present.");
