@@ -4,6 +4,6 @@
   "private": true,
   "description": "Static market-analysis dashboard and deterministic spot-risk research engine",
   "scripts": {
-    "test": "node tests/trading-engine.test.js && node tests/market-proxy.test.js && node tests/market-feed.test.js && node tests/live-market.test.js && node tests/dashboard-inline-scripts.test.js && node tests/vercel-ignore-build.test.js && node --check api/market.js && node --check trading-engine.js && node --check public/trading-engine.js && node --check public/live-market.js && node --check scripts/fast-paper-trader.js && node --check scripts/vercel-ignore-build.js"
+    "test": "node tests/trading-engine.test.js && node tests/market-proxy.test.js && node tests/market-feed.test.js && node tests/live-market.test.js && node tests/streamlit-safety.test.js && node tests/dashboard-inline-scripts.test.js && node tests/vercel-ignore-build.test.js && node --check api/market.js && node --check trading-engine.js && node --check public/trading-engine.js && node --check public/live-market.js && node --check scripts/fast-paper-trader.js && node --check scripts/vercel-ignore-build.js"
   }
 }
