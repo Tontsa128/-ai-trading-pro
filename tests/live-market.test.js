@@ -81,7 +81,7 @@ sockets[1].message({stream:"btcusdt@bookTicker",data:{s:"BTCUSDT",b:"65000.99",a
 sockets[1].close();
 timeouts[timeouts.length - 1]();
 assert.equal(sockets.length, 3, "second reconnect creates a third socket");
-assert.match(sockets[2].url, /^wss:\\/\\/stream\\.binance\\.com:9443\\/stream\\?/,
+assert.ok(sockets[2].url.startsWith("wss://stream.binance.com:9443/stream?"),
   "success followed by a disconnect rotates to the third endpoint");
 
 windowMock.RahasampoLiveMarket.stop();
