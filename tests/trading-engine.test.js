@@ -1,5 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const path=require("node:path");
 global.window=global;
 require("../trading-engine.js");
 const E=global.TradingEngine;
@@ -8,6 +10,7 @@ assert.equal(typeof E.explainCandle,"function");
 assert.equal(typeof E.evaluateSignal,"function");
 assert.equal(typeof E.makeSignal,"function");
 assert.equal(E.STRATEGY_VERSION,"spot-long-v28");
+assert.equal(fs.readFileSync(path.join(__dirname,"../public/trading-engine.js"),"utf8"),fs.readFileSync(path.join(__dirname,"../trading-engine.js"),"utf8"),"browser, paper and backtest must use the same strategy source");
 
 const fixture={close:95,ema200:100,ema50:98,ema9:94,ema21:96,macdHist:-.0125,rsi:40,adx:30,pdi:8,mdi:20,volumeRatio:.8};
 assert.equal(E.explainCandle(fixture).bear.find(x=>x.name.includes("MACD-histogrammi")).ok,true);
@@ -34,7 +37,7 @@ assert.ok(Number.isFinite(signal.spreadPct));
 const bear=[];let prev=200;for(let i=0;i<520;i++){const c=200-i*.1+Math.sin(i/6)*.5,o=prev,h=Math.max(o,c)+.2,l=Math.min(o,c)-.2;bear.push({time:1700000000000+i*300000,closeTime:1700000299999+i*300000,open:o,high:h,low:l,close:c,volume:100+10*(1+Math.sin(i*1.3))});prev=c;}
 const ba=E.analyzeSeries(E.enrich(bear));assert.equal(ba.checks.bias,"bear");
 const bs=E.evaluateSignal(ba,[ba,ba],{price:ba.bar.close,closeTime:Date.now(),bid:ba.bar.close*.9999,ask:ba.bar.close*1.0001},opts);
-assert.equal(bs.direction,"WAIT");assert.equal(bs.spotExit,true);assert.match(bs.reason,/VÄLTÄ UUSIA OSTOJA/);assert.ok(!bs.reason.includes("short"));
+assert.equal(bs.direction,"WAIT");assert.equal(bs.spotExit,true);assert.match(bs.reason,/VÄLTÄ UUSIA OSTOJA/);assert.equal(bs.actionable,false);
 const low={...ba,bar:{...ba.bar,volumeRatio:.43}};low.checks=E.explainCandle(low.bar);const ls=E.evaluateSignal(low,[ba,ba],{price:low.bar.close,closeTime:Date.now(),bid:low.bar.close*.9999,ask:low.bar.close*1.0001},opts);assert.ok(ls.blockingReasons.some(x=>x.includes("0.43×")&&x.includes("0.50×")));
 const ex={...analysed,overextended:true};const es=E.evaluateSignal(ex,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*.9999,ask:analysed.bar.close*1.0001},opts);assert.ok(es.blockingReasons.some(x=>x.includes("ehto ei täyty")));
 const vol={...analysed,highVolatility:true,bar:{...analysed.bar,atrPct:4.2}};const vs=E.evaluateSignal(vol,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*.9999,ask:analysed.bar.close*1.0001},opts);assert.ok(vs.blockingReasons.some(x=>x.includes("4.20 %")&&x.includes("ehto ei täyty")));
