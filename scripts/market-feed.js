@@ -53,4 +53,14 @@ function normalizeTickerQuote(payload) {
   return { price, bid, ask };
 }
 
-module.exports = { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };
+// Reject unavailable, future-dated or stale top-of-book quotes before opening a position.
+function isFreshQuote(lastQuoteAt, now = Date.now(), maxAgeMs = 5000) {
+  return Number.isFinite(lastQuoteAt) &&
+    Number.isFinite(now) &&
+    Number.isFinite(maxAgeMs) &&
+    maxAgeMs >= 0 &&
+    lastQuoteAt <= now &&
+    now - lastQuoteAt <= maxAgeMs;
+}
+
+module.exports = { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };
