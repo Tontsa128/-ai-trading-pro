@@ -1128,16 +1128,19 @@ def run_app():
     with d:
         st.markdown('<div class="card">', unsafe_allow_html=True)
         st.subheader("🧠 Sääntöpohjaisen mallin arviointi")
-        st.write("Kirjaa tulos vasta toteutuneen paperikaupan jälkeen. Tämä säätää heuristista muistipainoa, ei kouluta koneoppimismallia.")
-        colw, coll = st.columns(2)
-        with colw:
-            if st.button("✅ Tämä onnistui", use_container_width=True):
-                save_learning_result("win", ai)
-                st.success("Tallennettu voitolliseksi malliksi.")
-        with coll:
-            if st.button("❌ Tämä epäonnistui", use_container_width=True):
-                save_learning_result("loss", ai)
-                st.error("Tallennettu virheeksi.")
+        if not market_data_ok:
+            st.warning("Oppimistuloksen tallennus on lukittu, koska markkinadata ei ole tuore.")
+        else:
+            st.write("Kirjaa tulos vasta toteutuneen paperikaupan jälkeen. Tämä säätää heuristista muistipainoa, ei kouluta koneoppimismallia.")
+            colw, coll = st.columns(2)
+            with colw:
+                if st.button("✅ Tämä onnistui", use_container_width=True):
+                    save_learning_result("win", ai)
+                    st.success("Tallennettu arviointimuistiin.")
+            with coll:
+                if st.button("❌ Tämä epäonnistui", use_container_width=True):
+                    save_learning_result("loss", ai)
+                    st.error("Tallennettu arviointimuistiin.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with st.expander("🧠 Miksi AI sanoo näin?"):
