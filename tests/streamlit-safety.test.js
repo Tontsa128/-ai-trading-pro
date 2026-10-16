@@ -16,6 +16,8 @@ assert.match(app, /if not higher_data_ok:/, "missing HTF data suppresses signals
 assert.match(app, /confidence = 0 if not higher_data_ok/, "stale HTF status does not show a heuristic strength score");
 assert.match(app, /last = data\.iloc\[-1\]/, "closed higher-timeframe candles use the latest closed bar");
 assert.match(app, /REST-päivitysväli/, "legacy Streamlit source does not claim its OHLC polling is a WebSocket stream");
+assert.match(app, /REST-päivitysväli — suljetut kynttilät/, "sidebar accurately describes closed-candle polling");
+assert.doesNotMatch(app, /st\.sidebar\.radio\("Live-päivitys"/, "legacy Streamlit app does not call REST polling a live stream");
 assert.match(app, /Heuristinen vahvuusindeksi .* ei voittotodennäköisyys/, "score strength is not misrepresented as win probability");
 assert.match(app, /actionable_buy = level in \{"OSTA", "VAHVA OSTA", "⚡ NOPEA OSTA"\}/, "only explicit long spot entry levels create stop/target suggestions");
 assert.doesNotMatch(app, /level = "VAHVA MYY"/, "no strong-short label is presented as a spot trade");
