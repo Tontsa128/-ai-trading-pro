@@ -310,36 +310,46 @@ def add_indicators(df):
 
 
 @st.cache_data(ttl=20, show_spinner=False)
-def higher_tf_bias(symbol_code):
+def higher_tf_bias(symbol_code, main_interval):
     result = {}
+    frames = ["1m", "3m", "5m", "15m", "1h", "4h", "1d"]
+    try:
+        index = frames.index(main_interval)
+        higher_frames = frames[index + 1:index + 3]
+    except ValueError:
+        higher_frames = []
 
-    for htf in ["5m", "15m", "1h", "4h"]:
+    if len(higher_frames) != 2:
+        return "EPÄSELVÄ", {"vahvistus": "Kaksi aidosti korkeampaa aikaväliä puuttuu"}
+
+    for higher_frame in higher_frames:
         try:
-            d = add_indicators(get_klines(symbol_code, htf, 180))
-            last = d.iloc[-2]
+            data = add_indicators(get_klines(symbol_code, higher_frame, 240))
+            if data.empty or len(data) < 220:
+                raise RuntimeError("Ylempää aikaväliä varten ei ole riittävästi sulkeutuneita kynttilöitä")
+            last = data.iloc[-1]
 
             if last.Close > last.EMA50 > last.EMA100:
-                result[htf] = "NOUSU"
+                result[higher_frame] = "NOUSU"
             elif last.Close < last.EMA50 < last.EMA100:
-                result[htf] = "LASKU"
+                result[higher_frame] = "LASKU"
             else:
-                result[htf] = "EPÄSELVÄ"
+                result[higher_frame] = "EPÄSELVÄ"
 
         except Exception:
-            result[htf] = "?"
+            result[higher_frame] = "EI DATAA"
 
-    bull = sum(v == "NOUSU" for v in result.values())
-    bear = sum(v == "LASKU" for v in result.values())
+    bull = sum(value == "NOUSU" for value in result.values())
+    bear = sum(value == "LASKU" for value in result.values())
 
-    if bull >= 3:
+    if bull == 2:
         return "VAHVA NOUSU", result
-    if bear >= 3:
+    if bear == 2:
         return "VAHVA LASKU", result
-    if bull >= 2:
+    if bull == 1:
         return "NOUSU", result
-    if bear >= 2:
+    if bear == 1:
         return "LASKU", result
-
     return "EPÄSELVÄ", result
 
 
@@ -734,7 +744,7 @@ def ai_engine(df):
     score = 0
     notes = []
 
-    bias, details = higher_tf_bias(symbol)
+    bias, details = higher_tf_bias(symbol, tf)
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -830,7 +840,7 @@ def ai_engine(df):
     if score > 0:
         direction_temp = "OSTA"
     elif score < 0:
-        direction_temp = "MYY"
+        direction_temp = "LASKU"
 
     ai_temp = {
         "bias": bias,
@@ -852,7 +862,7 @@ def ai_engine(df):
         level = "⚡ NOPEA OSTA"
         final = max(final, 58)
     elif alert == "NOPEA MYY":
-        level = "⚡ NOPEA MYY"
+        level = "⚠ VÄLTÄ UUSIA OSTOJA"
         final = min(final, -58)
     elif final >= 65:
         level = "VAHVA OSTA"
@@ -861,11 +871,11 @@ def ai_engine(df):
     elif final >= 18:
         level = "TARKKAILU OSTA"
     elif final <= -65:
-        level = "VAHVA MYY"
+        level = "VAHVA LASKU — VÄLTÄ UUSIA OSTOJA"
     elif final <= -38:
-        level = "MYY"
+        level = "VÄLTÄ UUSIA OSTOJA"
     elif final <= -18:
-        level = "TARKKAILU MYY"
+        level = "TARKKAILU: LASKUTRENDI"
     else:
         level = "ODOTA"
 
@@ -876,14 +886,11 @@ def ai_engine(df):
 
     atr = max(float(live.ATR), price * 0.001)
 
-    if "OSTA" in level:
+    actionable_buy = level in {"OSTA", "VAHVA OSTA", "⚡ NOPEA OSTA"}
+    if actionable_buy:
         stop = price - atr * 1.25
         target = price + atr * 2.2
         direction = "OSTA"
-    elif "MYY" in level:
-        stop = price + atr * 1.25
-        target = price - atr * 2.2
-        direction = "MYY"
     else:
         stop = None
         target = None
@@ -908,6 +915,8 @@ def ai_engine(df):
         "target": target,
         "rr": rr,
         "direction": direction,
+        "actionable": actionable_buy,
+        "spot_policy": "long-only",
         "structure": structure,
         "triangle": triangle_name,
         "triangle_lines": triangle_lines,
@@ -923,21 +932,26 @@ def signal_box(ai):
     level = ai["level"]
     conf = ai["confidence"]
 
-    if "OSTA" in level and "TARKKAILU" not in level:
-        cls = "buy"
-    elif "MYY" in level and "TARKKAILU" not in level:
+    if level == "DATA STALE":
+        cls = "stale"
+    elif level in {
+        "VÄLTÄ UUSIA OSTOJA",
+        "⚠ VÄLTÄ UUSIA OSTOJA",
+        "VAHVA LASKU — VÄLTÄ UUSIA OSTOJA",
+        "TARKKAILU: LASKUTRENDI",
+    }:
         cls = "sell"
+    elif "OSTA" in level and "TARKKAILU" not in level:
+        cls = "buy"
     elif "TARKKAILU OSTA" in level:
         cls = "watchbuy"
-    elif "TARKKAILU MYY" in level:
-        cls = "watchsell"
     elif "EI TREIDIÄ" in level:
         cls = "notrade"
     else:
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>{conf}%</div>',
+        f'<div class="signal {cls}">{level}<br><small>Heuristinen vahvuusindeksi {conf}/100 — ei voittotodennäköisyys</small></div>',
         unsafe_allow_html=True,
     )
 
