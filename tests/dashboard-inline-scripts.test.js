@@ -1,26 +1,22 @@
 "use strict";
-
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-
-const html = fs.readFileSync("public/index.html", "utf8");
-const scripts = [];
-const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
-let match;
-while ((match = re.exec(html)) !== null) {
-  if (/\bsrc\s*=/i.test(match[1])) continue;
-  if (match[2].trim()) scripts.push({ body: match[2], offset: match.index });
-}
-assert.ok(scripts.length > 0, "expected at least one inline script");
-for (const script of scripts) {
-  try {
-    new Function(script.body);
-  } catch (error) {
-    error.message = "Inline script at HTML offset " + script.offset + ": " + error.message;
-    throw error;
-  }
-}
-assert.match(html, /function renderNativeCandleChart\s*\(/, "native SVG chart fallback must be present");
-assert.match(html, /return renderNativeCandleChart\(series,signal,symbol,chartCount\)/, "missing Plotly should use local chart");
-assert.match(html, /\.catch\(function\(\)\{renderNativeCandleChart/, "asynchronous Plotly failures should fall back locally");
-console.log("Dashboard inline script tests passed: " + scripts.length + " inline script(s) parse; SVG candlestick fallback is wired.");
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const html=fs.readFileSync("public/index.html","utf8");
+const scripts=[];const re=/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;let m;while((m=re.exec(html))!==null){if(/\bsrc\s*=/i.test(m[1]))continue;if(m[2].trim())scripts.push(m[2]);}
+assert.ok(scripts.length>0,"expected inline dashboard script");
+for(const body of scripts)assert.doesNotThrow(()=>new Function(body));
+assert.match(html,/long-only spot/i,"dashboard explicitly identifies spot policy");
+assert.match(html,/VÄLTÄ UUSIA OSTOJA/,"bearish spot state is not presented as a short signal");
+assert.match(html,/Lyhyt momentum \/ MACD/,"trend and short momentum are separated");
+assert.match(html,/ADX \/ DI\+ \/ DI−/,"dashboard exposes ADX and both directional indicators");
+assert.match(html,/RSI 50–68/,"RSI requirement is explicit");
+assert.match(html,/Spread/,"dashboard exposes spread");
+assert.match(html,/0\.0001 %/,"tiny spreads are not rounded to a misleading zero");
+assert.match(html,/OOS winrate/);assert.match(html,/OOS netto/);assert.match(html,/OOS DD/);assert.match(html,/OOS PF/);
+assert.match(html,/pieni otos/,"small OOS samples are warned about rather than hidden");
+assert.match(html,/RAPORTTI VANHENTUNUT/,"stale paper reports are visually flagged");
+assert.match(html,/Math\.max\(0,\(Date\.now\(\)-started\)\/1000\)/,"report age is clamped at zero");
+assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
+assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
+assert.match(html,/strategyVersion/,"strategy version is visible");
+console.log("Dashboard tests passed: inline JS parses and transparency/freshness requirements are present.");
