@@ -101,7 +101,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/paper-data/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
 </section>
 <section class="panel" style="margin-top:12px">
- <div class="section-title"><div><h3 style="margin:0">Nopea Paper Trading · 5 s / 15 s</h3><div class="sub">Binance WebSocket -virtuaalikaupat, erilliset virtuaalisalkut ja viimeisimmät raportit</div></div><button id="fastPaperRefresh" style="width:auto">Päivitä nopeat raportit</button></div>
+ <div class="section-title"><div><h3 style="margin:0">Nopea Paper Trading · 5 s / 15 s</h3><div class="sub">WebSocket-kauppavirta tai selvästi merkitty REST-varasyöte · erilliset virtuaalisalkut</div></div><button id="fastPaperRefresh" style="width:auto">Päivitä nopeat raportit</button></div>
  <p class="sub" style="font-size:12px">Tämä kokeellinen ajastettu simulaatio käyttää vain julkista markkinadataa. Se ei kirjaudu pörssiin eikä lähetä oikeita toimeksiantoja. Raportti syntyy vasta, kun GitHub Actions -ajo valmistuu.</p>
  <div class="grid">
   <section class="panel">
@@ -450,7 +450,7 @@ async function loadPaper(){
   el("paperPnl").textContent=n(p.realizedPnl)+" USDT";el("paperPnl").className="metric "+(Number(p.realizedPnl)>=0?"good":"bad");
   el("paperPositions").textContent=n(p.openPositions,0);el("paperErrors").textContent=n((d.errors||[]).length,0);
   el("paperRows").innerHTML=(d.symbols||[]).map(x=>{const v=x.indicators&&x.indicators.volumeRatio;const vol=Number.isFinite(Number(v))?n(v,2)+"×":"—";const higher=x.higherBias||[];return "<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+trendFi(x.trendBias)+" / "+trendFi(higher[0])+" / "+trendFi(higher[1])+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td><td>"+vol+"</td><td>"+safe((x.blockedBy||[]).join("; ")||"—")+"</td></tr>"}).join("")||'<tr><td colspan="9">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
-  el("paperUpdated").className="status ok";el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · Lähde: "+(d.source||"—")+" · "+(d.notes||[]).join(" ");
+  const cycleMs=Date.parse(d.cycleStartedAt);const reportAgeSeconds=Number.isFinite(cycleMs)?Math.max(0,(Date.now()-cycleMs)/1000):Infinity;const reportStale=reportAgeSeconds>4*60*60;const reportErrors=(d.errors||[]).length;el("paperUpdated").className="status "+(reportStale||reportErrors?"error":"ok");el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · raportin ikä: "+(Number.isFinite(reportAgeSeconds)?Math.round(reportAgeSeconds/60)+" min":"tuntematon")+" · lähde: "+(d.source||"—")+" · keruun virheitä: "+reportErrors+(reportStale?" · VANHA RAPORTTI — kahden tunnin keruu ei ole päivittynyt ajoissa; älä tulkitse hintoja tuoreiksi. ":" · ")+(d.notes||[]).join(" ");
  }catch(e){el("paperUpdated").className="status error";el("paperUpdated").textContent=(e&&e.message?e.message:"Raportin haku epäonnistui")+". Tarkista GitHub Actions -ajon tila."}
  finally{el("paperRefresh").disabled=false}
 }
@@ -498,9 +498,10 @@ async function loadFast(interval){
    return "<tr><td>"+when+"</td><td>"+escFast(t.symbol)+"</td><td>"+side+"</td><td>"+q+"</td><td>"+pnl+"</td><td>"+reason+"</td></tr>";
   }).join("")||'<tr><td colspan="6">Tässä sessionissa ei syntynyt simuloituja kauppatapahtumia.</td></tr>';
   var feed=d.feedStatus||{}, ended=Date.parse(d.sessionEndedAt), ageSeconds=Number.isFinite(ended)?Math.max(0,(Date.now()-ended)/1000):Infinity;
-  var stale=ageSeconds>420, errCount=(d.errors||[]).length;
-  ui.status.className="status "+(errCount||stale?"error":"ok");
-  ui.status.textContent="Viimeisin "+interval+" s ajo: "+reportTime(d.sessionStartedAt)+" – "+reportTime(d.sessionEndedAt)+" · raportin ikä: "+(Number.isFinite(ageSeconds)?num(ageSeconds,0)+" s":"tuntematon")+" · lähde: "+escFast(d.source||"tuntematon")+" · WS-viestit: "+num(feed.websocketMessages,0)+" · REST-hakua: "+num(feed.restQuoteUpdates,0)+" · virheitä: "+errCount+" · sulkeutuneita kynttilöitä: "+num((d.symbols||[]).reduce(function(a,x){return a+(Number(x.closedBars)||0);},0))+(stale?" · VANHA RAPORTTI — odota seuraavaa onnistunutta ajoa":"");
+  var stale=ageSeconds>420, errCount=(d.errors||[]).length, wsMessages=Number(feed.websocketMessages)||0, restUpdates=Number(feed.restQuoteUpdates)||0;
+  var restFallback=wsMessages===0&&restUpdates>0;
+  ui.status.className="status "+(errCount||stale||restFallback?"error":"ok");
+  ui.status.textContent="Viimeisin "+interval+" s ajo: "+reportTime(d.sessionStartedAt)+" – "+reportTime(d.sessionEndedAt)+" · raportin ikä: "+(Number.isFinite(ageSeconds)?num(ageSeconds,0)+" s":"tuntematon")+" · lähde: "+escFast(d.source||"tuntematon")+" · WS-viestit: "+num(wsMessages,0)+" · REST-hakua: "+num(restUpdates,0)+" · virheitä: "+errCount+" · sulkeutuneita kynttilöitä: "+num((d.symbols||[]).reduce(function(a,x){return a+(Number(x.closedBars)||0);},0))+(restFallback?" · REST-VARASYÖTE — WebSocket-kauppatapahtumia ei saatu; näytehinnat eivät vastaa aitoa 5/15 sekunnin kauppavirtaa.":"")+(stale?" · VANHA RAPORTTI — odota seuraavaa onnistunutta ajoa":"");
  }catch(e){
   ui.status.className="status "+((e&&e.message&&e.message.indexOf("HTTP 404")>=0)?"":"error");
   ui.status.textContent=(e&&e.message?e.message:"Nopean paper-treidauksen raportin haku epäonnistui.");
