@@ -11,6 +11,10 @@ assert.equal(typeof E.evaluateSignal,"function");
 assert.equal(typeof E.makeSignal,"function");
 assert.equal(E.STRATEGY_VERSION,"spot-long-v28");
 assert.equal(fs.readFileSync(path.join(__dirname,"../public/trading-engine.js"),"utf8"),fs.readFileSync(path.join(__dirname,"../trading-engine.js"),"utf8"),"browser, paper and backtest must use the same strategy source");
+const paperCycleSource=fs.readFileSync(path.join(__dirname,"../scripts/paper-trading-cycle.js"),"utf8");
+assert.match(paperCycleSource,/newTrades\.push\(buyTrade\)/,"paper cycle report includes new entry trades");
+assert.match(paperCycleSource,/newTrades,closedTrades:closed/,"paper cycle distinguishes new trades from closed trades");
+assert.match(paperCycleSource,/spotPolicy:sig\.spotPolicy/,"paper cycle report explicitly records the long-only spot policy");
 
 const fixture={close:95,ema200:100,ema50:98,ema9:94,ema21:96,macdHist:-.0125,rsi:40,adx:30,pdi:8,mdi:20,volumeRatio:.8};
 assert.equal(E.explainCandle(fixture).bear.find(x=>x.name.includes("MACD-histogrammi")).ok,true);
