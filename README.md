@@ -19,6 +19,10 @@ Signal diagnostics include RSI requirement ranges, ADX/DI+/DI−, separate long-
 
 **No Internet-connected market feed can guarantee 100% zero-latency availability.** Network, exchange, browser scheduling and provider outages can cause delay or interruptions. The application reports observed local receive age and fails closed when it exceeds configured thresholds. Keep API keys out of browser code; the UI remains paper/research-only and does not submit real orders.
 
+## Legacy Streamlit application
+
+`app.py` is retained as a separate research interface. It polls Binance REST for **closed OHLCV candles** on its configured refresh loop; it is not the browser's direct WebSocket live-tick feed. If a request fails, the app shows `DATA STALE` from cached history or `DATA FAIL` when no real data is available, blocks actionable signals and never manufactures random demo prices. Its heuristic score is not a trained machine-learning model, and a bearish state means avoid new spot buys rather than short selling.
+
 ## Run tests
 
 Requires Node.js 20 or newer:
@@ -37,8 +41,8 @@ The Vercel project should use **Framework Preset: Other**, no build command, and
 
 - This is a rule-based technical-analysis tool, not a machine-learning model and not a proven profitable strategy.
 - A signal is not a probability of success and cannot be a "safe" guarantee. Crypto prices can gap or move quickly; stop orders may fill materially away from the estimated level.
-- `OSTA` is only a research signal for a spot purchase. `MYY / KEVENNÄ` means consider reducing an existing spot holding or avoiding a new purchase; it does not initiate a short position.
-- The historical test does not include multi-timeframe confirmation, funding costs, taxes, spread variability beyond the configured slippage estimate, order-book depth, outages, or realistic partial fills. Historical performance is not a prediction.
+- `OSTA` is an unexecuted research suggestion for a spot purchase. A bearish state is shown as `VÄLTÄ UUSIA OSTOJA`; it is not a sell-short signal. The application does not open short positions.
+- The historical test uses higher-timeframe confirmation, but past bid/ask history is not stored. Historical spread and fills are estimates, and results do not reproduce full order-book depth, latency, partial fills, outages, taxes or all market costs. The independent 5s/15s research worker also uses sampled REST prices as a fallback when trade WebSocket events are unavailable; those synthetic zero-volume samples are not genuine tick history. Historical performance is not a prediction.
 - The web dashboard does not read account balances, hold exchange secrets, or submit orders. Do not put exchange API keys in browser code or Git.
 - Live signal results must be independently reviewed and paper-tested before any real-money use.
 
