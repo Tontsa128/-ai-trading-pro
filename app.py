@@ -59,6 +59,7 @@ h1 {font-size:1.45rem!important;}
 .good{color:#22c55e;font-weight:800;}
 .bad{color:#ef4444;font-weight:800;}
 .neutral{color:#facc15;font-weight:800;}
+.stale{background:linear-gradient(90deg,#7f1d1d,#b91c1c);color:white;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -1047,12 +1048,33 @@ def remember(ai):
 
 
 def run_app():
-    raw, source = load_data()
+    st.title("💰 Rahasampo Radar V26 PRO")
+    raw, source, market_data_ok = load_data()
+
+    if raw is None or raw.empty:
+        st.error("DATA FAIL — oikeaa Binance-kynttilädataa ei saatu. Signaali ja riskitasot on estetty.")
+        st.caption(source)
+        if st.session_state.last_error:
+            st.code(st.session_state.last_error)
+        st.stop()
+
     df = add_indicators(raw)
     ai = ai_engine(df)
-    remember(ai)
-
-    st.title("💰 Rahasampo Radar V26 PRO")
+    if not market_data_ok:
+        ai = dict(ai)
+        ai.update({
+            "level": "DATA STALE",
+            "score": 0,
+            "confidence": 0,
+            "stop": None,
+            "target": None,
+            "rr": None,
+            "direction": "ODOTA",
+            "actionable": False,
+            "notes": ["Markkinadatahaku epäonnistui. Näytetään viimeisin välimuistihistoria; kaikki kaupankäyntisignaalit on estetty."],
+        })
+    else:
+        remember(ai)
 
     signal_box(ai)
 
@@ -1063,7 +1085,8 @@ def run_app():
     c4.metric("Candle", ai["power"])
     c5.metric("Päivitetty", now_local())
 
-    st.caption(f"{source} | TF: {tf} | Live {refresh}s | Suomen aika")
+    last_closed_utc = pd.to_datetime(int(df["CloseTimeMs"].iloc[-1]), unit="ms", utc=True).isoformat()
+    st.caption(f"{source} | TF: {tf} | REST-päivitysväli {refresh}s | viimeisin sulkeutunut kynttilä UTC: {last_closed_utc}")
 
     if st.session_state.last_error:
         st.warning(f"Datavaroitus: {st.session_state.last_error}")
@@ -1104,8 +1127,8 @@ def run_app():
 
     with d:
         st.markdown('<div class="card">', unsafe_allow_html=True)
-        st.subheader("🧠 Opeta AI:ta")
-        st.write("Kun signaali oli hyvä tai huono, tallenna tulos.")
+        st.subheader("🧠 Sääntöpohjaisen mallin arviointi")
+        st.write("Kirjaa tulos vasta toteutuneen paperikaupan jälkeen. Tämä säätää heuristista muistipainoa, ei kouluta koneoppimismallia.")
         colw, coll = st.columns(2)
         with colw:
             if st.button("✅ Tämä onnistui", use_container_width=True):
