@@ -33,6 +33,19 @@ assert.ok(dashboardSource.includes("Volyymi / 20 kynttilää"),
   "paper table exposes measured volume ratio as its own column");
 assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
   "missing numeric values are rendered as unavailable rather than zero");
+assert.ok(dashboardSource.includes("setInterval(function(){if(!document.hidden)loadPaper();},60000)"),
+  "two-hour paper report refreshes while the dashboard is visible");
+assert.ok(dashboardSource.includes("VANHA RAPORTTI — tarkista GitHub Actions -ajot"),
+  "paper dashboard flags reports older than the expected reporting window");
+const fastWorkerSource = fs.readFileSync(path.join(__dirname, "../scripts/fast-paper-trader.js"), "utf8");
+assert.ok(fastWorkerSource.includes("const quoteFresh = isFreshQuote(s.lastQuoteAt, Date.now(), MAX_QUOTE_AGE_MS)"),
+  "fast paper entries must require a fresh top-of-book quote");
+assert.ok(fastWorkerSource.includes("const entryTime = new Date(Math.max(Date.now(), bar.closeTime + 1)).toISOString()"),
+  "fast paper entry timestamps must be at or after the signal was observed");
+assert.ok(fastWorkerSource.includes("websocketConnectedAtEnd: websocketConnectedAtEnd"),
+  "end-of-session WebSocket status is captured before socket shutdown");
+assert.ok(fastWorkerSource.includes("const priorCloses = closes.slice(0, -1)"),
+  "fast EMA crossover compares values seeded from the same full history");
 
 assert.ok(dashboardSource.includes("x.detail"),
   "live signal checklist displays numeric diagnostic details");
