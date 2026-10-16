@@ -97,6 +97,17 @@ assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
 assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
+const spreadGate = signal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
+assert.ok(spreadGate, "spread gate is visible in the checklist");
+assert.equal(spreadGate.ok, true, "spread below 0.15% must pass");
+assert.ok(Math.abs(signal.spreadPct - ((100.01 - 100) / ((100.01 + 100) / 2) * 100)) < 1e-9,
+  "spread percentage uses the bid/ask midpoint");
+const wideSpreadSignal = E.evaluateSignal(analysed, [analysed, analysed],
+  {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.2}, opts);
+const wideSpreadGate = wideSpreadSignal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
+assert.equal(wideSpreadGate.ok, false, "spread above 0.15% must fail closed");
+assert.ok(wideSpreadSignal.blockingReasons.some(x => x.includes("0.1500 %")),
+  "failed spread gate explains the configured limit");
 
 const bearRaw = [];
 let previousBearClose = 200;
