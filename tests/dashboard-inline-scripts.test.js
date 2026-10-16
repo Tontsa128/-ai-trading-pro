@@ -19,6 +19,8 @@ assert.match(html,/Math\.max\(0,\(Date\.now\(\)-started\)\/1000\)/,"report age i
 assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
 assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
 assert.match(html,/strategyVersion/,"strategy version is visible");
+assert.match(html,/function renderNativeCandleChart\(/,"chart has a native SVG fallback if the Plotly CDN is unavailable");
+assert.match(html,/return renderNativeCandleChart\(series,sig,sym,count\)/,"chart falls back to native SVG on missing/broken Plotly");
 assert.match(html,/<script src=".\/live-market.js"><\/script>/,"dashboard loads the browser WebSocket feed");
 assert.match(html,/id="liveStatus"/,"dashboard has a separate explicit live-stream state");
 assert.match(html,/id="bidAsk"/,"dashboard exposes live bid/ask");
