@@ -893,7 +893,7 @@ def ai_engine(df):
     elif no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
-    confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
+    confidence = 0 if not higher_data_ok else int(min(95, max(45, 50 + abs(final) * 0.45)))
 
     atr = max(float(live.ATR), price * 0.001)
 
