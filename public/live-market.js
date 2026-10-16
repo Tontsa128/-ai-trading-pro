@@ -13,6 +13,7 @@
   let reconnectTimer = null;
   let publishTimer = null;
   let watchdogTimer = null;
+  let connectTimer = null;
   let stopped = false;
   let baseIndex = 0;
   let lastSocketMessageAt = null;
@@ -69,6 +70,8 @@
     const current = socket;
     socket = null;
     for (const q of state.values()) q.connected = false;
+    if (connectTimer) clearTimeout(connectTimer);
+    connectTimer = null;
     if (current) {
       try { current.onopen = current.onmessage = current.onerror = current.onclose = null; current.close(); } catch (_) {}
     }
@@ -79,9 +82,19 @@
     try {
       const current = new WebSocket(streamUrl(base));
       socket = current;
+      connectTimer = setTimeout(() => {
+        if (socket === current && current.readyState !== WebSocket.OPEN && !stopped) {
+          connectionErrors += 1;
+          window.dispatchEvent(new CustomEvent("market-live-error", { detail: { endpoint: base, message: "WebSocket connection timed out" } }));
+          disconnectCurrent();
+          scheduleReconnect();
+        }
+      }, 10000);
       current.onopen = () => {
         if (socket !== current || stopped) return;
         connectionErrors = 0;
+        if (connectTimer) clearTimeout(connectTimer);
+        connectTimer = null;
         lastSocketMessageAt = Date.now();
         for (const q of state.values()) q.connected = true;
         window.dispatchEvent(new CustomEvent("market-live-open", { detail: { endpoint: base } }));
@@ -121,12 +134,16 @@
       current.onerror = () => {
         if (socket !== current || stopped) return;
         connectionErrors += 1;
+        if (connectTimer) clearTimeout(connectTimer);
+        connectTimer = null;
         window.dispatchEvent(new CustomEvent("market-live-error", { detail: { endpoint: base } }));
         try { current.close(); } catch (_) {}
       };
       current.onclose = () => {
         if (socket !== current || stopped) return;
         socket = null;
+        if (connectTimer) clearTimeout(connectTimer);
+        connectTimer = null;
         for (const q of state.values()) q.connected = false;
         window.dispatchEvent(new CustomEvent("market-live-close", { detail: { endpoint: base } }));
         scheduleReconnect();
