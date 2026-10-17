@@ -136,6 +136,66 @@
     if(direction!=="WAIT"&&Number.isFinite(entry)&&entry>0&&Number.isFinite(b.atr)&&b.atr>0){var stopDistance=1.5*b.atr,targetDistance=2.5*b.atr;stop=direction==="BUY"?entry-stopDistance:entry+stopDistance;target=direction==="BUY"?entry+targetDistance:entry-targetDistance;if(direction==="BUY"){var costPerUnit=stopDistance+(entry+stop)*(fee+slip);qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;notional=qty*entry;estLoss=qty*costPerUnit;estGain=qty*(targetDistance-(entry+target)*(fee+slip));}}
     return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",params:opts,main:main};
   }
+  function fastReaction(series) {
+    function idle(note) {
+      return {score:0,signal:"EI",notes:note?[note]:[],atr:null};
+    }
+    if (!Array.isArray(series) || series.length < 30) {
+      return idle("Nopeaan signaaliin tarvitaan vähintään 30 kynttilää.");
+    }
+    var c = series[series.length - 1], prev = series.slice(0, -1);
+    var required = ["open","high","low","close","volume","ema9","ema21"];
+    if (!c || required.some(function (key) { return !Number.isFinite(c[key]); }) ||
+        c.close <= 0 || c.high < Math.max(c.open,c.close,c.low) ||
+        c.low > Math.min(c.open,c.close,c.high)) {
+      return idle("Live-kynttilän tiedot puuttuvat tai ovat virheelliset.");
+    }
+
+    var price = c.close;
+    var body = Math.abs(c.close - c.open);
+    var priorAtr = prev[prev.length - 1] && prev[prev.length - 1].atr;
+    var atr = Math.max(Number.isFinite(priorAtr) && priorAtr > 0 ? priorAtr : 0, price * 0.001);
+    var priorVolumes = prev.slice(-20).map(function (bar) { return bar.volume; });
+    if (priorVolumes.length < 20 || priorVolumes.some(function (value) { return !Number.isFinite(value) || value < 0; })) {
+      return idle("Volyymihistoria ei riitä nopean signaalin laskentaan.");
+    }
+    var volMa = Math.max(priorVolumes.reduce(function (sum, value) { return sum + value; }, 0) / priorVolumes.length, 1e-9);
+    var recent = prev.slice(-8);
+    if (recent.length < 8 || recent.some(function (bar) { return !Number.isFinite(bar.high) || !Number.isFinite(bar.low); })) {
+      return idle("Breakout-tarkasteluun tarvitaan kahdeksan aiempaa kynttilää.");
+    }
+
+    var green = c.close > c.open, red = c.close < c.open;
+    var score = 0, notes = [];
+    if (green) {
+      if (body > atr * 0.22) { score += 24; notes.push("Live-vihreä kynttilä vahvistuu"); }
+      if (body > atr * 0.48) { score += 18; notes.push("Live-vihreä kynttilä erittäin vahva"); }
+      if (c.close > c.ema9) { score += 10; notes.push("Hinta EMA9 yläpuolella"); }
+      if (c.close > c.ema21) { score += 10; notes.push("Hinta EMA21 yläpuolella"); }
+      if (c.high >= Math.max.apply(null, recent.map(function (bar) { return bar.high; }))) {
+        score += 14; notes.push("Uusi lyhyen aikavälin huippu / breakout");
+      }
+      if (c.volume > volMa) { score += 8; notes.push("Volyymi tukee nousua"); }
+    }
+    if (red) {
+      if (body > atr * 0.22) { score -= 24; notes.push("Live-punainen kynttilä vahvistuu"); }
+      if (body > atr * 0.48) { score -= 18; notes.push("Live-punainen kynttilä erittäin vahva"); }
+      if (c.close < c.ema9) { score -= 10; notes.push("Hinta EMA9 alapuolella"); }
+      if (c.close < c.ema21) { score -= 10; notes.push("Hinta EMA21 alapuolella"); }
+      if (c.low <= Math.min.apply(null, recent.map(function (bar) { return bar.low; }))) {
+        score -= 14; notes.push("Uusi lyhyen aikavälin pohja / breakdown");
+      }
+      if (c.volume > volMa) { score -= 8; notes.push("Volyymi tukee laskua"); }
+    }
+
+    return {
+      score: score,
+      signal: score >= 30 ? "NOPEA OSTA" : score <= -30 ? "NOPEA MYY" : "EI",
+      notes: notes,
+      atr: atr
+    };
+  }
+
   function backtest(series,options){
     var opts=Object.assign({},COST_DEFAULTS,options||{}),startCapital=Math.max(100,number(opts.capital)||10000),equity=startCapital,peak=equity,maxDd=0,trades=[];
     var fee=Math.max(0,number(opts.feePct)||0)/100,slip=Math.max(0,number(opts.slippagePct)||0)/100,riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100,exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100,higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[],assumedSpreadPct=Math.max(0,number(opts.assumedSpreadPct)||0.10),requestedStart=Number(opts.startIndex),startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220,inPositionUntil=-1;
@@ -143,7 +203,7 @@
     var wins=trades.filter(function(t){return t.win;}),losses=trades.filter(function(t){return !t.win;}),grossWins=wins.reduce(function(a,t){return a+t.pnl;},0),grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
     return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; kulut ja lipsuma vähennetään. Historiallinen tulos ei ennusta tulevaa."};
   }
-  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,backtest:backtest,defaults:COST_DEFAULTS};
+  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,fastReaction:fastReaction,backtest:backtest,defaults:COST_DEFAULTS};
 
   /* Live scalping layer. It deliberately runs independently of the REST refresh loop:
      WebSocket carries trade/bookTicker/kline events, while the chart is rendered locally.
@@ -183,7 +243,7 @@
       if(b.rsi>52&&b.rsi<70)score+=1;else if(b.rsi<48&&b.rsi>30)score-=1;
       if(b.pdi>b.mdi)score+=1;else if(b.mdi>b.pdi)score-=1;
       if(Number.isFinite(b.volumeRatio)&&b.volumeRatio>1.2)score+=(b.close>=b.open?1:-1);
-      var prob=Math.max(1,Math.min(99,50+score*4));return {score:score,prob:prob,bias:score>2?"bull":score<-2?"bear":"neutral",analysis:a};
+      var prob=Math.max(1,Math.min(99,50+score*4));return {score:score,prob:prob,bias:score>2?"bull":score<-2?"bear":"neutral",analysis:a,fastReaction:TradingEngine.fastReaction(s)};
     }
     function ensureProbability(){
       var panel=document.getElementById("signal");if(!panel)return null;
@@ -192,10 +252,21 @@
     function updateSignal(){
       if(candles.length<220)return;
       var iv=intervalEl.value, mainScore=scoreSeries(candles), current=candles[candles.length-1];
-      var side=mainScore.score>2?"BUY":mainScore.score<-2?"SELL":"WAIT";
-      var p=ensureProbability();if(p){p.textContent=(side==="BUY"?"🟢 OSTA ":side==="SELL"?"🔴 MYY ":"🟡 ODOTA ")+Math.round(mainScore.prob)+" % · confluence "+mainScore.score; p.style.color=side==="BUY"?"#28d7a0":side==="SELL"?"#ff647c":"#ffd166";}
-      var sig=window.__liveSignal={direction:side,probability:mainScore.prob,score:mainScore.score,stop:null,target:null};
-      var a=mainScore.analysis,b=a.bar;if(Number.isFinite(b.atr)){sig.stop=side==="BUY"?b.close-1.5*b.atr:b.close+1.5*b.atr;sig.target=side==="BUY"?b.close+2.5*b.atr:b.close-2.5*b.atr;}
+      var fast=mainScore.fastReaction||{score:0,signal:"EI",notes:[],atr:null};
+      var side=fast.signal==="NOPEA OSTA"?"BUY":fast.signal==="NOPEA MYY"?"SELL":mainScore.score>2?"BUY":mainScore.score<-2?"SELL":"WAIT";
+      var p=ensureProbability();
+      if(p){
+        var fastLabel=fast.signal==="NOPEA OSTA"?"⚡ NOPEA OSTA":fast.signal==="NOPEA MYY"?"⚡ NOPEA MYY":(side==="BUY"?"🟢 OSTA":side==="SELL"?"🔴 MYY":"🟡 ODOTA");
+        p.textContent=fastLabel+" · live-pisteet "+(fast.score>0?"+":"")+fast.score+" · trendipisteet "+(mainScore.score>0?"+":"")+mainScore.score;
+        p.style.color=side==="BUY"?"#28d7a0":side==="SELL"?"#ff647c":"#ffd166";
+        var reason=document.getElementById("liveReactionNotes");
+        if(!reason){reason=document.createElement("div");reason.id="liveReactionNotes";reason.style.cssText="font-size:12px;font-weight:500;line-height:1.5;margin-top:5px;letter-spacing:0;";p.parentNode.appendChild(reason);}
+        reason.textContent=fast.notes.length?fast.notes.join(" · "):"Nopea kynttiläpisteytys ei ylitä +30 / −30 pisteen rajaa.";
+        reason.style.color=side==="BUY"?"#8de8c0":side==="SELL"?"#ffadb8":"#a9bad0";
+      }
+      var sig=window.__liveSignal={direction:side,probability:mainScore.prob,score:mainScore.score,fastScore:fast.score,fastSignal:fast.signal,fastNotes:fast.notes,stop:null,target:null};
+      var a=mainScore.analysis,b=a.bar,riskAtr=fast.signal!=="EI"&&Number.isFinite(fast.atr)?fast.atr:b.atr;
+      if(side!=="WAIT"&&Number.isFinite(riskAtr)&&riskAtr>0){sig.stop=side==="BUY"?b.close-1.5*riskAtr:b.close+1.5*riskAtr;sig.target=side==="BUY"?b.close+2.5*riskAtr:b.close-2.5*riskAtr;}
       renderSvg(sig);
       var priceEl=document.getElementById("price");if(priceEl&&Number.isFinite(lastPrice))priceEl.textContent=fmt(lastPrice,lastPrice<1?6:2);
       var rsiEl=document.getElementById("rsi");if(rsiEl)rsiEl.textContent=fmt(b.rsi,1);
