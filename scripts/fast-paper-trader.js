@@ -20,6 +20,8 @@ const DATA_DIR = path.join(ROOT, "data");
 const STATE_PATH = path.join(DATA_DIR, "fast-paper-state-" + INTERVAL_SECONDS + "s.json");
 const REPORT_PATH = path.join(DATA_DIR, "fast-paper-latest-" + INTERVAL_SECONDS + "s.json");
 const REPORTS_DIR = path.join(DATA_DIR, "fast-reports", INTERVAL_SECONDS + "s");
+const LEARNER_PATH = path.join(DATA_DIR, "learner-data.ndjson");
+const MODEL_PATH = path.join(DATA_DIR, "learner-model.json");
 const startedAt = Date.now();
 const endAt = startedAt + SESSION_SECONDS * 1000;
 const symbols = new Map();
@@ -54,7 +56,7 @@ if (!Number.isFinite(SESSION_SECONDS) || SESSION_SECONDS < 30 || SESSION_SECONDS
 
 function blankState() {
   return { schema: 1, mode: "paper", intervalSeconds: INTERVAL_SECONDS, initialCash: 1000,
-    cash: 1000, positions: {}, trades: [], sessions: [], lastSessionAt: null };
+    cash: 1000, positions: {}, trades: [], sessions: [], lastSessionAt: null, pendingExamples: {} };
 }
 function readState() {
   if (!fs.existsSync(STATE_PATH)) return blankState();
@@ -63,6 +65,7 @@ function readState() {
       !s.positions || !Array.isArray(s.trades) || !Array.isArray(s.sessions)) {
     throw new Error("Unsafe/invalid fast paper state; refusing to trade.");
   }
+  s.pendingExamples = s.pendingExamples || {};
   return s;
 }
 const state = readState();
@@ -70,28 +73,42 @@ state.positions ||= {};
 state.trades ||= [];
 state.sessions ||= [];
 state.initialCash ||= 1000;
+state.pendingExamples ||= {};
 const errors = [];
 const events = [];
 const barMs = INTERVAL_SECONDS * 1000;
 
-async function json(url, timeoutMs = 8000) {
+// Append a labeled training example line to the learner NDJSON file safely.
+function appendLearnerExample(example) {
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+    const line = JSON.stringify(example) + "\n";
+    fs.appendFileSync(LEARNER_PATH, line, { encoding: "utf8" });
+  } catch (e) {
+    console.warn("Failed to append learner example:", e && e.message);
+  }
+}
+
+function json(url, timeoutMs = 8000) {
   const hosts = ["https://data-api.binance.vision", "https://api1.binance.com", "https://api.binance.com"];
   let last;
-  for (const host of hosts) {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(host + url, { signal: controller.signal });
-      clearTimeout(timeout);
-      if (response.status === 418 || response.status === 429) throw new Error("Binance rate limit HTTP " + response.status);
-      if (!response.ok) throw new Error("HTTP " + response.status + " from " + host + url);
-      return await response.json();
-    } catch (e) {
-      clearTimeout(timeout); last = e;
-      if (/rate limit/.test(String(e.message))) throw e;
+  return (async () => {
+    for (const host of hosts) {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(host + url, { signal: controller.signal });
+        clearTimeout(timeout);
+        if (response.status === 418 || response.status === 429) throw new Error("Binance rate limit HTTP " + response.status);
+        if (!response.ok) throw new Error("HTTP " + response.status + " from " + host + url);
+        return await response.json();
+      } catch (e) {
+        clearTimeout(timeout); last = e;
+        if (/rate limit/.test(String(e.message))) throw e;
+      }
     }
-  }
-  throw last || new Error("Market data unavailable");
+    throw last || new Error("Market data unavailable");
+  })();
 }
 function bucket(ts) { return Math.floor(ts / barMs) * barMs; }
 function addTrade(s, price, qty, ts, feed = "websocket") {
@@ -139,10 +156,23 @@ function closePosition(s, reason, marketPrice, time) {
   const trade = { symbol: s.symbol, side: "PAPER_SELL", intervalSeconds: INTERVAL_SECONDS,
     entryTime: p.entryTime, exitTime: new Date(time).toISOString(), entry: p.entry,
     exit: out.fill, qty: p.qty, costBasis: p.costBasis, proceeds: out.proceeds,
-    feesEstimate: p.entryFee + out.fee, pnl: out.pnl, returnPct: out.pnl / p.costBasis * 100,
-    reason, durationSeconds: (time - Date.parse(p.entryTime)) / 1000 };
+    feesEstimate: p.entryFee + out.fee, pnl: out.pnl, returnPct: out.pnl / p.costBasis * 100, reason, durationSeconds: (time - Date.parse(p.entryTime)) / 1000 };
   state.trades.push(trade);
   events.push(trade);
+
+  // If there is a pending training example for this symbol, finalize it with the label computed from pnl.
+  try {
+    const pending = state.pendingExamples && state.pendingExamples[s.symbol];
+    if (pending) {
+      const label = out.pnl > 0 ? 1 : 0;
+      const example = Object.assign({}, pending.features, { label: label, pnl: out.pnl, closedAt: new Date(time).toISOString() });
+      appendLearnerExample(example);
+      delete state.pendingExamples[s.symbol];
+    }
+  } catch (e) {
+    console.warn("Failed to finalize training example:", e && e.message);
+  }
+
   delete state.positions[s.symbol];
 }
 function onClosedBar(s, bar) {
@@ -182,6 +212,27 @@ function onClosedBar(s, bar) {
         stop: state.positions[s.symbol].stop, target: state.positions[s.symbol].target,
         reason: "5/15-second EMA cross + momentum; simulated only" };
       state.trades.push(trade); events.push(trade);
+
+      // Create and persist a pending training example for this entry; it will be finalized when the position closes.
+      try {
+        const id = Date.now() + "-" + s.symbol + "-" + Math.floor(Math.random() * 100000);
+        const features = {
+          id: id,
+          symbol: s.symbol,
+          intervalSeconds: INTERVAL_SECONDS,
+          entry: fill,
+          fast: fast === null ? null : Number(fast.toFixed(8)),
+          slow: slow === null ? null : Number(slow.toFixed(8)),
+          fastMinusSlow: (fast !== null && slow !== null) ? Number((fast - slow).toFixed(8)) : null,
+          momentum: Number(momentum.toFixed(6)),
+          spreadPct: spreadPct === null ? null : Number(spreadPct.toFixed(6)),
+          closedBars: s.bars.filter(x => x.closeTime !== undefined).length,
+          createdAt: new Date().toISOString()
+        };
+        state.pendingExamples[s.symbol] = { id: id, features };
+      } catch (e) {
+        console.warn("Failed to create pending training example:", e && e.message);
+      }
     }
   }
 }
