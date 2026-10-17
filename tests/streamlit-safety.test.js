@@ -12,6 +12,9 @@ assert.match(app, /"level": "DATA STALE"/, "stale data is clearly marked in the 
 assert.match(app, /higher_tf_bias\(symbol, tf\)/, "higher timeframe confirmations are selected relative to the active timeframe");
 assert.match(app, /higher_frames = frames\[index \+ 1:index \+ 3\]/, "confirmations use strictly higher timeframes");
 assert.match(app, /if any\(value == "EI DATA" for value in result\.values\(\)\):/, "missing higher timeframe data fails closed");
+assert.match(app, /result\[higher_frame\] = "EI DATA"/, "missing high-timeframe data uses the same sentinel checked by the blocker");
+assert.match(app, /value = value\.mask\(\(avg_loss == 0\) & \(avg_gain > 0\), 100\)/, "RSI handles uninterrupted gains as overbought rather than neutral");
+assert.match(app, /value = value\.mask\(\(avg_loss == 0\) & \(avg_gain == 0\), 50\)/, "flat-series RSI remains neutral");
 assert.match(app, /if not higher_data_ok:/, "missing HTF data suppresses signals");
 assert.match(app, /confidence = 0 if not higher_data_ok/, "stale HTF status does not show a heuristic strength score");
 assert.match(app, /last = data\.iloc\[-1\]/, "closed higher-timeframe candles use the latest closed bar");
