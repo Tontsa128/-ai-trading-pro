@@ -115,6 +115,7 @@
           const exchangeTime = Number(data.T);
           const quantity = Number(data.q);
           if (price > 0 && Number.isFinite(price) && Number.isFinite(exchangeTime) &&
+              ageMs(exchangeTime, now) <= MAX_PRICE_AGE_MS &&
               (data.q == null || (Number.isFinite(quantity) && quantity >= 0))) {
             q.price = price;
             q.priceExchangeTime = exchangeTime;
