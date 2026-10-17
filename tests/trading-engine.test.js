@@ -15,6 +15,7 @@ const paperCycleSource=fs.readFileSync(path.join(__dirname,"../scripts/paper-tra
 assert.match(paperCycleSource,/newTrades\.push\(buyTrade\)/,"paper cycle report includes new entry trades");
 assert.match(paperCycleSource,/newTrades,closedTrades:closed/,"paper cycle distinguishes new trades from closed trades");
 assert.match(paperCycleSource,/spotPolicy:sig\.spotPolicy/,"paper cycle report explicitly records the long-only spot policy");
+assert.match(paperCycleSource,/ageMs>durationMs\+15_000/,"scheduled paper decisions reject stale closed candles per timeframe");
 
 const fixture={close:95,ema200:100,ema50:98,ema9:94,ema21:96,macdHist:-.0125,rsi:40,adx:30,pdi:8,mdi:20,volumeRatio:.8};
 assert.equal(E.explainCandle(fixture).bear.find(x=>x.name.includes("MACD-histogrammi")).ok,true);
