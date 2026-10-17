@@ -40,17 +40,18 @@ function parseBinanceMessage(raw, now = Date.now(), maxAgeMs = 5000) {
   if (d.e === "trade" || (d.p != null && d.q != null && d.T != null)) {
     const price = Number(d.p), qty = Number(d.q), time = Number(d.T);
     if (price > 0 && qty >= 0 && Number.isFinite(time) && isFreshQuote(time, now, maxAgeMs)) {
-      return { type: "trade", symbol, price, qty, time, exchangeEventTime: Number.isFinite(Number(d.E)) ? Number(d.E) : time };
+      const event = { type: "trade", symbol, price, qty, time };
+      if (Number.isFinite(Number(d.E))) event.exchangeEventTime = Number(d.E);
+      return event;
     }
     return null;
   }
   if (d.b != null && d.a != null) {
-    const bid = Number(d.b), ask = Number(d.a);
-    const eventTime = Number(d.E);
-    // Binance bookTicker can carry an exchange event timestamp. If present, reject
-    // future/stale quotes just as we do for trades; otherwise use receipt time in the worker.
+    const bid = Number(d.b), ask = Number(d.a), eventTime = Number(d.E);
     if (bid > 0 && ask >= bid && (!Number.isFinite(eventTime) || isFreshQuote(eventTime, now, maxAgeMs))) {
-      return { type: "bookTicker", symbol, bid, ask, exchangeEventTime: Number.isFinite(eventTime) ? eventTime : null };
+      const event = { type: "bookTicker", symbol, bid, ask };
+      if (Number.isFinite(eventTime)) event.exchangeEventTime = eventTime;
+      return event;
     }
   }
   return null;
