@@ -57,6 +57,12 @@ assert.equal(quote.ask, 65000.11);
 assert.equal(quote.fresh, true, "fresh trade and bid/ask updates qualify as live");
 assert.ok(quote.priceAgeMs >= 0 && quote.quoteAgeMs >= 0);
 assert.ok(Number.isFinite(quote.spreadPct) && quote.spreadPct > 0);
+const validPriceReceivedAt = quote.priceReceivedAt;
+sockets[0].message({stream:"btcusdt@trade",data:{e:"trade",s:"BTCUSDT",p:"99999.00",q:"1",T:now-6000}});
+sockets[0].message({stream:"btcusdt@trade",data:{e:"trade",s:"BTCUSDT",p:"99998.00",q:"1",T:now+6000}});
+quote = windowMock.RahasampoLiveMarket.get("BTCUSDT");
+assert.equal(quote.price, 65000.10, "stale/future exchange trade timestamps cannot overwrite a valid live price");
+assert.equal(quote.priceReceivedAt, validPriceReceivedAt, "invalid trade timestamps do not refresh the local price age");
 
 now += 4000;
 quote = windowMock.RahasampoLiveMarket.get("BTCUSDT");
