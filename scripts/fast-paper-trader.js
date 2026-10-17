@@ -25,6 +25,13 @@ const startedAt = Date.now();
 const endAt = startedAt + SESSION_SECONDS * 1000;
 const symbols = new Map();
 let socket;
+let socketOpenedAt = null;
+let socketLastActivityAt = null;
+let socketHandshakeTimer = null;
+let socketWatchdogTimer = null;
+let forceSocketFailure = null;
+let socketIdleTimeouts = 0;
+let socketHandshakeTimeouts = 0;
 let endpointIndex = 0;
 let tradeMessages = 0;
 let reconnectTimer;
@@ -203,6 +210,7 @@ async function handleMessage(raw) {
   const now = Date.now();
   socketMessages += 1;
   lastSocketMessageAt = now;
+  socketLastActivityAt = now;
   if (event.type === "trade") {
     tradeMessages += 1;
     addTrade(s, event.price, event.qty, event.time, "websocket");
@@ -246,6 +254,8 @@ function connect() {
   function failConnection(reason) {
     if (errorCounted) return;
     errorCounted = true;
+    if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
+    socketHandshakeTimer = null;
     socketErrors += 1;
     consecutiveSocketFailures += 1;
     lastSocketFailureAt = new Date().toISOString();
@@ -259,7 +269,18 @@ function connect() {
     try { currentSocket.close(); } catch {}
     scheduleReconnect();
   }
+  forceSocketFailure = failConnection;
+  socketHandshakeTimer = setTimeout(() => {
+    if (socket === currentSocket && currentSocket.readyState === WebSocket.CONNECTING) {
+      socketHandshakeTimeouts += 1;
+      failConnection("WebSocket handshake timed out");
+    }
+  }, 10000);
   currentSocket.addEventListener("open", () => {
+    if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
+    socketHandshakeTimer = null;
+    socketOpenedAt = Date.now();
+    socketLastActivityAt = socketOpenedAt;
     if (socket === currentSocket) socketOpen = true;
     lastConnectedWebSocketEndpoint = base;
     console.log("Binance public market-data WebSocket connected: " + base);
@@ -277,7 +298,14 @@ function connect() {
     failConnection("WebSocket error event");
   });
   currentSocket.addEventListener("close", () => {
-    if (socket === currentSocket) socketOpen = false;
+    if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
+    socketHandshakeTimer = null;
+    if (socket === currentSocket) {
+      socketOpen = false;
+      forceSocketFailure = null;
+      socketOpenedAt = null;
+      socketLastActivityAt = null;
+    }
     if (!sawMarketMessage && !errorCounted) {
       failConnection("socket closed before receiving market data");
       return;
@@ -362,6 +390,9 @@ function writeReport() {
       websocketConnectedAtEnd: websocketConnectedAtEnd, websocketMessages: socketMessages, websocketTradeMessages: tradeMessages,
       websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
       websocketDisabled: websocketDisabled,
+      websocketIdleTimeouts: socketIdleTimeouts,
+      websocketHandshakeTimeouts: socketHandshakeTimeouts,
+      socketLastMessageAgeMs: lastSocketMessageAt ? Math.max(0, now - lastSocketMessageAt) : null,
       websocketEndpointsTried: websocketEndpointsTried,
       lastWebSocketEndpoint: lastWebSocketEndpoint,
       lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
@@ -422,6 +453,14 @@ async function main() {
     throw new Error("Insufficient historical trade data to warm up the 5/15-second indicators.");
   }
   connect();
+  socketWatchdogTimer = setInterval(() => {
+    if (stopping || !socket || socket.readyState !== WebSocket.OPEN) return;
+    const lastActivity = socketLastActivityAt || socketOpenedAt;
+    if (lastActivity && Date.now() - lastActivity > 15000 && forceSocketFailure) {
+      socketIdleTimeouts += 1;
+      forceSocketFailure("WebSocket market-data stream was silent for over 15 seconds");
+    }
+  }, 2000);
   // Poll immediately, then every 2s to keep prices and top-of-book current when WS is unavailable.
   void pollQuotes();
   await new Promise(resolve => {
@@ -429,6 +468,8 @@ async function main() {
       stopping = true;
       clearTimeout(reconnectTimer);
       clearTimeout(quoteTimer);
+      if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
+      clearInterval(socketWatchdogTimer);
       websocketConnectedAtEnd = socketOpen;
       socketOpen = false;
       try { if (socket) socket.close(); } catch {}
@@ -439,4 +480,4 @@ async function main() {
   if (errors.length >= SYMBOLS.length) process.exitCode = 1;
 }
 main().catch(e => { console.error(e); process.exitCode = 1; });
-process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); websocketConnectedAtEnd = socketOpen; socketOpen = false; try { socket?.close(); } catch {} writeReport(); process.exit(130); });
+process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); clearTimeout(socketHandshakeTimer); clearInterval(socketWatchdogTimer); websocketConnectedAtEnd = socketOpen; socketOpen = false; try { socket?.close(); } catch {} writeReport(); process.exit(130); });
