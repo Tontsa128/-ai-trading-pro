@@ -304,5 +304,7 @@
     window.__liveLayer={reconnect:connect,getState:function(){return {symbol:symbolEl.value,interval:intervalEl.value,candles:candles.length,lastPrice:lastPrice,bid:bid,ask:ask};}};
     connect();
   }
-  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startLiveLayer);else setTimeout(startLiveLayer,0);
+  if(typeof document!=="undefined"&&typeof window!=="undefined"){
+    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startLiveLayer);else setTimeout(startLiveLayer,0);
+  }
 })(window);
