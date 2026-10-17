@@ -7,7 +7,7 @@ assert.doesNotMatch(app, /def demo_data\s*\(/, "legacy Streamlit path must not c
 assert.match(app, /if close_time >= now_ms:/, "only closed candles may feed Streamlit indicators");
 assert.match(app, /def is_fresh_closed_history\(df, interval_code, now_ms=None\):/, "legacy Streamlit checks the latest candle even when Binance responds successfully");
 assert.match(app, /if not is_fresh_closed_history\(fresh, tf\):/, "stale or future-dated candle history blocks an actionable signal");
-assert.match(app, /age_ms <= duration_ms \* 2 \+ 5_000/, "freshness allowance scales with the selected candle timeframe");
+assert.match(app, /age_ms <= duration_ms \+ 5_000/, "freshness allowance allows at most one candle interval plus tolerance");
 assert.match(app, /return None, "DATA FAIL — oikeaa markkinadataa ei saatu", False/, "no data must fail closed");
 assert.match(app, /raw, source, market_data_ok = load_data\(\)/, "Streamlit caller must receive feed validity");
 assert.match(app, /if not market_data_ok:/, "stale feed must enter a separate safety path");
