@@ -45,6 +45,8 @@ assert.match(html,/id="candleOhlc"/,"chart displays live OHLC values");
 assert.match(html,/candleEventLatency/,"chart displays a clock-skew-aware event timestamp diagnostic");
 assert.match(html,/candleIdleCloseRequested/,"stale candle stream tracks whether the idle connection has been closed");
 assert.match(html,/close\(4000,"Idle candle stream"\)/,"stalled open candle sockets are recycled instead of left permanently stale");
+assert.match(html,/candleSocketOpenedAt=Date\.now\(\);\s*try\{ws=new WebSocket\(url\)/,"connection attempt time is recorded so a stalled handshake is detectable");
+assert.match(html,/readyState===WebSocket\.OPEN\|\|candleSocket\.readyState===WebSocket\.CONNECTING/,"watchdog also recycles a socket stuck in CONNECTING");
 assert.match(fs.readFileSync("public/trading-engine.js","utf8"),/estimatedRoundTripCostPct/,"signal output explains estimated round-trip costs");
 assert.match(fs.readFileSync("public/trading-engine.js","utf8"),/validMarketTime&&priceAgeMs<=5000/,"future or stale market timestamps block fresh signals");
 assert.match(html,/liveChart\.timeScale\(\)\.fitContent\(\)/,"chart fits historical data on initial load");
