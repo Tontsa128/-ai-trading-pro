@@ -10,4 +10,8 @@ assert.match(source,/quoteAgeMs:\s*Number\.isFinite\(s\?\.lastQuoteAt\)/,"quote 
 assert.match(source,/let endpointIndex = 0;/);
 assert.match(source,/WEBSOCKET_BASES\[endpointIndex % WEBSOCKET_BASES\.length\]/,"reconnect endpoint rotates");
 assert.match(source,/websocketTradeMessages:\s*tradeMessages/,"report distinguishes trade messages");
+assert.match(source,/WebSocket handshake timed out/,"a stalled connecting handshake is failed closed");
+assert.match(source,/WebSocket market-data stream was silent for over 15 seconds/,"an open but silent market stream triggers reconnect");
+assert.match(source,/websocketIdleTimeouts:\s*socketIdleTimeouts/,"report exposes idle stream recovery counts");
+assert.match(source,/websocketHandshakeTimeouts:\s*socketHandshakeTimeouts/,"report exposes handshake timeout counts");
 console.log("Fast paper trader tests passed.");
