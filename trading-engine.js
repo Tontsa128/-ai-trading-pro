@@ -94,8 +94,8 @@
     if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) { var fourHour=higher[0]&&higher[0].checks?higher[0].checks.bias:"neutral",daily=higher[1]&&higher[1].checks?higher[1].checks.bias:"neutral",requiredBias=side==="SELL"?"bear":"bull"; return "Moniaikavälivahvistus: 4 h "+trendLabelFi(fourHour)+", 1 d "+trendLabelFi(daily)+"; vaaditaan "+trendLabelFi(requiredBias); }
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) return "Tuen etäisyys "+fixed(supportRoom,2)+" ATR; vaatimus ≥ 0.50 ATR";
     if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) return "Vastuksen etäisyys "+fixed(resistanceRoom,2)+" ATR; vaatimus ≥ 0.50 ATR";
-    if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") return "EMA 21 -etäisyys "+fixed(Math.abs(b.close-b.ema21)/b.atr,2)+" ATR; sallittu enintään 1.60 ATR";
-    if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) return "ATR-volatiliteetti "+fixed(b.atrPct,2)+" %; raja 3.00 %";
+    if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") return "EMA 21 -etäisyys "+fixed(Math.abs(b.close-b.ema21)/b.atr,2)+" ATR; sallittu enintään 1.60 ATR; "+(x.ok?"ehto täyttyy":"ehto ei täyty");
+    if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) return "ATR-volatiliteetti "+fixed(b.atrPct,2)+" %; raja 3.00 %; "+(x.ok?"ehto täyttyy":"ehto ei täyty");
     if (x.name.indexOf("Riittävästi historiadataa") === 0) return "Sulkeutuneita kynttilöitä "+main.high.length+"; vähimmäisvaatimus 220";
     if (x.name.indexOf("Osto/myyntihajonta") === 0) return "Nykyinen spread "+fixed(spreadPct,4)+" %; raja 0.1500 %";
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) return "Markkinahinnan ikä "+fixed(priceAgeMs/1000,1)+" sekuntia";
