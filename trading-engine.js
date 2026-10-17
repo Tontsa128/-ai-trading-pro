@@ -89,16 +89,52 @@
   function fixed(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla"; }
   function signedFixed(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla"; }
   function describeCheck(x, b, main, higher, checks, side, supportRoom, resistanceRoom, spreadPct, priceAgeMs) {
-    if (x.name.indexOf("MACD-histogrammi") === 0) { var bearishMacd=x.name.indexOf("negatiivinen")>=0; return "MACD-histogrammi "+signedFixed(b.macdHist,6)+"; vaaditaan "+(bearishMacd?"< 0 (laskusuunnan ehto)":"> 0 (noususuunnan ehto)" )+"; "+(x.ok?"ehto täyttyy":"ehto ei täyty"); }
-    if (x.name.indexOf("Volyymi") === 0) { var ratio=Number.isFinite(b.volumeRatio)?b.volumeRatio.toFixed(2)+"×":"ei saatavilla"; return "Volyymi "+ratio+"; vaatimus ≥ 0.50×; "+(x.ok?"ehto täyttyy":"ehto ei täyty"); }
-    if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) { var fourHour=higher[0]&&higher[0].checks?higher[0].checks.bias:"neutral",daily=higher[1]&&higher[1].checks?higher[1].checks.bias:"neutral",requiredBias=side==="SELL"?"bear":"bull"; return "Moniaikavälivahvistus: 4 h "+trendLabelFi(fourHour)+", 1 d "+trendLabelFi(daily)+"; vaaditaan "+trendLabelFi(requiredBias); }
-    if (x.name.indexOf("Myynnille tilaa tukeen") === 0) return "Tuen etäisyys "+fixed(supportRoom,2)+" ATR; vaatimus ≥ 0.50 ATR";
-    if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) return "Vastuksen etäisyys "+fixed(resistanceRoom,2)+" ATR; vaatimus ≥ 0.50 ATR";
-    if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") return "EMA 21 -etäisyys "+fixed(Math.abs(b.close-b.ema21)/b.atr,2)+" ATR; sallittu enintään 1.60 ATR";
-    if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) return "ATR-volatiliteetti "+fixed(b.atrPct,2)+" %; raja 3.00 %";
-    if (x.name.indexOf("Riittävästi historiadataa") === 0) return "Sulkeutuneita kynttilöitä "+main.high.length+"; vähimmäisvaatimus 220";
-    if (x.name.indexOf("Osto/myyntihajonta") === 0) return "Nykyinen spread "+fixed(spreadPct,4)+" %; raja 0.1500 %";
-    if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) return "Markkinahinnan ikä "+fixed(priceAgeMs/1000,1)+" sekuntia";
+    if (x.name.indexOf("MACD-histogrammi") === 0) {
+      var bearishMacd = x.name.indexOf("negatiivinen") >= 0;
+      var requirement = bearishMacd ? "< 0 (laskusuunnan ehto)" : "> 0 (noususuunnan ehto)";
+      return "MACD-histogrammi " + signedFixed(b.macdHist, 6) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Volyymi") === 0) {
+      var ratio = Number.isFinite(b.volumeRatio) ? b.volumeRatio.toFixed(2) + "×" : "ei saatavilla";
+      return "Volyymi " + ratio + " (" + (x.ok ? "vaatimus ≥ 0.50× täyttyy" : "vaatimus ≥ 0.50× ei täyty") + ")";
+    }
+    if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) {
+      var fourHour = higher[0] && higher[0].checks ? higher[0].checks.bias : "neutral";
+      var daily = higher[1] && higher[1].checks ? higher[1].checks.bias : "neutral";
+      var requiredBias = side === "SELL" ? "bear" : "bull";
+      return "Moniaikavälivahvistus: 1 h " + trendLabelFi(checks.bias) + ", 4 h " + trendLabelFi(fourHour) + ", 1 d " + trendLabelFi(daily) +
+        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias);
+    }
+    if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
+      var supportDistance = b.close - main.support;
+      var supportMin = 0.5 * b.atr;
+      return "Tuen etäisyys " + fixed(supportDistance, 2) + " hinnan yksikköä (" + fixed(supportRoom, 2) +
+        " ATR); vaatimus ≥ " + fixed(supportMin, 2) + " (" + fixed(0.5, 2) + " ATR)";
+    }
+    if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) {
+      var resistanceDistance = main.resistance - b.close;
+      var resistanceMin = 0.5 * b.atr;
+      return "Vastuksen etäisyys " + fixed(resistanceDistance, 2) + " hinnan yksikköä (" + fixed(resistanceRoom, 2) +
+        " ATR); vaatimus ≥ " + fixed(resistanceMin, 2) + " (" + fixed(0.5, 2) + " ATR)";
+    }
+    if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") {
+      var emaDistanceAtr = Number.isFinite(b.atr) && b.atr > 0 ? Math.abs(b.close-b.ema21)/b.atr : NaN;
+      return (x.ok ? "Hinta ei ole liian kaukana" : "Hinta on liian kaukana") + " EMA 21:stä: " +
+        fixed(Math.abs(b.close-b.ema21), 2) + " hinnan yksikköä (" + fixed(emaDistanceAtr, 2) +
+        " ATR; sallittu enintään 1.60 ATR); " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) {
+      return "ATR-volatiliteetti " + fixed(b.atrPct, 2) + " %; raja enintään 3.00 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Riittävästi historiadataa") === 0) {
+      return "Sulkeutuneita kynttilöitä " + main.high.length + "; vähimmäisvaatimus 220; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Osto/myyntihajonta") === 0) {
+      return "Nykyinen hajonta " + fixed(spreadPct, 4) + " %; raja enintään 0.1500 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
+      return "Markkinahinnan ikä " + fixed(priceAgeMs / 1000, 1) + " sekuntia";
+    }
     return x.name;
   }
   function explainCandle(b) {
