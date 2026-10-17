@@ -3,13 +3,18 @@
 const assert = require("node:assert/strict");
 const { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("../scripts/market-feed");
 
+const tradeNow = Date.now();
 const trade = parseBinanceMessage(JSON.stringify({
   stream: "btcusdt@trade",
-  data: { e: "trade", s: "BTCUSDT", p: "65000.25", q: "0.01", T: 1792000000000 }
-}));
+  data: { e: "trade", s: "BTCUSDT", p: "65000.25", q: "0.01", T: tradeNow }
+}), tradeNow);
 assert.deepEqual(trade, {
-  type: "trade", symbol: "BTCUSDT", price: 65000.25, qty: 0.01, time: 1792000000000
+  type: "trade", symbol: "BTCUSDT", price: 65000.25, qty: 0.01, time: tradeNow
 });
+const staleTrade = JSON.stringify({ data: { e: "trade", s: "BTCUSDT", p: "65000.25", q: "0.01", T: tradeNow - 6000 } });
+const futureTrade = JSON.stringify({ data: { e: "trade", s: "BTCUSDT", p: "65000.25", q: "0.01", T: tradeNow + 6000 } });
+assert.equal(parseBinanceMessage(staleTrade, tradeNow), null, "stale exchange trades must not advance short-horizon bars");
+assert.equal(parseBinanceMessage(futureTrade, tradeNow), null, "future-dated exchange trades must fail closed");
 
 const book = parseBinanceMessage(Buffer.from(JSON.stringify({
   stream: "ethusdt@bookTicker",
