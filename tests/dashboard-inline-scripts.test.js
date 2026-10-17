@@ -15,7 +15,9 @@ assert.match(html,/0\.0001 %/,"tiny spreads are not rounded to a misleading zero
 assert.match(html,/OOS winrate/);assert.match(html,/OOS netto/);assert.match(html,/OOS DD/);assert.match(html,/OOS PF/);
 assert.match(html,/pieni otos/,"small OOS samples are warned about rather than hidden");
 assert.match(html,/RAPORTTI VANHENTUNUT/,"stale paper reports are visually flagged");
-assert.match(html,/Math\.max\(0,\(Date\.now\(\)-started\)\/1000\)/,"report age is clamped at zero");
+assert.match(html,/reportTime=Date\.parse\(d\.sessionEndedAt\|\|d\.sessionStartedAt\)/,"fast report freshness is measured from session end when available");
+assert.match(html,/Math\.max\(0,\(Date\.now\(\)-reportTime\)\/1000\)/,"report age is clamped at zero");
+assert.match(html,/x\.marketAgeMs===null\|\|x\.marketAgeMs===undefined/,"missing trade age is shown as unavailable, never as zero seconds");
 assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
 assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
 assert.match(html,/strategyVersion/,"strategy version is visible");
