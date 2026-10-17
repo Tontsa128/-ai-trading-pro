@@ -29,7 +29,7 @@ async function invoke(query, mockFetch, method) {
     async url => {
       calls.push(String(url));
       if (calls.length === 1) return { ok: false, status: 503, json: async () => ({}) };
-      return { ok: true, status: 200, json: async () => ({ symbol: "BTCUSDT", lastPrice: "65000" }) };
+      return { ok: true, status: 200, json: async () => ({ symbol: "BTCUSDT", lastPrice: "65000", priceChangePercent: "1.2", closeTime: Date.now() }) };
     }
   );
   assert.equal(fallback.statusCode, 200);
@@ -56,6 +56,18 @@ async function invoke(query, mockFetch, method) {
 
   const wrongMethod = await invoke({ endpoint: "ticker24hr", symbol: "BTCUSDT" }, undefined, "POST");
   assert.equal(wrongMethod.statusCode, 405);
+
+  const invalidTicker = await invoke({ endpoint: "ticker24hr", symbol: "BTCUSDT" },
+    async () => ({ ok: true, status: 200, json: async () => ({ symbol: "BTCUSDT", lastPrice: "bad", priceChangePercent: "0", closeTime: Date.now() }) }));
+  assert.equal(invalidTicker.statusCode, 502, "invalid numeric tickers must fail closed");
+  const invalidTickerTimestamp = await invoke({ endpoint: "ticker24hr", symbol: "BTCUSDT" },
+    async () => ({ ok: true, status: 200, json: async () => ({ symbol: "BTCUSDT", lastPrice: "65000", priceChangePercent: "0", closeTime: "not-a-time" }) }));
+  assert.equal(invalidTickerTimestamp.statusCode, 502, "missing or invalid trade timestamps must fail closed");
+  const malformedKline = [Date.now(), "10", "9", "8", "10", "1", Date.now()+60000];
+  const invalidKline = await invoke({ endpoint: "klines", symbol: "BTCUSDT", interval: "1h", limit: "10" },
+    async () => ({ ok: true, status: 200, json: async () => [malformedKline] }));
+  assert.equal(invalidKline.statusCode, 502, "internally inconsistent OHLC candles must be rejected");
+
 
   console.log("Market proxy tests passed: source failover, input allow-list, schema validation and method guard.");
 })().catch(error => {
