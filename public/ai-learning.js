@@ -1,8 +1,8 @@
 (function () {
   "use strict";
 
-  const MODEL_URL = "./learner-model.json";
-  const DEFAULT_MODEL = {
+  const AI_MODEL_URL = "./learner-model.json";
+  const AI_DEFAULT = {
     version: 1,
     samples: 0,
     winRate: 0,
@@ -14,24 +14,24 @@
     status: "waiting-for-data"
   };
 
-  function setText(id, text) {
-    const node = document.getElementById(id);
-    if (node) node.textContent = text;
+  function setText(id, value) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = value;
   }
 
   function setClass(id, className) {
-    const node = document.getElementById(id);
-    if (node) node.className = className;
+    const el = document.getElementById(id);
+    if (el) el.className = className;
   }
 
   async function loadModel() {
     try {
-      const response = await fetch(MODEL_URL + "?t=" + Date.now(), { cache: "no-store" });
-      if (!response.ok) return DEFAULT_MODEL;
-      const data = await response.json();
-      return data && typeof data === "object" ? data : DEFAULT_MODEL;
-    } catch (error) {
-      return DEFAULT_MODEL;
+      const res = await fetch(AI_MODEL_URL + "?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) return AI_DEFAULT;
+      const json = await res.json();
+      return json && typeof json === "object" ? json : AI_DEFAULT;
+    } catch (e) {
+      return AI_DEFAULT;
     }
   }
 
@@ -41,20 +41,27 @@
     const strength = Number(model.adaptiveStrength || 50);
     const status = model.status || "waiting-for-data";
 
-    setText("aiSamples", samples > 0 ? String(samples) : "—");
-    setText("aiWinRate", samples > 0 ? winRate.toFixed(1) + "%" : "—");
-    setText("aiStrength", samples > 0 ? strength.toFixed(1) + "%" : "—");
-    setText("aiStatus", samples > 0 ? status : "odottaa dataa");
-
-    const statusLabel = samples > 0 ? (
-      status === "improving" ? "oppiminen vahvistuu" :
-      status === "stable" ? "tasapainoinen" :
-      "opetellaan"
-    ) : "Ei vielä opetettuja esimerkkejä";
-
-    setText("aiLearningSummary", statusLabel);
-    setClass("aiSummaryBadge", "pill " + (samples > 0 ? "good" : "neutral"));
-    setText("aiSummaryBadge", samples > 0 ? "AI LEARNING" : "WAITING");
+    if (samples > 0) {
+      setText("aiSamples", String(samples));
+      setText("aiWinRate", winRate.toFixed(1) + "%");
+      setText("aiStrength", strength.toFixed(1) + "%");
+      setText("aiStatus", status);
+      setText("aiLearningSummary",
+        status === "improving" ? "Oppiminen vahvistuu" :
+        status === "stable" ? "Tasapainoinen" :
+        "Opetellaan jatkuvasti"
+      );
+      setClass("aiSummaryBadge", "pill good");
+      setText("aiSummaryBadge", "AI LEARNING");
+    } else {
+      setText("aiSamples", "—");
+      setText("aiWinRate", "—");
+      setText("aiStrength", "—");
+      setText("aiStatus", "odottaa dataa");
+      setText("aiLearningSummary", "Ei vielä opetettuja esimerkkejä");
+      setClass("aiSummaryBadge", "pill neutral");
+      setText("aiSummaryBadge", "WAITING");
+    }
   }
 
   async function boot() {
