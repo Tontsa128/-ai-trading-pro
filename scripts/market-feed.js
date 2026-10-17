@@ -20,6 +20,11 @@ function buildCombinedStreamUrl(base, symbols) {
   return base.replace(/\/+$/, "") + "/stream?streams=" + streams.join("/");
 }
 
+function isFreshQuote(lastQuoteAt, now = Date.now(), maxAgeMs = 5000) {
+  return Number.isFinite(lastQuoteAt) && Number.isFinite(now) && Number.isFinite(maxAgeMs) &&
+    maxAgeMs >= 0 && lastQuoteAt <= now && now - lastQuoteAt <= maxAgeMs;
+}
+
 function parseBinanceMessage(raw, now = Date.now(), maxAgeMs = 5000) {
   let text;
   if (typeof raw === "string") text = raw;
@@ -34,12 +39,19 @@ function parseBinanceMessage(raw, now = Date.now(), maxAgeMs = 5000) {
   const symbol = d.s.toUpperCase();
   if (d.e === "trade" || (d.p != null && d.q != null && d.T != null)) {
     const price = Number(d.p), qty = Number(d.q), time = Number(d.T);
-    if (price > 0 && qty >= 0 && isFreshQuote(time, now, maxAgeMs)) return { type: "trade", symbol, price, qty, time };
+    if (price > 0 && qty >= 0 && Number.isFinite(time) && isFreshQuote(time, now, maxAgeMs)) {
+      return { type: "trade", symbol, price, qty, time, exchangeEventTime: Number.isFinite(Number(d.E)) ? Number(d.E) : time };
+    }
     return null;
   }
   if (d.b != null && d.a != null) {
     const bid = Number(d.b), ask = Number(d.a);
-    if (bid > 0 && ask >= bid) return { type: "bookTicker", symbol, bid, ask };
+    const eventTime = Number(d.E);
+    // Binance bookTicker can carry an exchange event timestamp. If present, reject
+    // future/stale quotes just as we do for trades; otherwise use receipt time in the worker.
+    if (bid > 0 && ask >= bid && (!Number.isFinite(eventTime) || isFreshQuote(eventTime, now, maxAgeMs))) {
+      return { type: "bookTicker", symbol, bid, ask, exchangeEventTime: Number.isFinite(eventTime) ? eventTime : null };
+    }
   }
   return null;
 }
@@ -51,16 +63,6 @@ function normalizeTickerQuote(payload) {
   const ask = Number(payload.askPrice);
   if (!(price > 0) || !(bid > 0) || !(ask >= bid)) return null;
   return { price, bid, ask };
-}
-
-// Reject unavailable, future-dated or stale top-of-book quotes before opening a position.
-function isFreshQuote(lastQuoteAt, now = Date.now(), maxAgeMs = 5000) {
-  return Number.isFinite(lastQuoteAt) &&
-    Number.isFinite(now) &&
-    Number.isFinite(maxAgeMs) &&
-    maxAgeMs >= 0 &&
-    lastQuoteAt <= now &&
-    now - lastQuoteAt <= maxAgeMs;
 }
 
 module.exports = { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };
