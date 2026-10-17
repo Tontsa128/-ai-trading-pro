@@ -277,6 +277,7 @@ function connect() {
     }
   }, 10000);
   currentSocket.addEventListener("open", () => {
+    if (socket !== currentSocket) return;
     if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
     socketHandshakeTimer = null;
     socketOpenedAt = Date.now();
@@ -286,6 +287,7 @@ function connect() {
     console.log("Binance public market-data WebSocket connected: " + base);
   });
   currentSocket.addEventListener("message", e => {
+    if (socket !== currentSocket) return;
     sawMarketMessage = true;
     consecutiveSocketFailures = 0;
     if (socket === currentSocket) socketOpen = true;
@@ -295,9 +297,11 @@ function connect() {
     });
   });
   currentSocket.addEventListener("error", () => {
+    if (socket !== currentSocket) return;
     failConnection("WebSocket error event");
   });
   currentSocket.addEventListener("close", () => {
+    if (socket !== currentSocket) return;
     if (socketHandshakeTimer) clearTimeout(socketHandshakeTimer);
     socketHandshakeTimer = null;
     if (socket === currentSocket) {
