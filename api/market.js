@@ -25,6 +25,18 @@ function integer(value, min, max) {
   return Number.isSafeInteger(n) && n >= min && n <= max ? n : null;
 }
 
+function validKline(k) {
+  if (!Array.isArray(k) || k.length < 7) return false;
+  const openTime = Number(k[0]), closeTime = Number(k[6]);
+  const [open, high, low, close, volume] = [k[1], k[2], k[3], k[4], k[5]].map(Number);
+  return Number.isFinite(openTime) && openTime >= 0 &&
+    Number.isFinite(closeTime) && closeTime > openTime &&
+    [open, high, low, close, volume].every(Number.isFinite) &&
+    Math.min(open, high, low, close) > 0 && volume >= 0 &&
+    high >= Math.max(open, close, low) &&
+    low <= Math.min(open, close, high);
+}
+
 module.exports = async function marketProxy(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
   res.setHeader("Cache-Control", "public, max-age=1, s-maxage=3, stale-while-revalidate=5");
@@ -80,8 +92,10 @@ module.exports = async function marketProxy(req, res) {
       let payload;
       try { payload = await response.json(); }
       catch (error) { lastError = "Binance returned invalid JSON."; lastStatus = 502; continue; }
-      const invalidKlines = endpoint === "klines" && (!Array.isArray(payload) || !payload.every(k => Array.isArray(k) && k.length >= 7));
-      const invalidTicker = endpoint === "ticker24hr" && (!payload || typeof payload !== "object" || Array.isArray(payload) || !Number.isFinite(Number(payload.lastPrice)) || Number(payload.lastPrice) <= 0);
+      const invalidKlines = endpoint === "klines" && (!Array.isArray(payload) || payload.length === 0 || !payload.every(validKline));
+      const invalidTicker = endpoint === "ticker24hr" && (!payload || typeof payload !== "object" || Array.isArray(payload) ||
+        !Number.isFinite(Number(payload.lastPrice)) || Number(payload.lastPrice) <= 0 ||
+        !Number.isFinite(Number(payload.priceChangePercent)) || !Number.isFinite(Number(payload.closeTime)) || Number(payload.closeTime) < 0);
       const invalidBook = endpoint === "bookTicker" && (!payload || typeof payload !== "object" || Array.isArray(payload) ||
         !Number.isFinite(Number(payload.bidPrice)) || Number(payload.bidPrice) <= 0 ||
         !Number.isFinite(Number(payload.askPrice)) || Number(payload.askPrice) < Number(payload.bidPrice));
