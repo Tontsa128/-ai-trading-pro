@@ -14,7 +14,6 @@ function finite(value) {
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
-
 function mean(values) {
   const valid = values.filter((v) => v !== null && Number.isFinite(v));
   return valid.length ? valid.reduce((sum, value) => sum + value, 0) / valid.length : null;
@@ -43,34 +42,43 @@ function loadExamples() {
         fastMinusSlow: finite(item.fastMinusSlow),
         spreadPct: finite(item.spreadPct)
       });
-    } catch {
+    } catch (e) {
       rejected++;
     }
   }
   return { examples, rejected };
 }
 
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
 function buildModel({ examples, rejected }) {
   const wins = examples.filter((item) => item.label === 1).length;
-  const winRate = examples.length ? wins / examples.length : null;
+  const samples = examples.length;
+  const winRate = samples ? wins / samples : null; // fraction 0..1
+  const winRatePct = winRate === null ? null : winRate * 100;
   const avgPnl = mean(examples.map((item) => item.pnl));
-  // A bounded descriptive adjustment only; this is not a trained predictor.
-  const adaptiveStrength = examples.length < 10 || winRate === null
-    ? 0
-    : Number(Math.max(-0.15, Math.min(0.15, (winRate - 0.5) * 0.3)).toFixed(4));
+
+  // Map winRatePct -> adaptiveStrength (0..100), neutral at ~50%.
+  // Formula chosen to gently reward win rates > 40% and scale up; this is descriptive.
+  const adaptiveStrength = samples < 10 || winRatePct === null
+    ? 50
+    : Number(clamp(((winRatePct - 40) * 1.5) + 50, 0, 100).toFixed(2));
+
+  const status = samples < 10 ? "waiting-for-data" : (winRatePct >= 55 ? "improving" : winRatePct >= 45 ? "stable" : "learning");
+
   return {
     schema: 1,
     modelType: "descriptive-paper-trading-statistics",
     generatedAt: new Date().toISOString(),
-    samples: examples.length,
+    samples,
     rejectedRecords: rejected,
-    winRate: winRate === null ? null : Number(winRate.toFixed(4)),
+    winRate: winRatePct === null ? null : Number(winRatePct.toFixed(2)),
     adaptiveStrength,
     avgPnl: avgPnl === null ? null : Number(avgPnl.toFixed(6)),
     avgMomentum: mean(examples.map((item) => item.momentum)),
     avgFastSlow: mean(examples.map((item) => item.fastMinusSlow)),
     avgSpreadPct: mean(examples.map((item) => item.spreadPct)),
-    status: examples.length < 10 ? "insufficient-data" : "descriptive-only",
+    status,
     disclaimer: "Paper-trading statistics only; not a validated predictive model and not evidence of profitability."
   };
 }
