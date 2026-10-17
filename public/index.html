@@ -351,28 +351,42 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  return true;
 }
 function renderChart(series,signal,symbol,chartCount){
- if(!window.Plotly||typeof window.Plotly.react!=="function"){
-  return renderNativeCandleChart(series,signal,symbol,chartCount);
+ var valid=Array.isArray(series)?series.filter(function(b){
+  return b&&[b.time,b.open,b.high,b.low,b.close].every(function(v){return v!==null&&v!==undefined&&Number.isFinite(Number(v));})&&Number(b.open)>0&&Number(b.high)>0&&Number(b.low)>0&&Number(b.close)>0&&Number(b.high)>=Math.max(Number(b.open),Number(b.close))&&Number(b.low)<=Math.min(Number(b.open),Number(b.close));
+ }):[];
+ var count=Math.max(2,Math.min(1000,Number(chartCount)||150));
+ if(valid.length<2){
+  $("chart").innerHTML='<div class="status error">Hintakaaviota ei voida piirtää: markkinadatassa ei ole vähintään kahta kelvollista kynttilää. Paina Päivitä ja tarkista markkinadatan tila.</div>';
+  return false;
  }
- $("chart").innerHTML="";
- var d=series.slice(-chartCount),x=d.map(function(b){return new Date(b.time);});
- var traces=[{type:"candlestick",x:x,open:d.map(function(b){return b.open;}),high:d.map(function(b){return b.high;}),low:d.map(function(b){return b.low;}),close:d.map(function(b){return b.close;}),name:symbol,increasing:{line:{color:"#28d7a0"}},decreasing:{line:{color:"#ff647c"}}}];
+ valid=valid.slice(-count);
+ if(!window.Plotly||typeof window.Plotly.react!=="function"){
+  return renderNativeCandleChart(valid,signal,symbol,count);
+ }
+ $("chart").innerHTML='<div class="status">Piirretään hintakaaviota…</div>';
+ var x=valid.map(function(b){return new Date(Number(b.time));});
+ var traces=[{type:"candlestick",x:x,open:valid.map(function(b){return Number(b.open);}),high:valid.map(function(b){return Number(b.high);}),low:valid.map(function(b){return Number(b.low);}),close:valid.map(function(b){return Number(b.close);}),name:symbol,increasing:{line:{color:"#28d7a0"}},decreasing:{line:{color:"#ff647c"}}}];
  [["ema9","#ffd166"],["ema21","#67b7ff"],["ema50","#c084fc"],["ema200","#fb7185"]].forEach(function(item){
-  traces.push({type:"scatter",x:x,y:d.map(function(b){return b[item[0]];}),mode:"lines",name:item[0].toUpperCase(),line:{color:item[1],width:item[0]==="ema200"?2:1.3}});
+  traces.push({type:"scatter",x:x,y:valid.map(function(b){var v=Number(b[item[0]]);return b[item[0]]!==null&&b[item[0]]!==undefined&&Number.isFinite(v)?v:null;}),mode:"lines",name:item[0].toUpperCase(),line:{color:item[1],width:item[0]==="ema200"?2:1.3}});
  });
  var shapes=[];
- if(signal.direction!=="WAIT"&&Number.isFinite(signal.stop)&&Number.isFinite(signal.target)){
+ if(signal&&signal.direction!=="WAIT"&&Number.isFinite(signal.stop)&&Number.isFinite(signal.target)){
   shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.stop,y1:signal.stop,line:{color:"#ff647c",dash:"dash"}});
   shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.target,y1:signal.target,line:{color:"#28d7a0",dash:"dash"}});
  }
  try{
-  var chartResult=Plotly.react("chart",traces,{paper_bgcolor:"#101d30",plot_bgcolor:"#101d30",font:{color:"#dce9fa"},margin:{l:55,r:18,t:12,b:45},
+  var chartResult=window.Plotly.react("chart",traces,{paper_bgcolor:"#101d30",plot_bgcolor:"#101d30",font:{color:"#dce9fa"},margin:{l:55,r:18,t:12,b:45},
    xaxis:{gridcolor:"#263750",rangeslider:{visible:false}},yaxis:{gridcolor:"#263750",side:"right"},legend:{orientation:"h",y:1.1},autosize:true,shapes:shapes},
    {responsive:true,displaylogo:false,scrollZoom:true});
-  if(chartResult&&typeof chartResult.catch==="function")chartResult.catch(function(){renderNativeCandleChart(series,signal,symbol,chartCount);});
+  if(chartResult&&typeof chartResult.then==="function"){
+   chartResult.then(function(){
+    var node=$("chart");
+    if(!node||!node.querySelector(".main-svg"))renderNativeCandleChart(valid,signal,symbol,count);
+   }).catch(function(){renderNativeCandleChart(valid,signal,symbol,count);});
+  }
   return true;
  }catch(e){
-  return renderNativeCandleChart(series,signal,symbol,chartCount);
+  return renderNativeCandleChart(valid,signal,symbol,count);
  }
 }
 async function load(){
