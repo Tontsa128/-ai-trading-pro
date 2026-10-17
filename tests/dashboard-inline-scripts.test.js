@@ -50,6 +50,7 @@ assert.match(html,/candleEndpointIndex=0/,"candle streaming keeps a persistent e
 assert.match(html,/urls\[candleEndpointIndex%urls\.length\]/,"candle reconnects do not reuse a failed endpoint just because the backoff counter resets");
 assert.match(html,/candleEndpointIndex=\(candleEndpointIndex\+1\)%2/,"candle stream rotates between public endpoints after disconnection");
 assert.match(html,/candleIdleCloseRequested/,"stale candle stream tracks whether the idle connection has been closed");
+assert.match(html,/last=Math\.max\(candleLastEventAt\|\|0,candleSocketOpenedAt\|\|0\)/,"a new socket gets its own grace period instead of inheriting the previous stream timestamp");
 assert.match(html,/close\(4000,"Idle candle stream"\)/,"stalled open candle sockets are recycled instead of left permanently stale");
 assert.match(html,/candleSocketOpenedAt=Date\.now\(\);\s*try\{ws=new WebSocket\(url\)/,"connection attempt time is recorded so a stalled handshake is detectable");
 assert.match(html,/readyState===WebSocket\.OPEN\|\|candleSocket\.readyState===WebSocket\.CONNECTING/,"watchdog also recycles a socket stuck in CONNECTING");
