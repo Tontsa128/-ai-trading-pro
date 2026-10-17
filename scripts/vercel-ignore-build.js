@@ -24,7 +24,9 @@ function isDeploymentRelevantPath(file) {
     "next.config.mjs",
     "next.config.ts",
     "vite.config.js",
-    "vite.config.ts"
+    "vite.config.ts",
+    "index.html",
+    "trading-engine.js"
   ]);
   return file.startsWith("public/") ||
     file.startsWith("api/") ||
