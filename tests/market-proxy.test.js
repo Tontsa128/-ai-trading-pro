@@ -35,6 +35,10 @@ async function invoke(query, mockFetch, method) {
   assert.equal(fallback.statusCode, 200);
   assert.equal(fallback.body.lastPrice, "65000");
   assert.equal(calls.length, 2, "proxy must try the backup Binance source");
+  assert.equal(fallback.headers["Cache-Control"], "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  assert.equal(fallback.headers.Pragma, "no-cache");
+  assert.ok(fallback.headers["X-Market-Data-Generated-At"]);
+  assert.ok(fallback.headers["X-Market-Event-Time"]);
 
   let fetched = false;
   const badSymbol = await invoke({ endpoint: "ticker24hr", symbol: "NOTREAL" }, async () => {
@@ -68,8 +72,7 @@ async function invoke(query, mockFetch, method) {
     async () => ({ ok: true, status: 200, json: async () => [malformedKline] }));
   assert.equal(invalidKline.statusCode, 502, "internally inconsistent OHLC candles must be rejected");
 
-
-  console.log("Market proxy tests passed: source failover, input allow-list, schema validation and method guard.");
+  console.log("Market proxy tests passed: source failover, no-cache headers, input allow-list, schema validation and method guard.");
 })().catch(error => {
   console.error(error);
   process.exitCode = 1;
