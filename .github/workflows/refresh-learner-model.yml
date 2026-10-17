@@ -1,0 +1,38 @@
+name: Refresh learner model
+
+on:
+  schedule:
+    - cron: "0 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: refresh-learner-model
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Validate existing project tests
+        run: npm test
+      - name: Test learner model refresh
+        run: node tests/learner-model.test.js
+      - name: Refresh model from committed paper-learning examples
+        run: node scripts/refresh-learner-model.js
+      - name: Upload generated model files
+        uses: actions/upload-artifact@v4
+        with:
+          name: learner-model
+          path: |
+            data/learner-model.json
+            public/learner-model.json
+          if-no-files-found: error
+          retention-days: 14
