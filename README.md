@@ -60,3 +60,19 @@ The separate workflow fast-paper-trading.yml prefers Binance public Spot WebSock
 - A GitHub Actions schedule is best-effort, not a permanently connected trading server. Vercel hosts the static dashboard; it does not keep this WebSocket worker running continuously. For truly uninterrupted 24/7 streaming, run the worker on an always-on host with monitoring and durable storage.
 - The latest JSON state and report history for all three paper workflows are saved on the dedicated paper-data branch, not main. A retry-safe writer handles concurrent pushes; Vercel's Git configuration disables deployments from the paper-data branch, while its ignored-build script skips report-only and documentation/test/workflow commits. The public dashboard can read report JSON from that branch without producing a Vercel deployment for each refresh.
 - Paper only: no private API keys, account balances, or real orders are used. Do not enable real-money execution based on these results.
+
+
+## Adaptive learner statistics (paper trading)
+
+The learner model summarizes labeled records in `data/learner-data.ndjson` and writes matching JSON files to `data/learner-model.json` and `public/learner-model.json`.
+
+```bash
+node scripts/refresh-learner-model.js
+node tests/learner-model.test.js
+```
+
+Each non-empty NDJSON line should be a JSON object with `symbol`, `pnl`, and either `label` (1 = win, 0 = loss) or enough P&L information to derive the label. Optional numeric fields are `momentum`, `fastMinusSlow`, and `spreadPct`. Invalid rows are counted and skipped. If no data file exists, the script safely generates an empty model rather than fabricating samples.
+
+The scheduled GitHub Actions workflow runs project tests, refreshes the model, and uploads the output as a downloadable workflow artifact. It deliberately does **not** commit or push generated files to `main` automatically. The learner workflow is not yet connected to the existing paper-trading collector: no new labeled trade examples are generated unless a separate process writes them. This descriptive summary is not a trained predictor and does not establish profitability.
+
+This project is for research and paper trading only; it does not place live orders.
