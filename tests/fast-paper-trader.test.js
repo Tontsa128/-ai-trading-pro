@@ -14,4 +14,5 @@ assert.match(source,/WebSocket handshake timed out/,"a stalled connecting handsh
 assert.match(source,/WebSocket market-data stream was silent for over 15 seconds/,"an open but silent market stream triggers reconnect");
 assert.match(source,/websocketIdleTimeouts:\s*socketIdleTimeouts/,"report exposes idle stream recovery counts");
 assert.match(source,/websocketHandshakeTimeouts:\s*socketHandshakeTimeouts/,"report exposes handshake timeout counts");
+assert.ok((source.match(/if \(socket !== currentSocket\) return;/g)||[]).length>=4,"callbacks from replaced sockets cannot clear the active socket timeout or alter the current feed");
 console.log("Fast paper trader tests passed.");
