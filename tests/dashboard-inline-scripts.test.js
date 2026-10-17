@@ -20,6 +20,7 @@ assert.match(html,/Math\.max\(0,\(Date\.now\(\)-reportTime\)\/1000\)/,"report ag
 assert.match(html,/x\.marketAgeMs===null\|\|x\.marketAgeMs===undefined/,"missing trade age is shown as unavailable, never as zero seconds");
 assert.match(html,/Math\.max\(0,Number\(x\.marketAgeMs\)\)\/1000/,"fast market age is never displayed as negative");
 assert.match(html,/lastClosedCandleAt/,"paper table shows the candle timestamp");
+assert.match(html,/ageMs>intervalMs\(iv\)\+15000/,"browser indicators reject a stale latest closed candle even when the REST request succeeds");
 assert.match(html,/strategyVersion/,"strategy version is visible");
 assert.match(html,/function renderNativeCandleChart\(/,"chart has a native SVG fallback if the Plotly CDN is unavailable");
 assert.match(html,/return renderNativeCandleChart\(series,sig,sym,count\)/,"chart falls back to native SVG on missing/broken Plotly");
