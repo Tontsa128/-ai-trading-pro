@@ -115,7 +115,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  $("chart").innerHTML=out.join("");
  return true;
 }
-var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null,candleClockSkew=null,candleSocketOpenedAt=0,candleIdleCloseRequested=false;
+var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleEndpointIndex=0,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null,candleClockSkew=null,candleSocketOpenedAt=0,candleIdleCloseRequested=false;
 function chartStatus(message,type){var el=$("candleLiveStatus");if(el){el.className="status "+(type||"");el.textContent=message;}}
 function chart(series,sig,sym){
  var count=Number($("chartCount").value)||50,d=series.slice(-count),patterns=findCandlePatterns(d).slice(-12),showEma=$("showEma")&&$("showEma").checked;
@@ -162,7 +162,7 @@ function startCandleStream(symbol,interval){
  function connect(){
   if(candleStreamKey!==key)return;
   var urls=["wss://stream.binance.com:443/ws/"+symbol.toLowerCase()+"@kline_"+interval,"wss://data-stream.binance.vision:443/ws/"+symbol.toLowerCase()+"@kline_"+interval];
-  var url=urls[candleReconnects%urls.length],ws;
+  var url=urls[candleEndpointIndex%urls.length],ws;
   candleSocketOpenedAt=Date.now();
   try{ws=new WebSocket(url);candleSocket=ws;}catch(e){schedule();return;}
   chartStatus("KYNTTILÄSTREAM: yhdistetään Binanceen ("+symbol+" / "+interval+")…","");
@@ -182,7 +182,7 @@ function startCandleStream(symbol,interval){
   ws.onerror=function(){chartStatus("Binance kynttilästreamin yhteysvirhe — yritetään yhdistää uudelleen.","error");};
   ws.onclose=function(){if(candleSocket===ws){candleSocket=null;schedule();}};
  }
- function schedule(){if(candleStreamKey!==key||candleReconnectTimer)return;candleReconnects++;chartStatus("KYNTTILÄSTREAM katkesi — uudelleenyhdistys "+candleReconnects+". yritys.","error");candleReconnectTimer=setTimeout(function(){candleReconnectTimer=null;connect();},Math.min(15000,500*Math.pow(2,Math.min(candleReconnects,5))));}
+ function schedule(){if(candleStreamKey!==key||candleReconnectTimer)return;candleReconnects++;candleEndpointIndex=(candleEndpointIndex+1)%2;chartStatus("KYNTTILÄSTREAM katkesi — uudelleenyhdistys "+candleReconnects+". yritys.","error");candleReconnectTimer=setTimeout(function(){candleReconnectTimer=null;connect();},Math.min(15000,500*Math.pow(2,Math.min(candleReconnects,5))));}
  connect();
 }
 async function load(){
