@@ -1,7 +1,7 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "buildCommand": null,
+  "buildCommand": "node scripts/repair-mobile-chart.js",
   "installCommand": null,
   "outputDirectory": "public",
   "ignoreCommand": "node scripts/vercel-ignore-build.js",
