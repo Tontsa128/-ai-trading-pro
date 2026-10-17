@@ -55,3 +55,29 @@ The latest full GitHub Actions run for commit `532b73d4dfa6be51b23e4f26f713c82e2
 The latest Vercel Preview for the deployed static-dashboard code commit `acde4620ee327387a2d673e53657a4333b36f97c` was `READY`: [Open preview](https://ai-trading-qttdlqfkp-tontsa128.vercel.app/). The following commit `532b73d...` changed test code only and Vercel correctly skipped a redundant deployment. Vercel publishes `public/`; Streamlit's `app.py` is a separate source app and is not launched by that static deployment.
 
 Still outstanding: direct browser acceptance of the protected Vercel preview and an end-to-end Binance stream check from the user's actual browser/network. The Vercel inspection route denied automated content access, so deployment `READY` must not be treated as proof that the stream connects from the end user's network. No claims are made about 100% uptime, zero latency, strategy profitability, or readiness for real-money execution.
+
+
+## Follow-up audit — 2026-10-17
+
+This addendum supersedes the older REST-fallback note above for the current `fix/trading-audit-data-freshness` branch. It does not assert that these changes are deployed to production.
+
+### Additional defects found and corrected
+
+- The fast 5s/15s worker previously converted sampled REST mark prices to zero-volume bars when actual trade events became stale. That path has been removed. REST quotes refresh reference price and bid/ask only; only valid, recent Binance trade-WebSocket events can create fast bars or open paper entries.
+- Trade event timestamps that are stale or in the future are now rejected in the shared Node feed parser and browser market feed. The worker separately records actual trade age, quote age and report-update age; absent trade timestamps display as unavailable rather than zero.
+- The short-horizon WebSocket worker now records handshake/idle timeouts, reconnects if the connection opens but goes silent, rotates endpoints, and ignores late callbacks from a replaced socket so an old connection cannot corrupt the current one.
+- The browser candle stream now tracks the connection attempt from the moment of construction, recycles sockets stuck in `CONNECTING` or silent `OPEN`, and rotates endpoints independently of the backoff counter.
+- The shared `spot-long-v29` evaluator blocks a new paper entry when the target's estimated gross move does not exceed modeled round-trip fees, slippage and spread. Historical fill and position-sizing estimates include spread, in addition to fees and slippage. This remains an estimate, not a guarantee that an order would fill.
+- Live market timestamps must be present, non-future and no more than 5 seconds old before a signal is considered fresh. The browser also checks that the latest closed candle is not older than its own interval plus a tolerance before using those indicators. The scheduled two-hour paper collector and legacy Streamlit app apply equivalent interval-aware closed-candle freshness guards.
+- The market proxy now keeps its timeout active through JSON-body parsing and validates ticker timestamp/percentage fields, quote ordering and internally consistent OHLCV candle rows before returning upstream data.
+- The legacy Streamlit RSI now correctly returns 100 during a gain-only sequence and 50 for a genuinely flat sequence. Its higher-timeframe missing-data sentinel now matches the fail-closed check.
+- Report age is measured from the fast session end when available, not only its start; an absent trade timestamp is rendered as unavailable, not as a zero-second-old trade.
+- The historical test header now describes timeframe-relative higher-timeframe confirmation rather than claiming that every selectable interval uses 4h/1d.
+
+### Validation and deployment boundary
+
+Regression coverage was added for future/stale trades, malformed upstream payloads, cost-blocked entries, stale latest candles, missing high-timeframe data, RSI edge cases, reconnect watchdogs and report-age display. The shared Node engine files are required to remain byte-identical. The latest GitHub Actions run must be checked against the branch HEAD before treating the full suite as green.
+
+The Vercel API previously rejected further deployments with the daily deployment-quota (HTTP 402) limit. Therefore, this branch's test/code state and the production website must be treated as separate: do not infer a production update from a passing CI run or the presence of a GitHub commit. The deployed page still needs a browser acceptance check after a deployment matching this branch's final commit is available.
+
+These changes improve data integrity and failure handling; they do not demonstrate profitable trading. The app remains paper-only and the scheduled GitHub Actions jobs are short sessions, not an always-on 24/7 trader.
