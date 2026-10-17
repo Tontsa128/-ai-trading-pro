@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "samples": 0,
+  "winRate": 0,
+  "adaptiveStrength": 50,
+  "avgMomentum": 0,
+  "avgFastSlow": 0,
+  "avgSpreadPct": 0,
+  "lastUpdated": "2026-10-17T00:00:00.000Z",
+  "status": "waiting-for-data"
+}
