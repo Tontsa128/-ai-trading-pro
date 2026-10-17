@@ -39,8 +39,14 @@ function validKline(k) {
 
 module.exports = async function marketProxy(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=1, s-maxage=3, stale-while-revalidate=5");
+  // Market-data responses must not be served from an intermediary cache. The browser
+  // already has the live WebSocket for quotes; REST is used for history/bootstrap.
+  // A public CDN cache can otherwise make a healthy feed appear tens of minutes old.
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Market-Data-Generated-At", new Date().toISOString());
 
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
@@ -83,7 +89,7 @@ module.exports = async function marketProxy(req, res) {
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {
       const url = origin + ENDPOINTS[endpoint] + "?" + params.toString();
-      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
+      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json", "Cache-Control": "no-cache" }, signal: controller.signal });
       if (!response.ok) {
         lastStatus = response.status === 418 || response.status === 429 ? 429 : 502;
         lastError = "Binance source returned HTTP " + response.status + ".";
@@ -105,6 +111,14 @@ module.exports = async function marketProxy(req, res) {
         continue;
       }
       res.setHeader("X-Market-Data-Source", new URL(origin).hostname);
+      if (endpoint === "klines") {
+        const latest = payload[payload.length - 1];
+        const ageMs = Date.now() - Number(latest[6]);
+        res.setHeader("X-Latest-Candle-Close-Time", new Date(Number(latest[6])).toISOString());
+        res.setHeader("X-Latest-Candle-Age-Ms", String(Math.max(0, ageMs)));
+      } else if (endpoint === "ticker24hr") {
+        res.setHeader("X-Market-Event-Time", new Date(Number(payload.closeTime)).toISOString());
+      }
       return res.status(200).json(payload);
     } catch (error) {
       lastStatus = 502;
@@ -114,6 +128,5 @@ module.exports = async function marketProxy(req, res) {
     }
   }
 
-  res.setHeader("Cache-Control", "no-store");
   return res.status(lastStatus).json({ error: lastError });
 };
