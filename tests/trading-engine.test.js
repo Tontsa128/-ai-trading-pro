@@ -53,6 +53,8 @@ const liveBelowEma={...analysed,bar:{...analysed.bar,ema200:analysed.bar.close-0
 liveBelowEma.checks=E.explainCandle(liveBelowEma.bar);
 const liveBelow=E.evaluateSignal(liveBelowEma,[analysed,analysed],{price:liveBelowEma.bar.ema200-0.02,closeTime:Date.now(),bid:liveBelowEma.bar.ema200-0.03,ask:liveBelowEma.bar.ema200-0.01},opts);
 assert.equal(liveBelow.checklist.find(x=>x.name==="Hinta EMA 200:n yläpuolella").ok,false,"EMA200 price check must use current spot price, not only the last closed candle");
+assert.equal(liveBelow.trendBias,"neutral","reported trend must use the same live spot price as the EMA200 checklist");
+assert.equal(liveBelow.longTrend,false,"long-trend diagnostic must not contradict the live spot price filter");
 assert.match(liveBelow.checklist.find(x=>x.name==="Hinta EMA 200:n yläpuolella").detail,/Live-hinta/);
 const tightSpread=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:100,ask:100.00001},opts);
 assert.equal(tightSpread.checklist.find(x=>x.name==="Osto/myyntihajonta hyväksyttävä").ok,true,"a tiny non-negative spread below the maximum must pass");
