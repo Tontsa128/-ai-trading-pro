@@ -25,6 +25,8 @@ const startedAt = Date.now();
 const endAt = startedAt + SESSION_SECONDS * 1000;
 const symbols = new Map();
 let socket;
+let endpointIndex = 0;
+let tradeMessages = 0;
 let reconnectTimer;
 let stopTimer;
 let quoteTimer;
@@ -202,6 +204,7 @@ async function handleMessage(raw) {
   socketMessages += 1;
   lastSocketMessageAt = now;
   if (event.type === "trade") {
+    tradeMessages += 1;
     addTrade(s, event.price, event.qty, event.time, "websocket");
   } else if (event.type === "bookTicker") {
     s.bid = event.bid;
@@ -226,10 +229,17 @@ function scheduleReconnect() {
 }
 function connect() {
   if (stopping || Date.now() >= endAt || websocketDisabled) return;
-  const base = WEBSOCKET_BASES[consecutiveSocketFailures % WEBSOCKET_BASES.length];
+  const base = WEBSOCKET_BASES[endpointIndex % WEBSOCKET_BASES.length];
   lastWebSocketEndpoint = base;
   if (!websocketEndpointsTried.includes(base)) websocketEndpointsTried.push(base);
-  const currentSocket = new WebSocket(buildCombinedStreamUrl(base, SYMBOLS));
+  let currentSocket;
+  try { currentSocket = new WebSocket(buildCombinedStreamUrl(base, SYMBOLS)); }
+  catch (error) {
+    socketErrors += 1; consecutiveSocketFailures += 1; lastSocketFailureAt = new Date().toISOString();
+    endpointIndex = (endpointIndex + 1) % WEBSOCKET_BASES.length;
+    if (consecutiveSocketFailures >= WEBSOCKET_BASES.length) websocketDisabled = true;
+    scheduleReconnect(); return;
+  }
   socket = currentSocket;
   let errorCounted = false;
   let sawMarketMessage = false;
@@ -241,6 +251,7 @@ function connect() {
     lastSocketFailureAt = new Date().toISOString();
     socketOpen = false;
     console.warn("Binance WebSocket connection failure (" + consecutiveSocketFailures + "/" + WEBSOCKET_BASES.length + ") at " + base + ": " + reason);
+    endpointIndex = (endpointIndex + 1) % WEBSOCKET_BASES.length;
     if (consecutiveSocketFailures >= WEBSOCKET_BASES.length) {
       websocketDisabled = true;
       console.warn("Binance WebSocket retries paused after all configured public endpoints failed; REST live quotes remain active.");
@@ -271,7 +282,10 @@ function connect() {
       failConnection("socket closed before receiving market data");
       return;
     }
-    if (!stopping && Date.now() < endAt && !websocketDisabled) scheduleReconnect();
+    if (!stopping && Date.now() < endAt && !websocketDisabled) {
+      if (sawMarketMessage && !errorCounted) endpointIndex = (endpointIndex + 1) % WEBSOCKET_BASES.length;
+      scheduleReconnect();
+    }
   });
 }
 async function pollQuotes() {
@@ -293,13 +307,10 @@ async function pollQuotes() {
         s.lastQuoteAt = now;
         restPolls += 1;
         s.lastUpdateAt = now;
-        if (s.lastTradeAt && now - s.lastTradeAt <= 2500) {
-          s.lastPrice = q.price;
-          s.lastFeed = "websocket+restQuote";
-        } else {
-          // REST fallback advances a zero-volume sampled-price candle, never inventing trade volume.
-          addTrade(s, q.price, 0, now, "restFallback");
-        }
+        // REST quotes refresh reference price and bid/ask only; they never create trade candles.
+        // Only genuine exchange trade events may advance the short-horizon strategy.
+        s.lastPrice = q.price;
+        s.lastFeed = s.lastTradeAt && now - s.lastTradeAt <= MAX_QUOTE_AGE_MS ? "websocket+restQuote" : "restQuoteOnly";
       } catch (error) {
         restPollErrors += 1;
         lastRestError = String(error.message || error);
@@ -338,9 +349,9 @@ function writeReport() {
     if (p && s.lastPrice) p.lastPrice = s.lastPrice;
   }
   const realizedPnl = state.trades.filter(t => Number.isFinite(t.pnl)).reduce((a, t) => a + t.pnl, 0);
-  const feedMode = socketMessages > 0
-    ? "Binance public Spot WebSocket + REST quote fallback"
-    : "Binance public REST ticker fallback (no WebSocket market events received)";
+  const feedMode = tradeMessages > 0
+    ? "Binance public Spot trade WebSocket + REST bid/ask monitoring"
+    : "REST quote-only fallback; no genuine trade events received";
   const reportErrors = errors.slice();
   if (restPollErrors > 0) reportErrors.push({ type: "rest-quote-polling", count: restPollErrors, lastError: lastRestError });
   const report = {
@@ -348,7 +359,7 @@ function writeReport() {
     intervalSeconds: INTERVAL_SECONDS, sessionStartedAt: new Date(startedAt).toISOString(),
     sessionEndedAt: new Date(now).toISOString(), requestedSessionSeconds: SESSION_SECONDS,
     feedStatus: {
-      websocketConnectedAtEnd: websocketConnectedAtEnd, websocketMessages: socketMessages,
+      websocketConnectedAtEnd: websocketConnectedAtEnd, websocketMessages: socketMessages, websocketTradeMessages: tradeMessages,
       websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
       websocketDisabled: websocketDisabled,
       websocketEndpointsTried: websocketEndpointsTried,
@@ -364,7 +375,8 @@ function writeReport() {
       return { symbol, price: s?.lastPrice ?? null, bid: s?.bid ?? null, ask: s?.ask ?? null,
         spreadPct: s?.bid > 0 && s?.ask >= s?.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null,
         lastUpdateAt: lastUpdateAt ? new Date(lastUpdateAt).toISOString() : null,
-        marketAgeMs: lastUpdateAt ? Math.max(0, now - lastUpdateAt) : null,
+        marketAgeMs: Number.isFinite(s?.lastTradeAt) ? Math.max(0, now - s.lastTradeAt) : null,
+        updateAgeMs: lastUpdateAt ? Math.max(0, now - lastUpdateAt) : null,
         quoteAgeMs: Number.isFinite(s?.lastQuoteAt) ? Math.max(0, now - s.lastQuoteAt) : null,
         feed: s?.lastFeed || "seed-history-only",
         closedBars: s?.bars.filter(b => b.closeTime !== undefined).length || 0,
@@ -375,8 +387,8 @@ function writeReport() {
     sessionTrades: events, errors: reportErrors,
     notes: [
       "Paper trading only: no private API keys and no real exchange orders.",
-      "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
-      "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
+      "Only genuine Binance public trade WebSocket events may create live 5/15-second bars or trigger strategy entries.",
+      "REST ticker prices and bid/ask are reference/mark data only; they do not create synthetic candles or trading signals.",
       "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
       "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
       "A 5-second/15-second strategy can lose to fees, spread, latency and adverse selection even when direction is correct."

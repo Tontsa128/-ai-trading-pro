@@ -71,31 +71,32 @@ module.exports = async function marketProxy(req, res) {
     const timeout = setTimeout(() => controller.abort(), 7000);
     try {
       const url = origin + ENDPOINTS[endpoint] + "?" + params.toString();
-      const response = await fetch(url, {
-        method: "GET",
-        headers: { Accept: "application/json" },
-        signal: controller.signal
-      });
-      clearTimeout(timeout);
-      if (response.ok) {
-        const payload = await response.json();
-        if ((endpoint === "klines" && !Array.isArray(payload)) ||
-            (endpoint !== "klines" && (!payload || typeof payload !== "object" || Array.isArray(payload)))) {
-          lastError = "Binance returned an unexpected response shape.";
-          lastStatus = 502;
-          continue;
-        }
-        res.setHeader("X-Market-Data-Source", new URL(origin).hostname);
-        return res.status(200).json(payload);
+      const response = await fetch(url, { method: "GET", headers: { Accept: "application/json" }, signal: controller.signal });
+      if (!response.ok) {
+        lastStatus = response.status === 418 || response.status === 429 ? 429 : 502;
+        lastError = "Binance source returned HTTP " + response.status + ".";
+        continue;
       }
-      lastStatus = response.status === 418 || response.status === 429 ? 429 : 502;
-      lastError = "Binance source returned HTTP " + response.status + ".";
+      let payload;
+      try { payload = await response.json(); }
+      catch (error) { lastError = "Binance returned invalid JSON."; lastStatus = 502; continue; }
+      const invalidKlines = endpoint === "klines" && (!Array.isArray(payload) || !payload.every(k => Array.isArray(k) && k.length >= 7));
+      const invalidTicker = endpoint === "ticker24hr" && (!payload || typeof payload !== "object" || Array.isArray(payload) || !Number.isFinite(Number(payload.lastPrice)) || Number(payload.lastPrice) <= 0);
+      const invalidBook = endpoint === "bookTicker" && (!payload || typeof payload !== "object" || Array.isArray(payload) ||
+        !Number.isFinite(Number(payload.bidPrice)) || Number(payload.bidPrice) <= 0 ||
+        !Number.isFinite(Number(payload.askPrice)) || Number(payload.askPrice) < Number(payload.bidPrice));
+      if (invalidKlines || invalidTicker || invalidBook) {
+        lastError = "Binance returned an unexpected or invalid response shape.";
+        lastStatus = 502;
+        continue;
+      }
+      res.setHeader("X-Market-Data-Source", new URL(origin).hostname);
+      return res.status(200).json(payload);
     } catch (error) {
-      clearTimeout(timeout);
       lastStatus = 502;
-      lastError = error && error.name === "AbortError"
-        ? "Binance data request timed out."
-        : "Unable to reach the Binance public market-data source.";
+      lastError = error && error.name === "AbortError" ? "Binance data request timed out." : "Unable to reach the Binance public market-data source.";
+    } finally {
+      clearTimeout(timeout);
     }
   }
 

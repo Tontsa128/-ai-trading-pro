@@ -115,7 +115,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  $("chart").innerHTML=out.join("");
  return true;
 }
-var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null,candleClockSkew=null,candleSocketOpenedAt=0;
+var liveChart=null,liveCandleSeries=null,liveEmaSeries=[],livePatternMarkers=null,candleSocket=null,candleReconnectTimer=null,candleWatchdogTimer=null,candleStreamKey=null,candleLastEventAt=0,candleReconnects=0,candleLastBar=null,candleEventLatency=null,candleClockSkew=null,candleSocketOpenedAt=0,candleIdleCloseRequested=false;
 function chartStatus(message,type){var el=$("candleLiveStatus");if(el){el.className="status "+(type||"");el.textContent=message;}}
 function chart(series,sig,sym){
  var count=Number($("chartCount").value)||50,d=series.slice(-count),patterns=findCandlePatterns(d).slice(-12),showEma=$("showEma")&&$("showEma").checked;
@@ -149,6 +149,7 @@ function updateCandleReadout(k,eventTime){
 }
 function stopCandleStream(){
  if(candleReconnectTimer){clearTimeout(candleReconnectTimer);candleReconnectTimer=null;}
+ candleIdleCloseRequested=false;
  var ws=candleSocket;candleSocket=null;
  if(ws){try{ws.onopen=ws.onmessage=ws.onerror=ws.onclose=null;ws.close();}catch(e){}}
 }
@@ -157,14 +158,14 @@ function startCandleStream(symbol,interval){
  if(candleStreamKey===key&&candleSocket&&(candleSocket.readyState===WebSocket.OPEN||candleSocket.readyState===WebSocket.CONNECTING))return;
  candleStreamKey=key;stopCandleStream();candleReconnects=0;candleLastEventAt=0;
  if(candleWatchdogTimer)clearInterval(candleWatchdogTimer);
- candleWatchdogTimer=setInterval(function(){var now=Date.now(),last=candleLastEventAt||candleSocketOpenedAt;if(last&&now-last>8000)chartStatus("KYNTTILÄDATA VANHENTUNUT — Binance-kline-viestiä ei ole saatu yli 8 sekuntiin. Yhteys tarkistetaan.","error");},1000);
+ candleWatchdogTimer=setInterval(function(){var now=Date.now(),last=candleLastEventAt||candleSocketOpenedAt;if(last&&now-last>8000){chartStatus("KYNTTILÄDATA VANHENTUNUT — Binance-kline-viestiä ei ole saatu yli 8 sekuntiin. Suljetaan jumittunut yhteys ja yhdistetään uudelleen.","error");if(candleSocket&&candleSocket.readyState===WebSocket.OPEN&&!candleIdleCloseRequested){candleIdleCloseRequested=true;try{candleSocket.close(4000,"Idle candle stream");}catch(e){}}}},1000);
  function connect(){
   if(candleStreamKey!==key)return;
   var urls=["wss://stream.binance.com:443/ws/"+symbol.toLowerCase()+"@kline_"+interval,"wss://data-stream.binance.vision:443/ws/"+symbol.toLowerCase()+"@kline_"+interval];
   var url=urls[candleReconnects%urls.length],ws;
   try{ws=new WebSocket(url);candleSocket=ws;}catch(e){schedule();return;}
   chartStatus("KYNTTILÄSTREAM: yhdistetään Binanceen ("+symbol+" / "+interval+")…","");
-  ws.onopen=function(){if(candleSocket!==ws)return;candleReconnects=0;candleSocketOpenedAt=Date.now();chartStatus("KYNTTILÄSTREAM yhdistetty — odotetaan ensimmäistä kline-päivitystä.","warn");};
+  ws.onopen=function(){if(candleSocket!==ws)return;candleReconnects=0;candleIdleCloseRequested=false;candleSocketOpenedAt=Date.now();chartStatus("KYNTTILÄSTREAM yhdistetty — odotetaan ensimmäistä kline-päivitystä.","warn");};
   ws.onmessage=function(ev){
    if(candleSocket!==ws||candleStreamKey!==key)return;
    var msg;try{msg=JSON.parse(ev.data);}catch(e){return;}

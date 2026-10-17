@@ -32,6 +32,9 @@ const signal=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.c
 assert.ok(["BUY","WAIT"].includes(signal.direction));
 assert.ok(signal.passed>=0&&signal.passed<=signal.total);
 assert.equal(signal.spotPolicy,"long-only");
+assert.equal(signal.minEntryScore,9);
+assert.ok(Number.isInteger(signal.entryScore)&&signal.entryScore>=0&&signal.entryScore<=11);
+assert.ok(signal.checklist.some(x=>x.group==="Risk"&&x.name.includes("kulut, lipsuman ja spreadin")));
 assert.ok(signal.checklist.every(x=>["Data OK","Trendi","Ajoitus"].includes(x.group)));
 assert.ok(signal.checklist.some(x=>x.name.includes("0,5×")));
 assert.ok(signal.checklist.some(x=>x.name.includes("ADX")&&x.detail.includes("DI+")));
@@ -54,6 +57,8 @@ const tightSpread=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.
 assert.equal(tightSpread.checklist.find(x=>x.name==="Osto/myyntihajonta hyväksyttävä").ok,true,"a tiny non-negative spread below the maximum must pass");
 const invalidSpread=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:100.01,ask:100},opts);
 assert.equal(invalidSpread.checklist.find(x=>x.name==="Osto/myyntihajonta hyväksyttävä").ok,false,"crossed bid/ask must fail closed");
+const futureTime=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now()+60000,bid:analysed.bar.close*.9999,ask:analysed.bar.close*1.0001},opts);assert.equal(futureTime.checklist.find(x=>x.name==="Markkinahinta tuore").ok,false,"future-dated market timestamp must not be treated as fresh");assert.equal(futureTime.direction,"WAIT");
+const costBlocked=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*.9995,ask:analysed.bar.close*1.0005},{...opts,feePct:1,slippagePct:1});assert.equal(costBlocked.costViable,false,"a target that cannot cover round-trip costs must be blocked");assert.equal(costBlocked.direction,"WAIT");assert.ok(costBlocked.blockingReasons.some(x=>x.includes("meno-paluu-kitka")));
 const historical=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:1,bid:100,ask:100.01},{...opts,historical:true});assert.equal(historical.priceAgeMs,0);
 const missingPriceTime=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,bid:100,ask:100.01},opts);assert.equal(missingPriceTime.priceAgeMs,null,"missing market timestamp is unavailable, not a misleading zero age");assert.equal(missingPriceTime.direction,"WAIT","missing market timestamp blocks the live signal");
 const stale=E.evaluateSignal(analysed,[analysed,analysed],{price:analysed.bar.close,closeTime:Date.now()-10*60*1000,bid:100,ask:100.01},opts);assert.equal(stale.direction,"WAIT");
