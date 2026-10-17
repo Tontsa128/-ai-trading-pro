@@ -228,6 +228,25 @@ def get_klines(symbol_code, interval_code, limit_count):
     raise RuntimeError(last_error or "Markkinadata ei ole saatavilla.")
 
 
+TIMEFRAME_MS = {"1m": 60_000, "3m": 180_000, "5m": 300_000, "15m": 900_000}
+
+
+def is_fresh_closed_history(df, interval_code, now_ms=None):
+    """Fail closed if a successful HTTP response contains old or future-dated candles."""
+    if df is None or df.empty or "CloseTimeMs" not in df.columns:
+        return False
+    duration_ms = TIMEFRAME_MS.get(interval_code)
+    if duration_ms is None:
+        return False
+    now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    try:
+        latest_close_ms = int(df["CloseTimeMs"].iloc[-1])
+    except (TypeError, ValueError, OverflowError):
+        return False
+    age_ms = now - latest_close_ms
+    return latest_close_ms <= now and 0 <= age_ms <= duration_ms * 2 + 5_000
+
+
 def load_data():
     required = max(candles + 230, 420)
     try:
@@ -246,6 +265,8 @@ def load_data():
 
         if fresh.empty or len(fresh) < 220:
             raise RuntimeError(f"Liian vähän sulkeutuneita kynttilöitä ({len(fresh)}); signaalia ei muodosteta.")
+        if not is_fresh_closed_history(fresh, tf):
+            raise RuntimeError("Viimeisin sulkeutunut kynttilä on vanhentunut tai tulevaisuuteen päivätty; signaali estetty.")
 
         st.session_state.df = fresh
         st.session_state.last_error = ""
