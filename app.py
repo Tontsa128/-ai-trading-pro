@@ -244,7 +244,7 @@ def is_fresh_closed_history(df, interval_code, now_ms=None):
     except (TypeError, ValueError, OverflowError):
         return False
     age_ms = now - latest_close_ms
-    return latest_close_ms <= now and 0 <= age_ms <= duration_ms * 2 + 5_000
+    return latest_close_ms <= now and 0 <= age_ms <= duration_ms + 5_000
 
 
 def load_data():
