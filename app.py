@@ -275,7 +275,11 @@ def rsi(close, period=14):
     avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
     avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
     rs = avg_gain / avg_loss.replace(0, np.nan)
-    return (100 - (100 / (1 + rs))).fillna(50).clip(0, 100)
+    value = 100 - (100 / (1 + rs))
+    # A zero-loss run is RSI 100 when gains exist; only a flat series is neutral 50.
+    value = value.mask((avg_loss == 0) & (avg_gain > 0), 100)
+    value = value.mask((avg_loss == 0) & (avg_gain == 0), 50)
+    return value.fillna(50).clip(0, 100)
 
 
 def add_indicators(df):
@@ -338,7 +342,7 @@ def higher_tf_bias(symbol_code, main_interval):
                 result[higher_frame] = "EPÄSELVÄ"
 
         except Exception:
-            result[higher_frame] = "EI DATAA"
+            result[higher_frame] = "EI DATA"
 
     if any(value == "EI DATA" for value in result.values()):
         return "EPÄSELVÄ", result
