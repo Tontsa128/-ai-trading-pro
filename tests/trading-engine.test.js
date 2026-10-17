@@ -179,4 +179,64 @@ assert.ok(holdoutBt.trades.every(t => t.entryTime >= full[holdoutStart + 1].time
   "holdout trades cannot be opened before the holdout window");
 assert.ok(holdoutBt.trades.every(t => t.exitTime > t.entryTime), "holdout trades still exit after entry");
 assert.ok(alignedBt.trades.every(t => Number.isFinite(t.pnl) && t.entryTime < t.exitTime), "backtest trades have valid timing and P/L");
+function makeFastReactionSeries(lastBar, count) {
+  const bars = [];
+  const size = count || 40;
+  for (let i = 0; i < size; i++) {
+    bars.push({
+      time: 1701000000000 + i * 60000,
+      closeTime: 1701000059999 + i * 60000,
+      open: 100, high: 101, low: 99, close: 100, volume: 100
+    });
+  }
+  if (lastBar) {
+    const i = bars.length;
+    bars.push(Object.assign({
+      time: 1701000000000 + i * 60000,
+      closeTime: 1701000059999 + i * 60000
+    }, lastBar));
+  }
+  return E.enrich(bars);
+}
+
+assert.equal(typeof E.fastReaction, "function", "engine exports the fast candle-reaction scorer");
+const fastBuy = E.fastReaction(makeFastReactionSeries({
+  open:100, high:102, low:99.9, close:102, volume:200
+}));
+assert.equal(fastBuy.signal, "NOPEA OSTA", "strong green live candle crosses the buy threshold");
+assert.equal(fastBuy.score, 84, "buy score adds candle body, EMA, breakout and volume points");
+assert.ok(fastBuy.notes.some(x => x.includes("EMA9")), "buy signal reports its EMA reason");
+assert.ok(fastBuy.notes.some(x => x.includes("Volyymi")), "buy signal reports its volume reason");
+
+const fastSell = E.fastReaction(makeFastReactionSeries({
+  open:100, high:100.1, low:97.5, close:98, volume:200
+}));
+assert.equal(fastSell.signal, "NOPEA MYY", "strong red live candle crosses the sell threshold");
+assert.equal(fastSell.score, -84, "sell score mirrors buy scoring");
+assert.ok(fastSell.notes.some(x => x.includes("breakdown")), "sell signal reports the new short-term low");
+
+const fastWait = E.fastReaction(makeFastReactionSeries({
+  open:100, high:101, low:99, close:100, volume:100
+}));
+assert.equal(fastWait.signal, "EI", "doji with no qualifying conditions stays neutral");
+assert.equal(fastWait.score, 0, "neutral candle produces no points");
+assert.equal(E.fastReaction(makeFastReactionSeries(null, 20)).signal, "EI",
+  "fast reaction fails closed when candle history is too short");
+
+const invalidFastBars = makeFastReactionSeries({
+  open:100, high:102, low:99.9, close:102, volume:200
+});
+invalidFastBars[invalidFastBars.length - 1].close = NaN;
+assert.equal(E.fastReaction(invalidFastBars).signal, "EI",
+  "invalid live candle data must not generate a trading signal");
+
+const liveEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine.js"), "utf8");
+assert.ok(liveEngineSource.includes("fastReaction:TradingEngine.fastReaction(s)"),
+  "live candle scoring is wired into the browser live layer");
+assert.ok(liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
+  liveEngineSource.includes('fast.signal==="NOPEA MYY"'),
+  "fast buy/sell thresholds can drive the live signal label");
+assert.ok(liveEngineSource.includes("liveReactionNotes"),
+  "live signal exposes the reasons behind the fast candle score");
+
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
