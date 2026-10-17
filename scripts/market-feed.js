@@ -20,7 +20,7 @@ function buildCombinedStreamUrl(base, symbols) {
   return base.replace(/\/+$/, "") + "/stream?streams=" + streams.join("/");
 }
 
-function parseBinanceMessage(raw) {
+function parseBinanceMessage(raw, now = Date.now(), maxAgeMs = 5000) {
   let text;
   if (typeof raw === "string") text = raw;
   else if (Buffer.isBuffer(raw)) text = raw.toString("utf8");
@@ -34,7 +34,7 @@ function parseBinanceMessage(raw) {
   const symbol = d.s.toUpperCase();
   if (d.e === "trade" || (d.p != null && d.q != null && d.T != null)) {
     const price = Number(d.p), qty = Number(d.q), time = Number(d.T);
-    if (price > 0 && qty >= 0 && Number.isFinite(time)) return { type: "trade", symbol, price, qty, time };
+    if (price > 0 && qty >= 0 && isFreshQuote(time, now, maxAgeMs)) return { type: "trade", symbol, price, qty, time };
     return null;
   }
   if (d.b != null && d.a != null) {
