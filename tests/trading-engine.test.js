@@ -35,7 +35,7 @@ assert.equal(signal.spotPolicy,"long-only");
 assert.equal(signal.minEntryScore,9);
 assert.ok(Number.isInteger(signal.entryScore)&&signal.entryScore>=0&&signal.entryScore<=11);
 assert.ok(signal.checklist.some(x=>x.group==="Risk"&&x.name.includes("kulut, lipsuman ja spreadin")));
-assert.ok(signal.checklist.every(x=>["Data OK","Trendi","Ajoitus"].includes(x.group)));
+assert.ok(signal.checklist.every(x=>["Data OK","Trendi","Ajoitus","Risk"].includes(x.group)));
 assert.ok(signal.checklist.some(x=>x.name.includes("0,5×")));
 assert.ok(signal.checklist.some(x=>x.name.includes("ADX")&&x.detail.includes("DI+")));
 assert.ok(signal.checklist.some(x=>x.name.includes("RSI")&&x.detail.includes("vaadittu alue")));
