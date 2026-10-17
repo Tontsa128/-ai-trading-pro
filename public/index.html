@@ -158,11 +158,12 @@ function startCandleStream(symbol,interval){
  if(candleStreamKey===key&&candleSocket&&(candleSocket.readyState===WebSocket.OPEN||candleSocket.readyState===WebSocket.CONNECTING))return;
  candleStreamKey=key;stopCandleStream();candleReconnects=0;candleLastEventAt=0;
  if(candleWatchdogTimer)clearInterval(candleWatchdogTimer);
- candleWatchdogTimer=setInterval(function(){var now=Date.now(),last=candleLastEventAt||candleSocketOpenedAt;if(last&&now-last>8000){chartStatus("KYNTTILÄDATA VANHENTUNUT — Binance-kline-viestiä ei ole saatu yli 8 sekuntiin. Suljetaan jumittunut yhteys ja yhdistetään uudelleen.","error");if(candleSocket&&candleSocket.readyState===WebSocket.OPEN&&!candleIdleCloseRequested){candleIdleCloseRequested=true;try{candleSocket.close(4000,"Idle candle stream");}catch(e){}}}},1000);
+ candleWatchdogTimer=setInterval(function(){var now=Date.now(),last=candleLastEventAt||candleSocketOpenedAt;if(last&&now-last>8000){chartStatus("KYNTTILÄDATA VANHENTUNUT — Binance-kline-viestiä ei ole saatu yli 8 sekuntiin. Suljetaan jumittunut yhteys ja yhdistetään uudelleen.","error");if(candleSocket&&(candleSocket.readyState===WebSocket.OPEN||candleSocket.readyState===WebSocket.CONNECTING)&&!candleIdleCloseRequested){candleIdleCloseRequested=true;try{candleSocket.close(4000,"Idle candle stream");}catch(e){}}}},1000);
  function connect(){
   if(candleStreamKey!==key)return;
   var urls=["wss://stream.binance.com:443/ws/"+symbol.toLowerCase()+"@kline_"+interval,"wss://data-stream.binance.vision:443/ws/"+symbol.toLowerCase()+"@kline_"+interval];
   var url=urls[candleReconnects%urls.length],ws;
+  candleSocketOpenedAt=Date.now();
   try{ws=new WebSocket(url);candleSocket=ws;}catch(e){schedule();return;}
   chartStatus("KYNTTILÄSTREAM: yhdistetään Binanceen ("+symbol+" / "+interval+")…","");
   ws.onopen=function(){if(candleSocket!==ws)return;candleReconnects=0;candleIdleCloseRequested=false;candleSocketOpenedAt=Date.now();chartStatus("KYNTTILÄSTREAM yhdistetty — odotetaan ensimmäistä kline-päivitystä.","warn");};
