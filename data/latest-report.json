@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-18T12:14:30.345Z",
+  "cycleStartedAt": "2026-10-18T12:16:55.905Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 82057.52,
-      "change24hPct": 0.614,
-      "spreadPct": 0.000012186572766801473,
+      "price": 82092.01,
+      "change24hPct": 0.66,
+      "spreadPct": 0.00001218145273850718,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -51,9 +51,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2418.12,
-      "change24hPct": -0.576,
-      "spreadPct": 0.00041354526148522846,
+      "price": 2419.3,
+      "change24hPct": -0.501,
+      "spreadPct": 0.0004133418481656315,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -96,9 +96,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 104.22,
-      "change24hPct": -0.144,
-      "spreadPct": 0.009595547665887938,
+      "price": 104.31,
+      "change24hPct": -0.057,
+      "spreadPct": 0.009587268107957543,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -140,9 +140,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 723.7,
-      "change24hPct": 0.447,
-      "spreadPct": 0.0013817784870894776,
+      "price": 724.12,
+      "change24hPct": 0.518,
+      "spreadPct": 0.0013809770412554331,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -185,9 +185,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.2994,
-      "change24hPct": -0.269,
-      "spreadPct": 0.00769615577020903,
+      "price": 1.2999,
+      "change24hPct": -0.184,
+      "spreadPct": 0.00769319536869554,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -227,9 +227,9 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.07955,
-      "change24hPct": -0.711,
-      "spreadPct": 0.012571500408568888,
+      "price": 0.07963,
+      "change24hPct": -0.612,
+      "spreadPct": 0.012558869701739405,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -269,6 +269,7 @@
   ],
   "errors": [],
   "newTrades": [],
+  "closedTrades": [],
   "portfolio": {
     "initialCash": 1000,
     "cash": 1000,
