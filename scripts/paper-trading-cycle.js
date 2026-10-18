@@ -27,7 +27,9 @@ async function run(){
     if(cb.closeTime<=Number(pos.entryCandleTime||0))continue;
     const stop=cb.low<=pos.stop,target=cb.high>=pos.target;
     if(stop||target){
-     const t=sell(s,sym,pos,stop?pos.stop:pos.target,stop&&target?"Stop-first ambiguous candle":stop?"Stop-loss":"Take-profit",cb.closeTime);
+     const outcome=E.resolveLongExit(cb,pos.stop,pos.target);
+     if(!outcome)continue;
+     const t=sell(s,sym,pos,outcome.price,outcome.cause,cb.closeTime);
      closed.push(t);action="PAPER_SELL";reason=t.reason;pos=null;break;
     }
    }
