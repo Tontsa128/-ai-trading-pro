@@ -32,7 +32,7 @@ The Vercel project should use **Framework Preset: Other**, no build command, and
 - This is a rule-based technical-analysis tool, not a machine-learning model and not a proven profitable strategy.
 - A signal is not a probability of success and cannot be a "safe" guarantee. Crypto prices can gap or move quickly; stop orders may fill materially away from the estimated level.
 - `OSTA` is only a research signal for a spot purchase. `MYY / KEVENNÄ` means consider reducing an existing spot holding or avoiding a new purchase; it does not initiate a short position.
-- The historical test does not include multi-timeframe confirmation, funding costs, taxes, spread variability beyond the configured slippage estimate, order-book depth, outages, or realistic partial fills. Historical performance is not a prediction.
+- The historical test includes time-aligned 4h/1d confirmation, but it does not simulate funding costs, taxes, changing historical spreads, order-book depth, outages, or realistic partial fills. Stop gaps are modeled at the candle open rather than the idealized stop price, and ambiguous same-candle stop/target hits resolve stop-first; the true intrabar path remains unknown. Historical performance is not a prediction.
 - The web dashboard does not read account balances, hold exchange secrets, or submit orders. Do not put exchange API keys in browser code or Git.
 - Live signal results must be independently reviewed and paper-tested before any real-money use.
 
