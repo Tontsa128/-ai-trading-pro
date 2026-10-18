@@ -10,10 +10,19 @@ async function get(url){let last;for(const host of ["https://data-api.binance.vi
 async function bars(s,iv,n){return E.enrich(E.parseKlines(await get("/api/v3/klines?symbol="+s+"&interval="+iv+"&limit="+n),Date.now()))}
 async function market(s){const [d,b]=await Promise.all([get("/api/v3/ticker/24hr?symbol="+s),get("/api/v3/ticker/bookTicker?symbol="+s)]);return{price:+d.lastPrice,closeTime:+d.closeTime,change:+d.priceChangePercent,bid:+b.bidPrice,ask:+b.askPrice}}
 function equity(s,prices){return s.cash+Object.entries(s.positions).reduce((a,[k,p])=>a+p.qty*(prices[k]||p.lastPrice||p.entry),0)}
+function buildTradeActivity(opened,closed){
+ const opens=Array.isArray(opened)?opened:[];
+ const exits=Array.isArray(closed)?closed:[];
+ const eventTime=t=>Date.parse(t.exitTime||t.entryTime||"");
+ return {newTrades:opens.concat(exits).slice().sort((a,b)=>{
+  const at=eventTime(a),bt=eventTime(b);
+  return (Number.isFinite(at)?at:0)-(Number.isFinite(bt)?bt:0);
+ }),closedTrades:exits.slice()};
+}
 function sell(s,sym,p,price,reason,time){const fill=price*(1-slipPct/100),fee=fill*p.qty*feePct/100,proceeds=fill*p.qty-fee,pnl=proceeds-p.costBasis;s.cash+=proceeds;delete s.positions[sym];const t={symbol:sym,side:"PAPER_SELL",entryTime:p.entryTime,exitTime:new Date(time).toISOString(),entry:p.entry,exit:fill,qty:p.qty,costBasis:p.costBasis,proceeds,pnl,returnPct:pnl/p.costBasis*100,reason};s.trades.push(t);return t}
 async function run(){
  fs.mkdirSync(reports,{recursive:true});const s=read();if(s.mode!=="paper"||s.schema!==1)throw Error("Unsafe state mode/schema; aborting");
- const rows=[],errors=[],closed=[],prices={};
+ const rows=[],errors=[],opened=[],closed=[],prices={};
  for(const sym of symbols){try{
   const [one,four,day,m]=await Promise.all([bars(sym,"1h",500),bars(sym,"4h",300),bars(sym,"1d",300),market(sym)]);
   if(one.length<220||four.length<220||day.length<220)throw Error("Not enough closed candles");
@@ -41,7 +50,8 @@ async function run(){
     const fill=m.ask*(1+slipPct/100),budget=Math.min(s.cash,equity(s,prices)*.20),qty=Math.min(sig.qty||0,budget/fill),fee=fill*qty*feePct/100,cost=fill*qty+fee;
     if(qty>0&&cost<=s.cash&&sig.stop<fill&&sig.target>fill){
      s.cash-=cost;s.positions[sym]={qty,entry:fill,entryTime:new Date(cycleAt).toISOString(),entryCandleTime:b.closeTime,costBasis:cost,stop:sig.stop,target:sig.target,lastPrice:m.price};
-     s.trades.push({symbol:sym,side:"PAPER_BUY",entryTime:new Date(cycleAt).toISOString(),entry:fill,qty,costBasis:cost,fee,stop:sig.stop,target:sig.target,reason:"Simulated only; no exchange order"});
+     const openedTrade={symbol:sym,side:"PAPER_BUY",entryTime:new Date(cycleAt).toISOString(),entry:fill,qty,costBasis:cost,fee,stop:sig.stop,target:sig.target,reason:"Simulated only; no exchange order"};
+     s.trades.push(openedTrade);opened.push(openedTrade);
      action="PAPER_BUY";reason="Virtual purchase; estimated fee and slippage applied";
     }else{action="BLOCKED";reason="Cash, quantity or stop/target risk guard rejected trade"}
    }
@@ -52,7 +62,8 @@ async function run(){
  }catch(e){errors.push({symbol:sym,error:String(e.message||e),at:new Date().toISOString()});s.stats.errors++}}
  if(!rows.length)throw Error("No symbol data was collected; state was not advanced");
  const realized=s.trades.filter(t=>Number.isFinite(t.pnl)).reduce((a,t)=>a+t.pnl,0),eq=equity(s,prices);
- const report={schema:1,mode:"paper",cycleStartedAt:new Date(cycleAt).toISOString(),cycleHours:2,source:"Binance public Spot API",symbols:rows,errors,newTrades:closed,portfolio:{initialCash:s.initialCash,cash:s.cash,equity:eq,realizedPnl:realized,openPositions:Object.keys(s.positions).length,positions:s.positions},notes:["Simulated paper trades only; no real exchange orders.","One decision per two-hour scheduled run, using 1h candles and 4h/1d confirmations.","Stops and targets are checked against every newly closed hourly candle since the previous successful cycle. A gap below the stop exits at the candle open plus estimated slippage instead of the idealized stop price; when both barriers are touched intrabar, stop-first is assumed. Intracandle fills and historical spreads remain approximate.","No automatic parameter tuning; strategy changes require out-of-sample validation."]};
+ const tradeActivity=buildTradeActivity(opened,closed);
+ const report={schema:1,mode:"paper",cycleStartedAt:new Date(cycleAt).toISOString(),cycleHours:2,source:"Binance public Spot API",symbols:rows,errors,newTrades:tradeActivity.newTrades,closedTrades:tradeActivity.closedTrades,portfolio:{initialCash:s.initialCash,cash:s.cash,equity:eq,realizedPnl:realized,openPositions:Object.keys(s.positions).length,positions:s.positions},notes:["Simulated paper trades only; no real exchange orders.","One decision per two-hour scheduled run, using 1h candles and 4h/1d confirmations.","Stops and targets are checked against every newly closed hourly candle since the previous successful cycle. A gap below the stop exits at the candle open plus estimated slippage instead of the idealized stop price; when both barriers are touched intrabar, stop-first is assumed. Intracandle fills and historical spreads remain approximate.","No automatic parameter tuning; strategy changes require out-of-sample validation."]};
  s.cycles.push({at:report.cycleStartedAt,errors:errors.length,signals:rows.reduce((o,r)=>(o[r.signal]=(o[r.signal]||0)+1,o),{}),equity:eq,realizedPnl:realized,closedTrades:closed.length});s.cycles=s.cycles.slice(-500);s.trades=s.trades.slice(-2000);s.stats.cycles++;s.lastCycleAt=report.cycleStartedAt;
  const stamp=new Date(cycleAt).toISOString().replace(/[:.]/g,"-"),json=JSON.stringify(report,null,2)+"\n";
  fs.writeFileSync(path.join(reports,stamp+".json"),json);fs.writeFileSync(path.join(data,"latest-report.json"),json);fs.writeFileSync(statePath,JSON.stringify(s,null,2)+"\n");
@@ -60,4 +71,5 @@ async function run(){
  fs.writeFileSync(path.join(reports,stamp+".md"),md);
  console.log(JSON.stringify({report:stamp,symbols:rows.length,errors:errors.length,closedTrades:closed.length,equity:eq},null,2));
 }
-run().catch(e=>{console.error(e);process.exitCode=1});
+if(require.main===module)run().catch(e=>{console.error(e);process.exitCode=1});
+module.exports={buildTradeActivity};
