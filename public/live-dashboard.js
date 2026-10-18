@@ -34,8 +34,9 @@
   function cardHtml(tf, s) {
     var side = s && s.side || "WAIT";
     var cls = side === "BUY" ? "good" : side === "SELL" ? "bad" : "neutral";
-    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY" : "ODOTA";
-    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + ' ' + num(s && s.score, 0) + '%</strong><div class="sub" style="font-size:12px;margin-top:5px">EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
+    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA";
+    var points = s && Number.isFinite(s.score) ? "Tekniset pisteet " + num(s.score, 0) + "/100 · ei voittotodennäköisyys" : "Tekniset pisteet eivät saatavilla";
+    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
   }
 
   function scoreFor(bars, livePrice) {
@@ -111,9 +112,9 @@
     });
     var sig = scoreFor(state.bars, state.tradePrice || state.live && state.live.close);
     if (sig && sig.side !== "WAIT") {
-      var sc = sig.side === "BUY" ? '#28d7a0' : '#ff647c', txt = sig.side === "BUY" ? "OSTA" : "MYY", yy2 = y(state.tradePrice || state.live.close);
+      var sc = sig.side === "BUY" ? '#28d7a0' : '#ff647c', points = Math.round(sig.side === "BUY" ? sig.score : 100 - sig.score), txt = sig.side === "BUY" ? "OSTA" : "MYY", yy2 = y(state.tradePrice || state.live.close);
       out.push('<line x1="' + l + '" y1="' + yy2.toFixed(1) + '" x2="' + (w - r) + '" y2="' + yy2.toFixed(1) + '" stroke="' + sc + '" stroke-width="2" stroke-dasharray="7 4"/>');
-      out.push('<rect x="' + (w - r - 72) + '" y="' + Math.max(t, yy2 - 18).toFixed(1) + '" width="68" height="22" rx="8" fill="' + sc + '"/><text x="' + (w - r - 38) + '" y="' + Math.max(t + 15, yy2 - 3).toFixed(1) + '" text-anchor="middle" fill="#07111f" font-size="11" font-weight="900">' + txt + ' ' + Math.round(sig.score) + '%</text>');
+      out.push('<rect x="' + (w - r - 100) + '" y="' + Math.max(t, yy2 - 18).toFixed(1) + '" width="96" height="22" rx="8" fill="' + sc + '"/><text x="' + (w - r - 52) + '" y="' + Math.max(t + 15, yy2 - 3).toFixed(1) + '" text-anchor="middle" fill="#07111f" font-size="11" font-weight="900">' + txt + ' ' + points + '/100p</text>');
     }
     [0, Math.floor((d.length - 1) / 2), d.length - 1].forEach(function (k) { var dt = new Date(d[k].time), lab = dt.toLocaleString('fi-FI', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); out.push('<text x="' + x(k).toFixed(1) + '" y="' + (h - 12) + '" text-anchor="middle" fill="#a8bdd7" font-size="11">' + esc(lab) + '</text>'); });
     out.push('</svg>');
@@ -132,7 +133,7 @@
     if (base) {
       var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      var sig = $("signal"); if (sig) { sig.textContent = base.side === "BUY" ? "OSTA " + Math.round(base.score) + "%" : base.side === "SELL" ? "MYY " + Math.round(100 - base.score) + "%" : "ODOTA " + Math.round(50 + Math.abs(base.score - 50)) + "%"; sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait"); }
+      var sig = $("signal"); if (sig) { sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" : base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" : "ODOTA"; sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait"); }
     }
     var sp = $("spread"); if (sp && state.bid !== null && state.ask !== null && state.bid > 0) sp.textContent = num((state.ask - state.bid) / state.bid * 100, 4) + "%";
   }
