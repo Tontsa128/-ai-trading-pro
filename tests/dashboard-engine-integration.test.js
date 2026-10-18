@@ -13,6 +13,13 @@ const deployed = global.TradingEngine;
 assert.ok(deployed, "deployed dashboard engine must load without starting browser-only code");
 assert.equal(typeof deployed.fastReaction, "function",
   "deployed engine must include the tested fast reaction scorer");
+assert.equal(typeof deployed.resolveLongExit, "function",
+  "deployed engine must use the gap-aware exit resolver");
+assert.equal(typeof deployed.estimatePerSideFriction, "function",
+  "deployed engine must expose the per-side fee/slippage/spread cost model");
+assert.equal(deployed.estimatePerSideFriction(0.10, 0.05, 0.10),
+  canonical.estimatePerSideFriction(0.10, 0.05, 0.10),
+  "deployed dashboard and collector must agree on spread-aware trading costs");
 
 function makeBars(length) {
   const bars = [];
