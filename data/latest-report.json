@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-18T12:06:40.275Z",
+  "cycleStartedAt": "2026-10-18T12:06:57.430Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 82092.05,
-      "change24hPct": 0.617,
-      "spreadPct": 0.00001218144678527211,
+      "price": 82099.99,
+      "change24hPct": 0.627,
+      "spreadPct": 0.00001218026870130907,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -51,9 +51,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2420.17,
-      "change24hPct": -0.551,
-      "spreadPct": 0.00041319326080814533,
+      "price": 2420.63,
+      "change24hPct": -0.533,
+      "spreadPct": 0.0004131164472075716,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -96,9 +96,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 104.23,
-      "change24hPct": -0.23,
-      "spreadPct": 0.009593706528508567,
+      "price": 104.25,
+      "change24hPct": -0.211,
+      "spreadPct": 0.009591866097554186,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -140,9 +140,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 723.65,
-      "change24hPct": 0.342,
-      "spreadPct": 0.0013818739592749176,
+      "price": 723.78,
+      "change24hPct": 0.361,
+      "spreadPct": 0.001381625759029395,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -229,7 +229,7 @@
       "symbol": "DOGEUSDT",
       "price": 0.07957,
       "change24hPct": -0.897,
-      "spreadPct": 0.012566760917368674,
+      "spreadPct": 0.012568340350651823,
       "timeframe": "1h",
       "confirmations": [
         "4h",
