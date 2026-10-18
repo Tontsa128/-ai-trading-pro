@@ -66,7 +66,6 @@
       if (!Number.isFinite(pdi[i]) || !Number.isFinite(mdi[i]) || pdi[i]+mdi[i] === 0) return null;
       return 100*Math.abs(pdi[i]-mdi[i])/(pdi[i]+mdi[i]);
     });
-    // ADX needs a second 14-period warm-up after directional indicators become available.
     var adx=Array(bars.length).fill(null), dxSeed=0, previousAdx=null;
     for (var ai=PERIOD;ai<dx.length;ai++) {
       var dxValue=Number.isFinite(dx[ai])?dx[ai]:0;
@@ -176,126 +175,81 @@
       b.rsi>=50 && b.rsi<=68 && b.adx>=18 && b.pdi>b.mdi && Number.isFinite(b.volumeRatio) && b.volumeRatio>=MIN_VOLUME_RATIO;
     var shortCore=b.close<b.ema200 && b.ema50<b.ema200 && b.ema9<b.ema21 && b.macdHist<0 &&
       b.rsi>=32 && b.rsi<=50 && b.adx>=18 && b.mdi>b.pdi && Number.isFinite(b.volumeRatio) && b.volumeRatio>=MIN_VOLUME_RATIO;
-    var overextended=Math.abs(b.close-b.ema21)>1.6*b.atr;
-    var highVolatility=b.atrPct>3;
-    return {bar:b,checks:checks,longCore:longCore,shortCore:shortCore,overextended:overextended,highVolatility:highVolatility,
-      support:Math.min.apply(null,series.slice(-31,-1).map(function(x){return x.low;})),
-      resistance:Math.max.apply(null,series.slice(-31,-1).map(function(x){return x.high;})),
-      high:series};
+    var support=Math.min.apply(null,series.slice(-31,-1).map(function(x){return x.low;}));
+    var resistance=Math.max.apply(null,series.slice(-31,-1).map(function(x){return x.high;}));
+    var supportRoom=Number.isFinite(b.atr)&&b.atr>0?(b.close-support)/b.atr:NaN;
+    var resistanceRoom=Number.isFinite(b.atr)&&b.atr>0?(resistance-b.close)/b.atr:NaN;
+    return {bar:b,checks:checks,longCore:longCore,shortCore:shortCore,support:support,resistance:resistance,supportRoom:supportRoom,resistanceRoom:resistanceRoom,
+      overextended:Number.isFinite(b.atr)&&b.atr>0&&Math.abs(b.close-b.ema21)/b.atr>1.6,highVolatility:Number.isFinite(b.atrPct)&&b.atrPct>3};
   }
-  function evaluateSignal(main, higher, market, options) {
-    var opts=Object.assign({},COST_DEFAULTS,options||{});
-    var checks=main.checks, b=main.bar;
-    var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
-    var priceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);
-    var common=[
-      {name:"Riittävästi historiadataa",ok:main.high.length>=220},
-      {name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 5 min)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=300000)},
-      {name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},
-      {name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},
-      {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}
+  function evaluateSignal(main,higher,market,opts) {
+    opts=Object.assign({},COST_DEFAULTS,opts||{}); higher=higher||[]; market=market||{};
+    var b=main.bar, checks=main.checks, side=checks.bias==="bear"?"SELL":checks.bias==="bull"?"BUY":checks.bearN>checks.bullN?"SELL":"BUY";
+    var price=number(market.price), bid=number(market.bid), ask=number(market.ask);
+    var spreadPct=Number.isFinite(bid)&&Number.isFinite(ask)&&bid>0&&ask>=bid?(ask-bid)/((ask+bid)/2)*100:NaN;
+    var priceAgeMs=Number.isFinite(market.closeTime)&&market.closeTime>0?Math.max(0,Date.now()-market.closeTime):Infinity;
+    var historical=opts.historical===true;
+    var fresh=historical||priceAgeMs<=180000;
+    var spreadOk=Number.isFinite(spreadPct)&&spreadPct<=0.15;
+    var upConfirmed=higher.length>=2&&higher[0]&&higher[1]&&higher[0].checks.bias==="bull"&&higher[1].checks.bias==="bull";
+    var downConfirmed=higher.length>=2&&higher[0]&&higher[1]&&higher[0].checks.bias==="bear"&&higher[1].checks.bias==="bear";
+    var core=side==="BUY"?main.longCore:main.shortCore;
+    var distanceOk=!main.overextended, volatilityOk=!main.highVolatility;
+    var levelOk=side==="BUY"?main.resistanceRoom>=MIN_LEVEL_CLEARANCE_ATR:main.supportRoom>=MIN_LEVEL_CLEARANCE_ATR;
+    var timeframeOk=side==="BUY"?upConfirmed:downConfirmed;
+    var checklist=[
+      {group:"Data OK",name:"Markkinahinta tuore",ok:Number.isFinite(price)&&fresh},
+      {group:"Data OK",name:"Osto/myyntihajonta ≤ 0,1500 %",ok:spreadOk},
+      {group:"Data OK",name:"Historiallinen kynttilä sulkeutunut",ok:historical||Number.isFinite(market.closeTime)},
+      {group:"Trendi",name:side==="BUY"?"Nousun ydinehdot": "Laskun ydinehdot",ok:core,direction:side},
+      {group:"Trendi",name:side==="BUY"?"Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo":"Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo",ok:Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO,direction:side},
+      {group:"Ajoitus",name:"Hinta ei ole liian kaukana EMA 21:stä",ok:distanceOk,direction:side},
+      {group:"Ajoitus",name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:volatilityOk,direction:side},
+      {group:"Ajoitus",name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen",ok:levelOk,direction:side},
+      {group:"Ajoitus",name:"Kaksi suurempaa aikaväliä vahvistaa",ok:timeframeOk,direction:side}
     ];
-    var upConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bull";});
-    var downConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bear";});
-    var supportRoom=main.support>0&&Number.isFinite(b.atr)?(b.close-main.support)/b.atr:NaN;
-    var resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-b.close)/b.atr:NaN;
-    var longSpace=Number.isFinite(resistanceRoom)&&resistanceRoom>=MIN_LEVEL_CLEARANCE_ATR;
-    var shortSpace=Number.isFinite(supportRoom)&&supportRoom>=MIN_LEVEL_CLEARANCE_ATR;
-    var long=main.longCore&&upConfirmed&&common.every(function(x){return x.ok;})&&longSpace;
-    var short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;})&&shortSpace;
-    var direction=long?"BUY":short?"SELL":"WAIT";
-    var side=direction==="BUY"?"BUY":direction==="SELL"?"SELL":checks.bias==="bear"?"SELL":checks.bias==="bull"?"BUY":checks.bearN>checks.bullN?"SELL":"BUY";
-    var directional=(side==="BUY"?checks.bull:checks.bear).map(function(x){
-      return {name:x.name,ok:x.ok,group:"Trendi",direction:side,detail:describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)};
-    });
-    var dataChecks=common.slice(0,4).map(function(x){
-      return {name:x.name,ok:x.ok,group:"Data OK",direction:side,detail:describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)};
-    });
-    var timingChecks=[
-      {name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side,detail:"Etäisyys EMA 21:stä "+fixed(Math.abs(b.close-b.ema21),2)+" hinnan yksikköä ("+fixed(Math.abs(b.close-b.ema21)/b.atr,2)+" ATR); sallittu enintään 1.60 ATR"},
-      {name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side,detail:describeCheck({name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)},
-      {name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side,detail:describeCheck({name:"Kaksi suurempaa aikaväliä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed)}
-    ];
-    var checklist=dataChecks.concat(directional,timingChecks);
-    var passes=checklist.filter(function(x){return x.ok;}).length;
-    var capital=Math.max(0,number(opts.capital)||0), riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5));
-    var exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25));
-    var fee=Math.max(0,number(opts.feePct)||0)/100, slip=Math.max(0,number(opts.slippagePct)||0)/100;
-    var entry=Number(market.price), stop=null,target=null,qty=0,riskCash=capital*riskPct/100,notional=0,estLoss=0,estGain=0;
-    if (direction!=="WAIT"&&Number.isFinite(entry)&&entry>0&&Number.isFinite(b.atr)&&b.atr>0) {
-      var stopDistance=1.5*b.atr, targetDistance=2.5*b.atr;
-      stop=direction==="BUY"?entry-stopDistance:entry+stopDistance;
-      target=direction==="BUY"?entry+targetDistance:entry-targetDistance;
-      if (direction==="BUY") {
-        var costPerUnit=stopDistance+(entry+stop)*(fee+slip);
-        qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;
-        notional=qty*entry; estLoss=qty*costPerUnit;
-        estGain=qty*(targetDistance-(entry+target)*(fee+slip));
-      } else {
-        // A spot sell exits an existing holding; holdings were not provided, so never invent a sell quantity.
-        qty=0; notional=0; estLoss=0; estGain=0;
-      }
+    var passed=checklist.filter(function(x){return x.ok;}).length, blocking=checklist.filter(function(x){return !x.ok;});
+    var blockingReasons=blocking.map(function(x){return describeCheck(x,b,main,higher,checks,side,main.supportRoom,main.resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed);});
+    var direction=passed===checklist.length&&side==="BUY"?"BUY":passed===checklist.length&&side==="SELL"?"SELL":"WAIT";
+    var riskCapital=number(opts.capital), riskPct=number(opts.riskPct), feePct=number(opts.feePct), slippagePct=number(opts.slippagePct), maxExposurePct=number(opts.maxExposurePct);
+    var stop=Number.isFinite(b.atr)?(direction==="BUY"?price-1.5*b.atr:price+1.5*b.atr):NaN;
+    var target=Number.isFinite(b.atr)?(direction==="BUY"?price+2.25*b.atr:price-2.25*b.atr):NaN;
+    var qty=0;
+    if(direction==="BUY"&&riskCapital>0&&riskPct>0&&Number.isFinite(price)&&Number.isFinite(stop)&&stop<price){
+      var riskPerUnit=price-stop, riskBudget=riskCapital*riskPct/100;
+      qty=Math.min(riskBudget/riskPerUnit,riskCapital*(maxExposurePct/100)/price);
+      qty=Math.max(0,qty);
     }
-    return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,
-      riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,
-      checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,upConfirmed,downConfirmed);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,
-      reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":
-        direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":
-        "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
-      params:opts, main:main};
+    return {direction:direction,side:side,passed:passed,total:checklist.length,checklist:checklist,blockingReasons:blockingReasons,reason:direction==="WAIT"?"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.":direction==="BUY"?"OSTA: kaikki vahvistetut ehdot täyttyvät.":"MYY: kaikki vahvistetut ehdot täyttyvät.",
+      trendBias:checks.bias,spreadPct:spreadPct,priceAgeMs:priceAgeMs,upConfirmed:upConfirmed,downConfirmed:downConfirmed,stop:stop,target:target,qty:qty,feePct:feePct,slippagePct:slippagePct};
   }
-  function backtest(series, options) {
-    var opts=Object.assign({},COST_DEFAULTS,options||{});
-    var startCapital=Math.max(100,number(opts.capital)||10000), equity=startCapital, peak=equity, maxDd=0, trades=[];
-    var fee=Math.max(0,number(opts.feePct)||0)/100, slip=Math.max(0,number(opts.slippagePct)||0)/100;
-    var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100;
-    var exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100;
-    var higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[];
-    var assumedSpreadPct=Math.max(0,number(opts.assumedSpreadPct)||0.10);
-    var inPositionUntil=-1;
-    var requestedStart=Number(opts.startIndex);
-    var startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220;
-    for (var i=startIndex;i<series.length-2;i++) {
-      if (i<=inPositionUntil) continue;
-      var b=series[i], prefix=series.slice(0,i+1), main;
-      try { main=analyzeSeries(prefix); } catch (_) { continue; }
-      var higher=[];
-      for (var h=0;h<higherSeries.length;h++) {
-        var hist=higherSeries[h].filter(function(x){return x.closeTime<=b.closeTime;});
-        if (hist.length<220) { higher=[]; break; }
-        try { higher.push(analyzeSeries(hist)); } catch (_) { higher=[]; break; }
-      }
-      if (higher.length<2) continue;
-      var halfSpread=b.close*assumedSpreadPct/200;
-      var decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},
-        Object.assign({},opts,{capital:equity,historical:true}));
-      if (decision.direction!=="BUY") continue;
-      var entryBar=series[i+1], entry=entryBar.open, atr=b.atr;
-      if (!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0) continue;
-      var stop=entry-1.5*atr,target=entry+2.5*atr;
-      var riskPerUnit=(entry-stop)+(entry+stop)*(fee+slip);
-      var qty=Math.min((equity*riskPct)/riskPerUnit,(equity*exposurePct)/entry);
-      if (!(qty>0)) continue;
-      var exit=entry, exitIndex=i+1, cause="Aikaraja";
-      var maxIndex=Math.min(series.length-1,i+30);
-      for (var j=i+1;j<=maxIndex;j++) {
+  function backtest(series,opts) {
+    opts=Object.assign({},COST_DEFAULTS,opts||{});
+    var higher=opts.higherSeries||[];
+    var start=Math.max(220,Number.isInteger(opts.startIndex)?opts.startIndex:220);
+    if(!Array.isArray(series)||series.length<=start||higher.length<2)return {count:0,trades:[],netPnl:0,maxDrawdownPct:0,startIndex:start};
+    var cash=number(opts.capital); if(!Number.isFinite(cash)||cash<=0)cash=1000;
+    var initial=cash,peak=cash,maxDrawdown=0,trades=[];
+    for(var i=start;i<series.length;i++){
+      var main=analyzeSeries(series.slice(0,i+1));
+      var higherAnalyses=higher.map(function(h){return analyzeSeries(h.slice(0,Math.min(h.length,i+1)));});
+      var m=main.bar;
+      var s=evaluateSignal(main,higherAnalyses,{price:m.close,closeTime:m.closeTime,bid:m.close,ask:m.close},{capital:initial,riskPct:opts.riskPct,feePct:opts.feePct,slippagePct:opts.slippagePct,maxExposurePct:opts.maxExposurePct,historical:true});
+      if(s.direction!=="BUY"||!Number.isFinite(s.qty)||s.qty<=0)continue;
+      var next=series[i+1]; if(!next)break;
+      var entry=next.open*(1+opts.slippagePct/100), exit=entry;
+      var stop=s.stop*(1-opts.slippagePct/100), target=s.target*(1-opts.slippagePct/100);
+      for(var j=i+1;j<series.length;j++){
         var bar=series[j];
-        if (bar.low<=stop) {exit=stop;exitIndex=j;cause="Stop-loss";break;}
-        if (bar.high>=target) {exit=target;exitIndex=j;cause="Tavoite";break;}
-        exit=bar.close;exitIndex=j;
+        if(bar.low<=stop){exit=stop;break;}
+        if(bar.high>=target){exit=target;break;}
+        exit=bar.close*(1-opts.slippagePct/100);
       }
-      var gross=(exit-entry)*qty, costs=(entry+exit)*qty*(fee+slip), pnl=gross-costs;
-      var before=equity; equity+=pnl; peak=Math.max(peak,equity); maxDd=Math.max(maxDd,peak>0?(peak-equity)/peak*100:0);
-      trades.push({entryTime:entryBar.time,exitTime:series[exitIndex].time,entry:entry,exit:exit,stop:stop,target:target,qty:qty,
-        pnl:pnl,returnPct:before>0?pnl/before*100:0,cause:cause,win:pnl>0});
-      inPositionUntil=exitIndex;
+      var gross=(exit-entry)*s.qty, fees=(entry*s.qty+exit*s.qty)*opts.feePct/100, pnl=gross-fees;
+      cash+=pnl;peak=Math.max(peak,cash);maxDrawdown=Math.max(maxDrawdown,(peak-cash)/peak*100);
+      trades.push({entryTime:next.time,exitTime:series[Math.min(series.length-1,j)].time,pnl:pnl});
     }
-    var wins=trades.filter(function(t){return t.win;}), losses=trades.filter(function(t){return !t.win;});
-    var grossWins=wins.reduce(function(a,t){return a+t.pnl;},0), grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
-    return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,
-      startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,
-      maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),
-      note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; jos niitä ei anneta, kauppoja ei avata. Kulut ja lipsuma vähennetään, ja saman kynttilän stop/tavoite osuma käsitellään stopina. Historiallinen tulos ei ennusta tulevaa."};
+    return {count:trades.length,trades:trades,netPnl:cash-initial,maxDrawdownPct:maxDrawdown,startIndex:start};
   }
   root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,backtest:backtest,defaults:COST_DEFAULTS};
-})(window);
+})(typeof window !== "undefined" ? window : globalThis);
