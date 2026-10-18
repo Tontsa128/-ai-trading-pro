@@ -39,7 +39,7 @@ assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pi
   "bearish spot guidance must not imply short-selling or probability");
 assert.ok(liveDashboard.includes('"ODOTA"'),
   "WAIT must not be decorated with a fabricated confidence percentage");
-assert.ok(!liveDashboard.includes('num(s && s.score, 0) + \\'%\\'') &&
+assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
   !liveDashboard.includes('Math.round(base.score) + "%"') &&
   !liveDashboard.includes('Math.round(50 + Math.abs(base.score - 50)) + "%"'),
   "heuristic scores must never be rendered as percentages or win probabilities");
