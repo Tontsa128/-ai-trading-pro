@@ -171,6 +171,26 @@ assert.ok(Number.isFinite(bt.netPnl) && Number.isFinite(bt.maxDrawdownPct), "bac
 const alignedBt = E.backtest(full, {...opts, higherSeries: [full, full]});
 assert.ok(Number.isFinite(alignedBt.netPnl) && Number.isFinite(alignedBt.maxDrawdownPct), "aligned backtest metrics are finite");
 
+assert.deepEqual(E.resolveLongExit(
+  {open: 95, high: 97, low: 94, close: 96}, 98, 103),
+  {price: 95, cause: "Stop-loss gap"},
+  "a gap below the stop must not be filled optimistically at the stop level");
+assert.deepEqual(E.resolveLongExit(
+  {open: 104, high: 106, low: 103, close: 105}, 98, 103),
+  {price: 103, cause: "Tavoite"},
+  "an opening gap beyond the target is filled conservatively at the target");
+assert.deepEqual(E.resolveLongExit(
+  {open: 100, high: 104, low: 97, close: 101}, 98, 103),
+  {price: 98, cause: "Stop-first ambiguous candle"},
+  "if both barriers are touched within an OHLC bar, stop wins conservatively");
+assert.deepEqual(E.resolveLongExit(
+  {open: 100, high: 101, low: 99, close: 100}, 98, 103),
+  null, "a candle that touches neither barrier should not create an exit");
+assert.equal(E.resolveLongExit(
+  {open: NaN, high: 104, low: 99}, 98, 103), null,
+  "invalid OHLC data cannot create an exit");
+
+
 assert.equal(alignedBt.startIndex, 220, "full-history backtest preserves the default warm-up period");
 const holdoutStart = 400;
 const holdoutBt = E.backtest(full, {...opts, higherSeries: [full, full], startIndex: holdoutStart});
