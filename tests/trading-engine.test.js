@@ -190,6 +190,15 @@ assert.equal(E.resolveLongExit(
   {open: NaN, high: 104, low: 99}, 98, 103), null,
   "invalid OHLC data cannot create an exit");
 
+assert.ok(Math.abs(E.estimatePerSideFriction(0.10, 0.05, 0.10) - 0.002) < 1e-12,
+  "risk/backtest friction must include fee, slippage and half of the estimated spread per side");
+assert.ok(Math.abs(E.estimatePerSideFriction(0.10, 0.05, 0) - 0.0015) < 1e-12,
+  "explicit zero assumed spread must be respected instead of replaced with a default");
+assert.ok(E.estimatePerSideFriction(0.10, 0.05, 0.10) >
+  E.estimatePerSideFriction(0.10, 0.05, 0),
+  "wider estimated spread must reduce backtest net returns and increase risk estimates");
+
+
 
 assert.equal(alignedBt.startIndex, 220, "full-history backtest preserves the default warm-up period");
 const holdoutStart = 400;
