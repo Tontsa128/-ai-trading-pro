@@ -158,7 +158,7 @@ function ema(values, period) {
 function resolvePositionExit(bar, stop, target) {
   if (!bar || ![bar.open, bar.high, bar.low, stop, target].every(Number.isFinite) ||
       !(stop > 0) || !(target > stop)) return null;
-  if (bar.open <= stop) return { price: bar.open, cause: "Stop-loss gap" };
+  if (bar.open < stop) return { price: bar.open, cause: "Stop-loss gap" };
   if (bar.open >= target) return { price: target, cause: "Take-profit" };
   if (bar.low <= stop) return { price: stop, cause: bar.high >= target ? "Stop-first ambiguous candle" : "Stop-loss" };
   if (bar.high >= target) return { price: target, cause: "Take-profit" };
