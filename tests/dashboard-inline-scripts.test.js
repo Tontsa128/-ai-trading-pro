@@ -46,4 +46,18 @@ assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
   !liveDashboard.includes('Math.round(50 + Math.abs(base.score - 50)) + "%"'),
   "heuristic scores must never be rendered as percentages or win probabilities");
 
+const liveGuards = fs.readFileSync("public/live-signal-guards.js", "utf8");
+assert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
+  "live dashboard must gate signals on recent trade and order-book data");
+assert.ok(liveDashboard.includes("window.LiveSignalGuards.apply") &&
+  liveDashboard.includes("SIGNAALI ESTETTY"),
+  "live dashboard must fail closed and display a visible blocked-signal state");
+assert.ok(liveGuards.includes("MAX_TRADE_AGE_MS = 5000") &&
+  liveGuards.includes("MAX_BOOK_AGE_MS = 3000") &&
+  liveGuards.includes("MAX_SPREAD_PCT = 0.15"),
+  "live signal guard must enforce documented data-age and spread thresholds");
+const repairScript = fs.readFileSync("scripts/repair-mobile-chart.js", "utf8");
+assert.ok(repairScript.indexOf("live-signal-guards.js") < repairScript.indexOf("live-dashboard.js"),
+  "Vercel build must load live signal guards before live dashboard code");
+
 console.log("Dashboard tests passed: inline scripts parse, chart fallback is wired, and heuristic scores are not shown as win probabilities.");
