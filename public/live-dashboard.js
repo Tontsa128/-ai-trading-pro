@@ -35,7 +35,11 @@
     var side = s && s.side || "WAIT";
     var cls = side === "BUY" ? "good" : side === "SELL" ? "bad" : "neutral";
     var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA";
-    var points = s && Number.isFinite(s.score) ? "Tekniset pisteet " + num(s.score, 0) + "/100 · ei voittotodennäköisyys" : "Tekniset pisteet eivät saatavilla";
+    var rawScore = s && Number.isFinite(s.score) ? s.score : null;
+    var directionalPoints = rawScore === null ? null : side === "SELL" ? 100 - rawScore : rawScore;
+    var points = rawScore === null ? "Tekniset pisteet eivät saatavilla" :
+      side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei voittotodennäköisyys" :
+      "Suunnan tekniset pisteet " + num(directionalPoints, 0) + "/100 · ei voittotodennäköisyys";
     return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
   }
 
