@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-18T12:07:31.121Z",
+  "cycleStartedAt": "2026-10-18T12:08:24.181Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 82127.32,
-      "change24hPct": 0.661,
-      "spreadPct": 0.000012176216900933905,
+      "price": 82127.68,
+      "change24hPct": 0.698,
+      "spreadPct": 0.000012177288899252005,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -51,9 +51,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2421.19,
-      "change24hPct": -0.48,
-      "spreadPct": 0.0004130191909269403,
+      "price": 2420.76,
+      "change24hPct": -0.483,
+      "spreadPct": 0.00041309255544274355,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -96,9 +96,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 104.27,
-      "change24hPct": -0.125,
-      "spreadPct": 0.009590946146828663,
+      "price": 104.31,
+      "change24hPct": -0.077,
+      "spreadPct": 0.009587268107957543,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -140,9 +140,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 723.82,
-      "change24hPct": 0.386,
-      "spreadPct": 0.0013815684947264964,
+      "price": 723.74,
+      "change24hPct": 0.397,
+      "spreadPct": 0.001381721210110179,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -185,9 +185,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.3003,
-      "change24hPct": -0.375,
-      "spreadPct": 0.007690828686790154,
+      "price": 1.3002,
+      "change24hPct": -0.368,
+      "spreadPct": 0.007692011845697394,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -228,8 +228,8 @@
     {
       "symbol": "DOGEUSDT",
       "price": 0.07959,
-      "change24hPct": -0.835,
-      "spreadPct": 0.012565181881002857,
+      "change24hPct": -0.785,
+      "spreadPct": 0.012563603241422201,
       "timeframe": "1h",
       "confirmations": [
         "4h",
