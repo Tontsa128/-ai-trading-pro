@@ -6,6 +6,7 @@ const path = require("node:path");
 const engineFile = path.join(process.cwd(), "public", "trading-engine.js");
 const indexFile = path.join(process.cwd(), "public", "index.html");
 const engineMarker = "Rahasampo mobile chart fallback";
+const guardMarker = '<script src="./live-signal-guards.js"></script>';
 const liveMarker = '<script src="./live-dashboard.js"></script>';
 
 const engine = fs.readFileSync(engineFile, "utf8");
@@ -14,11 +15,15 @@ if (!engine.includes(engineMarker)) {
 }
 
 let index = fs.readFileSync(indexFile, "utf8");
+const originalIndex = index;
+if (!index.includes("</body>")) throw new Error("public/index.html: </body> not found");
 if (!index.includes(liveMarker)) {
-  const insertion = `${liveMarker}\n`;
-  if (!index.includes("</body>")) throw new Error("public/index.html: </body> not found");
-  index = index.replace("</body>", insertion + "</body>");
-  fs.writeFileSync(indexFile, index, "utf8");
+  index = index.replace("</body>", `${liveMarker}\\n</body>`);
 }
+if (!index.includes(guardMarker)) {
+  if (!index.includes(liveMarker)) throw new Error("Could not install the live signal freshness guard.");
+  index = index.replace(liveMarker, `${guardMarker}\\n${liveMarker}`);
+}
+if (index !== originalIndex) fs.writeFileSync(indexFile, index, "utf8");
 
 console.log("Dashboard repair applied: mobile SVG chart fallback + real-time Binance WebSocket live layer.");
