@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-18T12:09:08.553Z",
+  "cycleStartedAt": "2026-10-18T12:14:30.345Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 82107.55,
-      "change24hPct": 0.678,
-      "spreadPct": 0.000012179148711988924,
+      "price": 82057.52,
+      "change24hPct": 0.614,
+      "spreadPct": 0.000012186572766801473,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -51,9 +51,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2419.69,
-      "change24hPct": -0.525,
-      "spreadPct": 0.00041327693481665086,
+      "price": 2418.12,
+      "change24hPct": -0.576,
+      "spreadPct": 0.00041354526148522846,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -96,9 +96,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 104.25,
-      "change24hPct": -0.086,
-      "spreadPct": 0.009591866097554186,
+      "price": 104.22,
+      "change24hPct": -0.144,
+      "spreadPct": 0.009595547665887938,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -140,9 +140,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 723.6,
-      "change24hPct": 0.388,
-      "spreadPct": 0.0013819694446543219,
+      "price": 723.7,
+      "change24hPct": 0.447,
+      "spreadPct": 0.0013817784870894776,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -185,9 +185,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.2997,
-      "change24hPct": -0.368,
-      "spreadPct": 0.007694379255952677,
+      "price": 1.2994,
+      "change24hPct": -0.269,
+      "spreadPct": 0.00769615577020903,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -227,9 +227,9 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.07956,
-      "change24hPct": -0.773,
-      "spreadPct": 0.012569920181019422,
+      "price": 0.07955,
+      "change24hPct": -0.711,
+      "spreadPct": 0.012571500408568888,
       "timeframe": "1h",
       "confirmations": [
         "4h",
