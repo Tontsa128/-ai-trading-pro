@@ -31,6 +31,7 @@ let stopTimer;
 let quoteTimer;
 let stopping = false;
 let socketOpen = false;
+let socketOpenAtSessionEnd = null;
 let socketMessages = 0;
 let socketErrors = 0;
 let consecutiveSocketFailures = 0;
@@ -423,7 +424,7 @@ function writeReport() {
     intervalSeconds: INTERVAL_SECONDS, sessionStartedAt: new Date(startedAt).toISOString(),
     sessionEndedAt: new Date(now).toISOString(), requestedSessionSeconds: SESSION_SECONDS,
     feedStatus: {
-      websocketConnectedAtEnd: socketOpen, websocketMessages: socketMessages,
+      websocketConnectedAtEnd: socketOpenAtSessionEnd === null ? socketOpen : socketOpenAtSessionEnd, websocketMessages: socketMessages,
       websocketErrors: socketErrors, consecutiveWebSocketFailures: consecutiveSocketFailures,
       websocketDisabled: websocketDisabled,
       websocketEndpointsTried: websocketEndpointsTried,
@@ -495,6 +496,8 @@ async function main() {
       stopping = true;
       clearTimeout(reconnectTimer);
       clearTimeout(quoteTimer);
+      // Snapshot the live connection before orderly shutdown closes the socket.
+      socketOpenAtSessionEnd = socketOpen;
       socketOpen = false;
       try { if (socket) socket.close(); } catch {}
       resolve();
