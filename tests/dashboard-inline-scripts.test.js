@@ -37,6 +37,8 @@ assert.ok(liveDashboard.includes("Tekniset pisteet") && liveDashboard.includes("
   "heuristic live scores must be explicitly identified as technical points, not win probabilities");
 assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pisteet "),
   "bearish spot guidance must not imply short-selling or probability");
+assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
+  "bearish technical points must be oriented to the displayed direction");
 assert.ok(liveDashboard.includes('"ODOTA"'),
   "WAIT must not be decorated with a fabricated confidence percentage");
 assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
