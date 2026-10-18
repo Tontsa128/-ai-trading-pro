@@ -18,11 +18,11 @@ let index = fs.readFileSync(indexFile, "utf8");
 const originalIndex = index;
 if (!index.includes("</body>")) throw new Error("public/index.html: </body> not found");
 if (!index.includes(liveMarker)) {
-  index = index.replace("</body>", `${liveMarker}\\n</body>`);
+  index = index.replace("</body>", `${liveMarker}\n</body>`);
 }
 if (!index.includes(guardMarker)) {
   if (!index.includes(liveMarker)) throw new Error("Could not install the live signal freshness guard.");
-  index = index.replace(liveMarker, `${guardMarker}\\n${liveMarker}`);
+  index = index.replace(liveMarker, `${guardMarker}\n${liveMarker}`);
 }
 if (index !== originalIndex) fs.writeFileSync(indexFile, index, "utf8");
 
