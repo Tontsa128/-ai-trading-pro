@@ -155,6 +155,15 @@ function ema(values, period) {
   for (let i = period; i < values.length; i++) out = values[i] * k + out * (1 - k);
   return out;
 }
+function resolvePositionExit(bar, stop, target) {
+  if (!bar || ![bar.open, bar.high, bar.low, stop, target].every(Number.isFinite) ||
+      !(stop > 0) || !(target > stop)) return null;
+  if (bar.open <= stop) return { price: bar.open, cause: "Stop-loss gap" };
+  if (bar.open >= target) return { price: target, cause: "Take-profit" };
+  if (bar.low <= stop) return { price: stop, cause: bar.high >= target ? "Stop-first ambiguous candle" : "Stop-loss" };
+  if (bar.high >= target) return { price: target, cause: "Take-profit" };
+  return null;
+}
 function pnlPosition(p, exit) {
   const fill = exit * (1 - SLIPPAGE_PCT / 100);
   const fee = fill * p.qty * FEE_PCT / 100;
@@ -200,8 +209,8 @@ function onClosedBar(s, bar) {
   const p = state.positions[s.symbol];
   if (p) {
     p.lastPrice = bar.close;
-    if (bar.low <= p.stop) closePosition(s, "Stop-loss (bar touched; conservative)", Math.min(p.stop, bar.close), bar.closeTime);
-    else if (bar.high >= p.target) closePosition(s, "Take-profit (bar touched)", p.target, bar.closeTime);
+    const exit = resolvePositionExit(bar, p.stop, p.target);
+    if (exit) closePosition(s, exit.cause, exit.price, bar.closeTime);
     else if (fast !== null && slow !== null && fast < slow && momentum < 0) closePosition(s, "EMA reversal + negative momentum", bar.close, bar.closeTime);
     return;
   }
@@ -498,4 +507,4 @@ if (require.main === module) {
   process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); try { socket?.close(); } catch {} writeReport(); process.exit(130); });
 }
 
-module.exports = { isEligibleEntryBar, hasCleanEntryHistory };
+module.exports = { isEligibleEntryBar, hasCleanEntryHistory, resolvePositionExit };
