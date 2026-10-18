@@ -81,6 +81,13 @@ assert.match(worker, /hasTradeData: volume > 0, hasRestFallback: false/,
   "official historical OHLCV bars must be marked as trade-derived warm-up data");
 assert.match(worker, /nonTradeBarsSkipped:\s*nonTradeBarsSkipped/,
   "the report must disclose how many degraded bars were skipped");
+assert.match(worker, /socketOpenAtSessionEnd = socketOpen;/,
+  "worker must snapshot actual WebSocket connection state before orderly shutdown");
+assert.match(worker, /websocketConnectedAtEnd: socketOpenAtSessionEnd === null \? socketOpen : socketOpenAtSessionEnd/,
+  "report must use the pre-shutdown connection snapshot rather than the already-closed socket");
+assert.ok(worker.indexOf("socketOpenAtSessionEnd = socketOpen;") < worker.indexOf("socketOpen = false;"),
+  "the report snapshot must occur before shutdown changes the socket state");
+
 assert.match(worker, /const exit = resolvePositionExit\(bar, p\.stop, p\.target\)/,
   "paper position stops/targets must use the gap-aware exit resolver");
 
