@@ -5,10 +5,10 @@ const fs = require("node:fs");
 
 const html = fs.readFileSync("public/index.html", "utf8");
 const scripts = [];
-const re = /<script\\b([^>]*)>([\\s\\S]*?)<\\/script\\s*>/gi;
+const re = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
 let match;
 while ((match = re.exec(html)) !== null) {
-  if (/\\bsrc\\s*=/i.test(match[1])) continue;
+  if (/\bsrc\s*=/i.test(match[1])) continue;
   if (match[2].trim()) scripts.push({ body: match[2], offset: match.index });
 }
 assert.ok(scripts.length > 0, "expected at least one inline script");
@@ -20,12 +20,12 @@ for (const script of scripts) {
     throw error;
   }
 }
-assert.match(html, /function renderNativeCandleChart\\s*\\(/, "native SVG chart fallback must be present");
-assert.match(html, /var valid=Array\\.isArray\\(series\\)[\\s\\S]*?if\\(valid\\.length<2\\)[\\s\\S]*?return false;/,
+assert.match(html, /function renderNativeCandleChart\s*\(/, "native SVG chart fallback must be present");
+assert.ok(html.includes("var valid=Array.isArray(series)") && html.includes("if(valid.length<2)") && html.includes("return false;"),
   "chart must validate candle data and reject fewer than two valid candles");
-assert.match(html, /return renderNativeCandleChart\\(valid,signal,symbol,count\\)/,
+assert.ok(html.includes("return renderNativeCandleChart(valid,signal,symbol,count)"),
   "missing Plotly should render the validated, bounded candle series");
-assert.match(html, /\\.catch\\(function\\(\\)\\{renderNativeCandleChart\\(valid,signal,symbol,count\\);\\}\\)/,
+assert.ok(html.includes(".catch(function(){renderNativeCandleChart(valid,signal,symbol,count);})"),
   "asynchronous Plotly failures should fall back locally using validated data");
 assert.ok(html.includes("VANHA RAPORTTI") && html.includes("reportAgeSeconds"),
   "two-hour paper report must show age and warn when stale");
