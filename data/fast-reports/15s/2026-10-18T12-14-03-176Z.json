@@ -1,0 +1,122 @@
+{
+  "schema": 2,
+  "mode": "paper",
+  "source": "Binance public Spot WebSocket + REST quote fallback",
+  "intervalSeconds": 15,
+  "sessionStartedAt": "2026-10-18T12:10:33.175Z",
+  "sessionEndedAt": "2026-10-18T12:14:03.176Z",
+  "requestedSessionSeconds": 210,
+  "feedStatus": {
+    "websocketConnectedAtEnd": false,
+    "websocketMessages": 37981,
+    "websocketErrors": 0,
+    "consecutiveWebSocketFailures": 0,
+    "websocketDisabled": false,
+    "websocketEndpointsTried": [
+      "wss://data-stream.binance.vision:443"
+    ],
+    "lastWebSocketEndpoint": "wss://data-stream.binance.vision:443",
+    "lastConnectedWebSocketEndpoint": "wss://data-stream.binance.vision:443",
+    "lastWebSocketFailureAt": null,
+    "lastWebSocketMessageAt": "2026-10-18T12:14:03.169Z",
+    "restQuoteUpdates": 594,
+    "restQuoteErrors": 0,
+    "lastRestError": null,
+    "nonTradeBarsSkipped": 84
+  },
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "price": 82057.53,
+      "bid": 82057.52,
+      "ask": 82057.53,
+      "spreadPct": 0.000012186572766801473,
+      "lastUpdateAt": "2026-10-18T12:14:03.169Z",
+      "marketAgeMs": 7,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 2418.11,
+      "bid": 2418.11,
+      "ask": 2418.12,
+      "spreadPct": 0.00041354526148522846,
+      "lastUpdateAt": "2026-10-18T12:14:03.020Z",
+      "marketAgeMs": 156,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    },
+    {
+      "symbol": "SOLUSDT",
+      "price": 104.16,
+      "bid": 104.16,
+      "ask": 104.17,
+      "spreadPct": 0.009600153602462552,
+      "lastUpdateAt": "2026-10-18T12:14:03.155Z",
+      "marketAgeMs": 21,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    },
+    {
+      "symbol": "BNBUSDT",
+      "price": 723.68,
+      "bid": 723.67,
+      "ask": 723.68,
+      "spreadPct": 0.0013818357688176193,
+      "lastUpdateAt": "2026-10-18T12:14:03.162Z",
+      "marketAgeMs": 14,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 1.2992,
+      "bid": 1.2991,
+      "ask": 1.2992,
+      "spreadPct": 0.00769734056883262,
+      "lastUpdateAt": "2026-10-18T12:14:03.130Z",
+      "marketAgeMs": 46,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.07952,
+      "bid": 0.07952,
+      "ask": 0.07953,
+      "spreadPct": 0.012574662055969823,
+      "lastUpdateAt": "2026-10-18T12:14:03.035Z",
+      "marketAgeMs": 141,
+      "feed": "websocket",
+      "closedBars": 81,
+      "position": null
+    }
+  ],
+  "portfolio": {
+    "initialCash": 1000,
+    "cash": 1000,
+    "equity": 1000,
+    "realizedPnl": 0,
+    "openPositions": 0,
+    "positions": {}
+  },
+  "sessionTrades": [],
+  "errors": [],
+  "notes": [
+    "Paper trading only: no private API keys and no real exchange orders.",
+    "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
+    "New 5/15-second paper entries require a closed candle and a clean 81-candle trade-derived lookback. Historical exchange OHLCV candles may warm up indicators; REST ticker samples and any mixed-source lookback are rejected.",
+    "REST fallback samples can help monitor an existing paper position, but do not count as trade-derived candles.",
+    "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
+    "Opening gaps through a stop exit at the bar open plus estimated slippage; same-bar stop/target ambiguity is resolved stop-first.",
+    "Estimated fee 0.10% and slippage 0.05% per side; actual spread and fills can differ.",
+    "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
+    "A 5-second/15-second strategy can lose to fees, spread, latency and adverse selection even when direction is correct."
+  ]
+}
