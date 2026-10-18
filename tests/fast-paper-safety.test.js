@@ -85,8 +85,11 @@ assert.match(worker, /socketOpenAtSessionEnd = socketOpen;/,
   "worker must snapshot actual WebSocket connection state before orderly shutdown");
 assert.match(worker, /websocketConnectedAtEnd: socketOpenAtSessionEnd === null \? socketOpen : socketOpenAtSessionEnd/,
   "report must use the pre-shutdown connection snapshot rather than the already-closed socket");
-assert.ok(worker.indexOf("socketOpenAtSessionEnd = socketOpen;") < worker.indexOf("socketOpen = false;"),
-  "the report snapshot must occur before shutdown changes the socket state");
+const sessionStopAt = worker.indexOf("stopTimer = setTimeout");
+const snapshotAt = worker.indexOf("socketOpenAtSessionEnd = socketOpen;", sessionStopAt);
+const closeFlagAt = worker.indexOf("socketOpen = false;", sessionStopAt);
+assert.ok(sessionStopAt >= 0 && snapshotAt > sessionStopAt && closeFlagAt > snapshotAt,
+  "the report snapshot must occur before the scheduled shutdown changes the socket state");
 
 assert.match(worker, /const exit = resolvePositionExit\(bar, p\.stop, p\.target\)/,
   "paper position stops/targets must use the gap-aware exit resolver");
