@@ -44,6 +44,7 @@ let restPollErrors = 0;
 let lastSocketMessageAt = null;
 let lastRestError = null;
 let quotePollBusy = false;
+let nonTradeBarsSkipped = 0;
 
 if (![5, 15].includes(INTERVAL_SECONDS)) {
   console.error("FAST_INTERVAL_SECONDS must be 5 or 15.");
@@ -111,6 +112,10 @@ function json(url, timeoutMs = 8000) {
   })();
 }
 function bucket(ts) { return Math.floor(ts / barMs) * barMs; }
+function isEligibleEntryBar(bar) {
+  return Boolean(bar && bar.hasWebSocketTrades === true && bar.hasRestFallback !== true &&
+    Number.isFinite(bar.volume) && bar.volume > 0);
+}
 function addTrade(s, price, qty, ts, feed = "websocket") {
   if (!(price > 0) || !(qty >= 0) || !Number.isFinite(ts)) return;
   const time = bucket(ts);
@@ -121,7 +126,8 @@ function addTrade(s, price, qty, ts, feed = "websocket") {
       b.closeTime = b.time + barMs - 1;
       onClosedBar(s, b);
     }
-    b = { time, open: price, high: price, low: price, close: price, volume: qty };
+    b = { time, open: price, high: price, low: price, close: price, volume: qty,
+        hasWebSocketTrades: feed === "websocket", hasRestFallback: feed !== "websocket" };
     s.bars.push(b);
     if (s.bars.length > 401) s.bars.shift();
   } else {
@@ -129,6 +135,8 @@ function addTrade(s, price, qty, ts, feed = "websocket") {
     b.low = Math.min(b.low, price);
     b.close = price;
     b.volume += qty;
+    if (feed === "websocket") b.hasWebSocketTrades = true;
+    else b.hasRestFallback = true;
   }
   s.lastPrice = price;
   s.lastUpdateAt = Date.now();
@@ -190,6 +198,12 @@ function onClosedBar(s, bar) {
     if (bar.low <= p.stop) closePosition(s, "Stop-loss (bar touched; conservative)", Math.min(p.stop, bar.close), bar.closeTime);
     else if (bar.high >= p.target) closePosition(s, "Take-profit (bar touched)", p.target, bar.closeTime);
     else if (fast !== null && slow !== null && fast < slow && momentum < 0) closePosition(s, "EMA reversal + negative momentum", bar.close, bar.closeTime);
+    return;
+  }
+  // REST samples can support monitoring, but cannot create valid 5s/15s entries.
+  // Any candle containing REST samples is treated as degraded, even if one WS trade also arrived.
+  if (!isEligibleEntryBar(bar)) {
+    nonTradeBarsSkipped += 1;
     return;
   }
   const crossUp = prevFast !== null && prevSlow !== null && prevFast <= prevSlow && fast > slow;
@@ -397,7 +411,8 @@ function writeReport() {
       lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
       lastWebSocketFailureAt: lastSocketFailureAt,
       lastWebSocketMessageAt: lastSocketMessageAt ? new Date(lastSocketMessageAt).toISOString() : null,
-      restQuoteUpdates: restPolls, restQuoteErrors: restPollErrors, lastRestError
+      restQuoteUpdates: restPolls, restQuoteErrors: restPollErrors, lastRestError,
+      nonTradeBarsSkipped: nonTradeBarsSkipped
     },
     symbols: SYMBOLS.map(symbol => {
       const s = symbols.get(symbol);
@@ -416,6 +431,8 @@ function writeReport() {
     notes: [
       "Paper trading only: no private API keys and no real exchange orders.",
       "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
+      "New 5/15-second paper entries require a closed candle containing only real WebSocket trade events; REST-only or mixed-source candles are rejected.",
+      "REST fallback samples can help monitor an existing paper position, but do not count as trade-by-trade candles.",
       "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
       "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
       "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
@@ -434,7 +451,7 @@ function writeReport() {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2) + "\n");
   console.log(JSON.stringify({ intervalSeconds: INTERVAL_SECONDS, symbols: SYMBOLS.length,
     paperTrades: events.length, websocketMessages: socketMessages, restQuoteUpdates: restPolls,
-    restQuoteErrors: restPollErrors, websocketDisabled: websocketDisabled,
+    restQuoteErrors: restPollErrors, websocketDisabled: websocketDisabled, nonTradeBarsSkipped: nonTradeBarsSkipped,
     websocketEndpointsTried: websocketEndpointsTried, lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
     errors: report.errors.length, cash: state.cash,
     equity: report.portfolio.equity, realizedPnl, openPositions: report.portfolio.openPositions,
@@ -465,5 +482,9 @@ async function main() {
   writeReport();
   if (errors.length >= SYMBOLS.length) process.exitCode = 1;
 }
-main().catch(e => { console.error(e); process.exitCode = 1; });
-process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); try { socket?.close(); } catch {} writeReport(); process.exit(130); });
+if (require.main === module) {
+  main().catch(e => { console.error(e); process.exitCode = 1; });
+  process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); try { socket?.close(); } catch {} writeReport(); process.exit(130); });
+}
+
+module.exports = { isEligibleEntryBar };
