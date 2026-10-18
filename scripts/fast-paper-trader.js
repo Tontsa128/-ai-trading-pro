@@ -113,8 +113,13 @@ function json(url, timeoutMs = 8000) {
 }
 function bucket(ts) { return Math.floor(ts / barMs) * barMs; }
 function isEligibleEntryBar(bar) {
-  return Boolean(bar && bar.hasWebSocketTrades === true && bar.hasRestFallback !== true &&
+  return Boolean(bar && bar.hasTradeData === true && bar.hasRestFallback !== true &&
     Number.isFinite(bar.volume) && bar.volume > 0);
+}
+function hasCleanEntryHistory(bars, lookback = 81) {
+  if (!Array.isArray(bars) || !Number.isInteger(lookback) || lookback < 1) return false;
+  const closed = bars.filter(bar => bar && bar.closeTime !== undefined);
+  return closed.length >= lookback && closed.slice(-lookback).every(isEligibleEntryBar);
 }
 function addTrade(s, price, qty, ts, feed = "websocket") {
   if (!(price > 0) || !(qty >= 0) || !Number.isFinite(ts)) return;
@@ -127,7 +132,7 @@ function addTrade(s, price, qty, ts, feed = "websocket") {
       onClosedBar(s, b);
     }
     b = { time, open: price, high: price, low: price, close: price, volume: qty,
-        hasWebSocketTrades: feed === "websocket", hasRestFallback: feed !== "websocket" };
+        hasTradeData: feed === "websocket" && qty > 0, hasRestFallback: feed !== "websocket" };
     s.bars.push(b);
     if (s.bars.length > 401) s.bars.shift();
   } else {
@@ -135,8 +140,8 @@ function addTrade(s, price, qty, ts, feed = "websocket") {
     b.low = Math.min(b.low, price);
     b.close = price;
     b.volume += qty;
-    if (feed === "websocket") b.hasWebSocketTrades = true;
-    else b.hasRestFallback = true;
+    if (feed === "websocket" && qty > 0) b.hasTradeData = true;
+    else if (feed !== "websocket") b.hasRestFallback = true;
   }
   s.lastPrice = price;
   s.lastUpdateAt = Date.now();
@@ -202,7 +207,9 @@ function onClosedBar(s, bar) {
   }
   // REST samples can support monitoring, but cannot create valid 5s/15s entries.
   // Any candle containing REST samples is treated as degraded, even if one WS trade also arrived.
-  if (!isEligibleEntryBar(bar)) {
+  // EMA(9/21) and momentum also consume recent prior candles. Reject a setup if
+  // any candle in that entire lookback contains sampled REST prices or invalid volume.
+  if (!isEligibleEntryBar(bar) || !hasCleanEntryHistory(s.bars, 81)) {
     nonTradeBarsSkipped += 1;
     return;
   }
@@ -375,8 +382,12 @@ async function seed(s) {
     const open = Number(k[1]), high = Number(k[2]), low = Number(k[3]), close = Number(k[4]), volume = Number(k[5]);
     if (![open, high, low, close, volume].every(Number.isFinite) || Math.min(open, high, low, close) <= 0 || volume < 0) continue;
     const b = grouped.get(time);
-    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1 });
-    else { b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume; }
+    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1,
+      hasTradeData: volume > 0, hasRestFallback: false });
+    else {
+      b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume;
+      if (volume > 0) b.hasTradeData = true;
+    }
   }
   s.bars = Array.from(grouped.values()).sort((a, b) => a.time - b.time).slice(-400);
   if (s.bars.length) s.lastPrice = s.bars[s.bars.length - 1].close;
@@ -431,8 +442,8 @@ function writeReport() {
     notes: [
       "Paper trading only: no private API keys and no real exchange orders.",
       "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
-      "New 5/15-second paper entries require a closed candle containing only real WebSocket trade events; REST-only or mixed-source candles are rejected.",
-      "REST fallback samples can help monitor an existing paper position, but do not count as trade-by-trade candles.",
+      "New 5/15-second paper entries require a closed candle and a clean 81-candle trade-derived lookback. Historical exchange OHLCV candles may warm up indicators; REST ticker samples and any mixed-source lookback are rejected.",
+      "REST fallback samples can help monitor an existing paper position, but do not count as trade-derived candles.",
       "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
       "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
       "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
@@ -487,4 +498,4 @@ if (require.main === module) {
   process.on("SIGINT", () => { stopping = true; clearTimeout(stopTimer); clearTimeout(reconnectTimer); try { socket?.close(); } catch {} writeReport(); process.exit(130); });
 }
 
-module.exports = { isEligibleEntryBar };
+module.exports = { isEligibleEntryBar, hasCleanEntryHistory };
