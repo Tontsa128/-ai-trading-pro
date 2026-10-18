@@ -345,9 +345,19 @@
       "equity": 1000,
       "realizedPnl": 0,
       "closedTrades": 0
+    },
+    {
+      "at": "2026-10-18T12:07:31.121Z",
+      "errors": 0,
+      "signals": {
+        "WAIT": 6
+      },
+      "equity": 1000,
+      "realizedPnl": 0,
+      "closedTrades": 0
     }
   ],
-  "lastCycleAt": "2026-10-18T12:07:13.112Z",
+  "lastCycleAt": "2026-10-18T12:07:31.121Z",
   "lastCandleTimeBySymbol": {
     "BTCUSDT": 1792324799999,
     "ETHUSDT": 1792324799999,
@@ -357,11 +367,11 @@
     "DOGEUSDT": 1792324799999
   },
   "stats": {
-    "cycles": 34,
+    "cycles": 35,
     "signals": {
       "BUY": 0,
       "SELL": 0,
-      "WAIT": 203
+      "WAIT": 209
     },
     "errors": 1
   }

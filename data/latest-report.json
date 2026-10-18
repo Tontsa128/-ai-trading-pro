@@ -1,15 +1,15 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-10-18T12:07:13.112Z",
+  "cycleStartedAt": "2026-10-18T12:07:31.121Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 82100,
-      "change24hPct": 0.627,
-      "spreadPct": 0.00001218026870130907,
+      "price": 82127.32,
+      "change24hPct": 0.661,
+      "spreadPct": 0.000012176216900933905,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -51,9 +51,9 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2420.18,
-      "change24hPct": -0.544,
-      "spreadPct": 0.00041319326080814533,
+      "price": 2421.19,
+      "change24hPct": -0.48,
+      "spreadPct": 0.0004130191909269403,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -96,9 +96,9 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 104.22,
-      "change24hPct": -0.23,
-      "spreadPct": 0.00959462700887994,
+      "price": 104.27,
+      "change24hPct": -0.125,
+      "spreadPct": 0.009590946146828663,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -140,9 +140,9 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 723.66,
-      "change24hPct": 0.34,
-      "spreadPct": 0.0013818548637824,
+      "price": 723.82,
+      "change24hPct": 0.386,
+      "spreadPct": 0.0013815684947264964,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -185,9 +185,9 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.3,
-      "change24hPct": -0.414,
-      "spreadPct": 0.007692011845697394,
+      "price": 1.3003,
+      "change24hPct": -0.375,
+      "spreadPct": 0.007690828686790154,
       "timeframe": "1h",
       "confirmations": [
         "4h",
@@ -227,9 +227,9 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.07956,
-      "change24hPct": -0.885,
-      "spreadPct": 0.012568340350651823,
+      "price": 0.07959,
+      "change24hPct": -0.835,
+      "spreadPct": 0.012565181881002857,
       "timeframe": "1h",
       "confirmations": [
         "4h",
