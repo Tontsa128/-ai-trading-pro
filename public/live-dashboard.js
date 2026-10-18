@@ -5,7 +5,7 @@
   var state = {
     ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "1m",
     bars: [], live: null, bid: null, ask: null, tradePrice: null,
-    lastTradeAt: 0, trades: 0, reconnects: 0, wsEndpoint: 0,
+    lastTradeAt: 0, lastBookAt: 0, lastScores: {}, trades: 0, reconnects: 0, wsEndpoint: 0,
     tickerChange: null, startedAt: Date.now()
   };
   var WS_ENDPOINTS = [
@@ -40,7 +40,8 @@
     var points = rawScore === null ? "Tekniset pisteet eivät saatavilla" :
       side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei voittotodennäköisyys" :
       "Suunnan tekniset pisteet " + num(directionalPoints, 0) + "/100 · ei voittotodennäköisyys";
-    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
+    var gateText = s && s.gateReason ? '<br><strong>Signaali estetty:</strong> ' + esc(s.gateReason) : "";
+    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
   }
 
   function scoreFor(bars, livePrice) {
@@ -64,6 +65,24 @@
     score += Math.max(-7, Math.min(7, mom * 40));
     score = Math.max(1, Math.min(99, score));
     return { score: score, side: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom };
+  }
+
+  function currentGateReason() {
+    if (!window.LiveSignalGuards || typeof window.LiveSignalGuards.gateReason !== "function") {
+      return "Live-datan turvatarkistus ei latautunut";
+    }
+    return window.LiveSignalGuards.gateReason(state, Date.now());
+  }
+
+  function gatedScore(score) {
+    var reason = currentGateReason();
+    if (!score) {
+      return { score: null, side: "WAIT", gateReason: reason || "Teknistä pistemäärää ei voi laskea", actionable: false };
+    }
+    if (!window.LiveSignalGuards || typeof window.LiveSignalGuards.apply !== "function") {
+      return Object.assign({}, score, { side: "WAIT", gateReason: reason, actionable: false });
+    }
+    return window.LiveSignalGuards.apply(score, state, Date.now());
   }
 
   async function getBars(tf) {
@@ -114,7 +133,7 @@
       d.forEach(function (v, k) { var q = Number(v[o[0]]); if (Number.isFinite(q)) pts.push(x(k).toFixed(1) + ',' + y(q).toFixed(1)); });
       if (pts.length > 1) out.push('<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + o[1] + '" stroke-width="' + (o[0] === 'ema200' ? 2 : 1.4) + '"/>');
     });
-    var sig = scoreFor(state.bars, state.tradePrice || state.live && state.live.close);
+    var sig = gatedScore(scoreFor(state.bars, state.tradePrice || state.live && state.live.close));
     if (sig && sig.side !== "WAIT") {
       var sc = sig.side === "BUY" ? '#28d7a0' : '#ff647c', points = Math.round(sig.side === "BUY" ? sig.score : 100 - sig.score), txt = sig.side === "BUY" ? "OSTA" : "MYY", yy2 = y(state.tradePrice || state.live.close);
       out.push('<line x1="' + l + '" y1="' + yy2.toFixed(1) + '" x2="' + (w - r) + '" y2="' + yy2.toFixed(1) + '" stroke="' + sc + '" stroke-width="2" stroke-dasharray="7 4"/>');
@@ -133,23 +152,31 @@
     if (state.tickerChange !== null) {
       var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
     }
-    var base = scores["1m"] || scoreFor(state.bars, livePrice);
+    var base = gatedScore(scores["1m"] || scoreFor(state.bars, livePrice));
     if (base) {
       var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      var sig = $("signal"); if (sig) { sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" : base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" : "ODOTA"; sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait"); }
+      var sig = $("signal"); if (sig) {
+        sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" :
+          base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" :
+          base.gateReason ? "ODOTA · " + base.gateReason : "ODOTA";
+        sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
+      }
     }
     var sp = $("spread"); if (sp && state.bid !== null && state.ask !== null && state.bid > 0) sp.textContent = num((state.ask - state.bid) / state.bid * 100, 4) + "%";
   }
 
   function updateUi(scores) {
     injectUi();
-    $("liveScalpCards").innerHTML = ["1m", "3m", "5m", "15m"].map(function (tf) { return cardHtml(tf, scores[tf]); }).join("");
+    var displayScores = {};
+    ["1m", "3m", "5m", "15m"].forEach(function (tf) { displayScores[tf] = gatedScore(scores[tf]); });
+    $("liveScalpCards").innerHTML = ["1m", "3m", "5m", "15m"].map(function (tf) { return cardHtml(tf, displayScores[tf]); }).join("");
     var age = state.lastTradeAt ? Math.max(0, (Date.now() - state.lastTradeAt) / 1000) : Infinity;
-    $("liveState").textContent = age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
-    $("liveState").className = "pill " + (age < 3 ? "good" : "bad");
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (state.bid && state.ask ? num((state.ask - state.bid) / state.bid * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects;
-    updateMainMetrics(scores);
+    var gateReason = currentGateReason();
+    $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
+    $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (state.bid && state.ask ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    updateMainMetrics(displayScores);
   }
 
   async function refreshTicker() {
@@ -169,6 +196,7 @@
         if (tf === "1m") state.bars = bars;
       } catch (e) { scores[tf] = null; }
     }
+    state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }
 
@@ -195,11 +223,11 @@
       try {
         var wrap = JSON.parse(ev.data), d = wrap.data || wrap;
         if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.trades++; }
-        if (d.e === "bookTicker") { state.bid = n(d.b); state.ask = n(d.a); }
+        if (d.e === "bookTicker") { state.bid = n(d.b); state.ask = n(d.a); state.lastBookAt = Date.now(); }
         if (d.e === "kline") { var k = d.k; state.live = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; }
         var quick = scoreFor(state.bars, state.tradePrice);
-        var scores = { "1m": quick };
-        updateUi(scores); renderLiveChart();
+        state.lastScores = Object.assign({}, state.lastScores || {}, { "1m": quick });
+        updateUi(state.lastScores); renderLiveChart();
       } catch (e) {}
     };
     state.ws.onerror = function () { state.wsEndpoint++; try { state.ws.close(); } catch (e) {} };
@@ -209,7 +237,11 @@
   async function boot() {
     injectUi();
     var symbolEl = $("symbol"), intervalEl = $("interval"), countEl = $("chartCount");
-    if (symbolEl) symbolEl.addEventListener("change", function () { state.symbol = symbolEl.value; state.tradePrice = null; state.live = null; refreshTicker(); refreshScalpScores(); startWs(); });
+    if (symbolEl) symbolEl.addEventListener("change", function () {
+      state.symbol = symbolEl.value; state.tradePrice = null; state.live = null;
+      state.lastTradeAt = 0; state.lastBookAt = 0; state.bid = null; state.ask = null; state.lastScores = {};
+      refreshTicker(); refreshScalpScores(); startWs();
+    });
     if (intervalEl) intervalEl.addEventListener("change", function () { state.interval = intervalEl.value; });
     if (countEl) countEl.addEventListener("change", renderLiveChart);
     state.symbol = symbolEl ? symbolEl.value : "BTCUSDT";
@@ -221,7 +253,7 @@
     setInterval(refreshScalpScores, 10000);
     setInterval(refreshTicker, 10000);
     setInterval(function () {
-      if (state.tradePrice && Date.now() - state.lastTradeAt > 5000) { var el = $("liveState"); if (el) { el.textContent = "YHTEYS HILJAINEN"; el.className = "pill bad"; } }
+      updateUi(state.lastScores || {});
       renderLiveChart();
     }, 1000);
   }
