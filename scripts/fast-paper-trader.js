@@ -454,7 +454,8 @@ function writeReport() {
       "New 5/15-second paper entries require a closed candle and a clean 81-candle trade-derived lookback. Historical exchange OHLCV candles may warm up indicators; REST ticker samples and any mixed-source lookback are rejected.",
       "REST fallback samples can help monitor an existing paper position, but do not count as trade-derived candles.",
       "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
-      "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
+      "Opening gaps through a stop exit at the bar open plus estimated slippage; same-bar stop/target ambiguity is resolved stop-first.",
+      "Estimated fee 0.10% and slippage 0.05% per side; actual spread and fills can differ.",
       "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
       "A 5-second/15-second strategy can lose to fees, spread, latency and adverse selection even when direction is correct."
     ]
