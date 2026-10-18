@@ -31,4 +31,17 @@ assert.ok(html.includes("VANHA RAPORTTI") && html.includes("reportAgeSeconds"),
   "two-hour paper report must show age and warn when stale");
 assert.ok(html.includes("REST-VARASYÖTE") && html.includes("wsMessages===0&&restUpdates>0"),
   "fast paper report must warn when REST-sampled prices replace missing WebSocket trade events");
-console.log("Dashboard inline script tests passed: " + scripts.length + " inline script(s) parse; validated SVG candlestick fallback is wired.");
+
+const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
+assert.ok(liveDashboard.includes("Tekniset pisteet") && liveDashboard.includes("ei voittotodennäköisyys"),
+  "heuristic live scores must be explicitly identified as technical points, not win probabilities");
+assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pisteet "),
+  "bearish spot guidance must not imply short-selling or probability");
+assert.ok(liveDashboard.includes('"ODOTA"'),
+  "WAIT must not be decorated with a fabricated confidence percentage");
+assert.ok(!liveDashboard.includes('num(s && s.score, 0) + \\'%\\'') &&
+  !liveDashboard.includes('Math.round(base.score) + "%"') &&
+  !liveDashboard.includes('Math.round(50 + Math.abs(base.score - 50)) + "%"'),
+  "heuristic scores must never be rendered as percentages or win probabilities");
+
+console.log("Dashboard tests passed: inline scripts parse, chart fallback is wired, and heuristic scores are not shown as win probabilities.");
