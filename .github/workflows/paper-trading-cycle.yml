@@ -12,6 +12,7 @@ on:
       - "public/trading-engine.js"
       - "scripts/paper-trading-cycle.js"
       - "scripts/persist-paper-data.sh"
+      - "tests/**"
 
 permissions:
   contents: write
