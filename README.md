@@ -44,6 +44,7 @@ A GitHub Actions workflow (\`.github/workflows/paper-trading-cycle.yml\`) runs e
 - All trades are virtual; no exchange orders or API keys are used.
 - The virtual portfolio starts at 1,000 USDT and is persisted in \`data/paper-state.json\`.
 - Latest report: \`data/latest-report.json\`; cycle history: \`data/reports/\`.
+- Each 2-hour report's `newTrades` lists both new virtual entries and newly closed positions in event-time order; `closedTrades` contains only closures. This keeps an entry visible in the report while the virtual position remains open.
 - GitHub Actions must be enabled and the repository's workflow token must be allowed to write to the repository for cycle reports to persist. If there is no run in the workflow history, start it manually at https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml using **Run workflow**. A missing run is not evidence of a Binance error; inspect the first actual run's logs before diagnosing HTTP 451 or permissions.
 - GitHub scheduled jobs are best-effort and can run late. This is a decision every two hours, not a continuous execution engine. Stops/targets are checked against the latest closed hourly candle at each run, so intraperiod moves may be missed.
 - Review report errors, realized/unrealized P&L, drawdown and costs before changing the strategy. Do not auto-tune parameters from a small sample.
