@@ -255,8 +255,13 @@
     var base = WS_ENDPOINTS[state.wsEndpoint % WS_ENDPOINTS.length];
     var streams = s + "@trade/" + s + "@bookTicker/" + s + "@kline_" + iv;
     try { state.ws = new WebSocket(base + streams); } catch (e) { state.wsEndpoint++; scheduleWs(); return; }
-    state.ws.onopen = function () { var el = $("liveState"); if (el) { el.textContent = "● LIVE"; el.className = "pill good"; } };
-    state.ws.onmessage = function (ev) {
+    var socket = state.ws;
+    socket.onopen = function () {
+      if (state.ws !== socket) return;
+      var el = $("liveState"); if (el) { el.textContent = "● LIVE"; el.className = "pill good"; }
+    };
+    socket.onmessage = function (ev) {
+      if (state.ws !== socket) return;
       try {
         var wrap = JSON.parse(ev.data), d = wrap.data || wrap;
         if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.trades++; }
@@ -267,8 +272,16 @@
         updateUi(state.lastScores); renderLiveChart();
       } catch (e) {}
     };
-    state.ws.onerror = function () { state.wsEndpoint++; try { state.ws.close(); } catch (e) {} };
-    state.ws.onclose = function () { scheduleWs(); };
+    socket.onerror = function () {
+      if (state.ws !== socket) return;
+      state.wsEndpoint++;
+      try { socket.close(); } catch (e) {}
+    };
+    socket.onclose = function () {
+      if (state.ws !== socket) return;
+      state.ws = null;
+      scheduleWs();
+    };
   }
 
   async function boot() {
