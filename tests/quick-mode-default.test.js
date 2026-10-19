@@ -12,6 +12,9 @@ assert.match(html, /<option value="0" selected>WebSocket live \(reaaliaikainen\)
 assert.match(html, /<option value="5">5 sekuntia \(varapäivitys\)<\/option>/,
   "a 5-second fallback refresh should be available");
 assert.match(live, /interval: "5m"/, "live chart defaults to 5m");
+assert.match(live, /&limit=500/, "chart history must fetch enough real candles for the 500-candle option");
+assert.match(live, /Math\.min\(500, Number\(countEl && countEl\.value\) \|\| 150\)/,
+  "chart renderer must honor the visible 500-candle option");
 assert.match(live, /setInterval\(loadChartBars, 30000\)/,
   "chart history must retry periodically after transient market-data failures");
 assert.match(live, /var s = state\.symbol\.toLowerCase\(\), iv = state\.interval \|\| "5m"/,
