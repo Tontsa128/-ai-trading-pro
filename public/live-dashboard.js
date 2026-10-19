@@ -14,7 +14,7 @@
   ];
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
-  var n = function (v) { var x = Number(v); return Number.isFinite(x) ? x : null; };
+  var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
   var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
   var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
 
@@ -61,8 +61,8 @@
       else if (b.rsi < 28) score += 5;
     }
     if (Number.isFinite(b.volumeRatio)) score += Math.max(-5, Math.min(5, (b.volumeRatio - 1) * 5));
-    var live = n(livePrice), mom = live !== null && p.close > 0 ? (live / p.close - 1) * 100 : 0;
-    score += Math.max(-7, Math.min(7, mom * 40));
+    var live = n(livePrice), mom = live !== null && live > 0 && p.close > 0 ? (live / p.close - 1) * 100 : null;
+    if (mom !== null) score += Math.max(-7, Math.min(7, mom * 40));
     score = Math.max(1, Math.min(99, score));
     return { score: score, side: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom };
   }
@@ -189,7 +189,7 @@
         sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
       }
     }
-    var sp = $("spread"); if (sp && state.bid !== null && state.ask !== null && state.bid > 0) sp.textContent = num((state.ask - state.bid) / state.bid * 100, 4) + "%";
+    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
   }
 
   function updateUi(scores) {
