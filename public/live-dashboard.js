@@ -85,8 +85,9 @@
     return window.LiveSignalGuards.apply(score, state, Date.now());
   }
 
-  async function getBars(tf) {
-    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(state.symbol) + "&interval=" + tf + "&limit=250", { cache: "no-store" });
+  async function getBars(tf, requestedSymbol) {
+    var symbol = requestedSymbol || state.symbol;
+    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=250", { cache: "no-store" });
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
@@ -103,17 +104,21 @@
 
   async function loadChartBars() {
     var interval = state.interval || "5m";
+    var symbol = state.symbol;
     try {
-      var bars = await getBars(interval);
-      if (interval === state.interval) { state.chartBars = bars; renderLiveChart(); }
+      var bars = await getBars(interval, symbol);
+      if (symbol === state.symbol && interval === state.interval) {
+        state.chartBars = bars;
+        renderLiveChart();
+      }
     } catch (e) {
-      if (interval === state.interval) {
+      if (symbol === state.symbol && interval === state.interval) {
         state.chartBars = [];
         state.chartLive = null;
         renderLiveChart();
+        var el = $("liveMeta");
+        if (el) el.textContent = "Kaavion " + interval + " / " + symbol + " datan haku epäonnistui: " + e.message;
       }
-      var el = $("liveMeta");
-      if (el) el.textContent = "Kaavion " + interval + " datan haku epäonnistui: " + e.message;
     }
   }
 
@@ -208,15 +213,22 @@
   }
 
   async function refreshScalpScores() {
+    var symbol = state.symbol;
     var scores = {};
     for (var i = 0; i < 4; i++) {
+      if (symbol !== state.symbol) return;
       var tf = ["1m", "3m", "5m", "15m"][i];
       try {
-        var bars = await getBars(tf);
+        var bars = await getBars(tf, symbol);
+        if (symbol !== state.symbol) return;
         scores[tf] = scoreFor(bars, state.tradePrice);
         if (tf === "1m") state.bars = bars;
-      } catch (e) { scores[tf] = null; }
+      } catch (e) {
+        if (symbol !== state.symbol) return;
+        scores[tf] = null;
+      }
     }
+    if (symbol !== state.symbol) return;
     state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }
@@ -259,12 +271,21 @@
     injectUi();
     var symbolEl = $("symbol"), intervalEl = $("interval"), countEl = $("chartCount");
     if (symbolEl) symbolEl.addEventListener("change", function () {
+      stopWs();
       state.symbol = symbolEl.value; state.tradePrice = null; state.live = null; state.chartLive = null; state.chartBars = []; state.bars = [];
       var chartTarget = $("chart"); if (chartTarget) chartTarget.innerHTML = '<div class="status">Haetaan uuden valuuttaparin kynttilädataa…</div>';
       state.lastTradeAt = 0; state.lastBookAt = 0; state.bid = null; state.ask = null; state.lastScores = {};
-      refreshTicker(); refreshScalpScores(); loadChartBars().then(startWs);
+      refreshTicker(); refreshScalpScores(); loadChartBars().then(function () {
+        if (state.symbol === symbolEl.value) startWs();
+      });
     });
-    if (intervalEl) intervalEl.addEventListener("change", function () { state.interval = intervalEl.value; state.chartLive = null; state.chartBars = []; loadChartBars().then(startWs); });
+    if (intervalEl) intervalEl.addEventListener("change", function () {
+      stopWs();
+      state.interval = intervalEl.value; state.chartLive = null; state.chartBars = [];
+      loadChartBars().then(function () {
+        if (state.interval === intervalEl.value) startWs();
+      });
+    });
     if (countEl) countEl.addEventListener("change", renderLiveChart);
     state.symbol = symbolEl ? symbolEl.value : "BTCUSDT";
     state.interval = intervalEl ? intervalEl.value : "5m";
