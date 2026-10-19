@@ -12,6 +12,8 @@ assert.match(html, /<option value="0" selected>WebSocket live \(reaaliaikainen\)
 assert.match(html, /<option value="5">5 sekuntia \(varapäivitys\)<\/option>/,
   "a 5-second fallback refresh should be available");
 assert.match(live, /interval: "5m"/, "live chart defaults to 5m");
+assert.match(live, /setInterval\(loadChartBars, 30000\)/,
+  "chart history must retry periodically after transient market-data failures");
 assert.match(live, /var s = state\.symbol\.toLowerCase\(\), iv = state\.interval \|\| "5m"/,
   "WebSocket candle stream must follow the selected chart interval");
 assert.match(live, /scores\[state\.interval\] \|\| scores\["5m"\] \|\| scores\["1m"\]/,
