@@ -37,6 +37,8 @@ assert.match(live, /async function refreshScalpScores\(\)[\s\S]*?var symbol = st
   "scalp scores must not combine candles from different symbols during a switch");
 assert.match(live, /async function refreshTicker\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?if \(symbol === state\.symbol\) state\.tickerChange/,
   "late 24-hour ticker responses must not overwrite the newly selected symbol");
+assert.match(live, /state\.symbol = symbolEl\.value; state\.tradePrice = null; state\.tickerChange = null;/,
+  "switching pairs must clear the previous pair's 24-hour change until fresh ticker data arrives");
 assert.match(live, /symbolEl\.addEventListener\("change", function \(\) \{\s*stopWs\(\)/,
   "switching symbols must stop the old stream before requesting new market data");
 assert.match(live, /var socket = state\.ws;[\s\S]*?socket\.onmessage = function \(ev\) \{\s*if \(state\.ws !== socket\) return;/,
