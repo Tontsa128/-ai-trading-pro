@@ -289,7 +289,7 @@
     var symbolEl = $("symbol"), intervalEl = $("interval"), countEl = $("chartCount");
     if (symbolEl) symbolEl.addEventListener("change", function () {
       stopWs();
-      state.symbol = symbolEl.value; state.tradePrice = null; state.live = null; state.chartLive = null; state.chartBars = []; state.bars = [];
+      state.symbol = symbolEl.value; state.tradePrice = null; state.tickerChange = null; state.live = null; state.chartLive = null; state.chartBars = []; state.bars = [];
       var chartTarget = $("chart"); if (chartTarget) chartTarget.innerHTML = '<div class="status">Haetaan uuden valuuttaparin kynttilädataa…</div>';
       state.lastTradeAt = 0; state.lastBookAt = 0; state.bid = null; state.ask = null; state.lastScores = {};
       refreshTicker(); refreshScalpScores(); loadChartBars().then(function () {
