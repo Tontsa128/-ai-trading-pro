@@ -48,3 +48,7 @@ assert.match(live, /socket\.onclose = function \(\) \{\s*if \(state\.ws !== sock
 assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
   "chart label must show the actual selected interval");
 console.log("Quick Mode tests passed: 5m default, live WebSocket refresh, and selected-interval candles.");
+
+assert.match(live, /v == null \|\| v === ""/, "missing market values must remain missing rather than becoming zero");
+assert.match(live, /live !== null && live > 0 && p\.close > 0 \? \(live \/ p\.close - 1\) \* 100 : null/, "missing live price must not produce a false -100% momentum reading");
+assert.match(live, /validBook = Number\.isFinite\(state\.bid\).*state\.bid > 0 && state\.ask >= state\.bid/, "zero or invalid bid/ask must not be rendered as a valid spread");
