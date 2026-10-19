@@ -16,8 +16,8 @@ assert.match(live, /var s = state\.symbol\.toLowerCase\(\), iv = state\.interval
   "WebSocket candle stream must follow the selected chart interval");
 assert.match(live, /scores\[state\.interval\] \|\| scores\["5m"\] \|\| scores\["1m"\]/,
   "main signal must follow the selected interval when that timeframe is scored");
-assert.match(live, /loadChartBars\(\)\.then\(startWs\)/,
-  "changing pair or interval must reload chart history before reconnecting");
+assert.match(live, /loadChartBars\(\)\.then\(function \(\) \{[\s\S]*?startWs\(\)/,
+  "changing pair or interval must reload matching chart history before reconnecting");
 assert.match(live, /var sourceBars = Array\.isArray\(state\.chartBars\) \? state\.chartBars : \[\]/,
   "the chart must render only candles for the selected interval, never silently fall back to 1m bars");
 assert.match(live, /state\.chartBars = \[\];\s*state\.chartLive = null;\s*renderLiveChart\(\)/,
