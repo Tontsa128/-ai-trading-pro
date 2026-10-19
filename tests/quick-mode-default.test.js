@@ -36,6 +36,10 @@ assert.match(live, /async function refreshTicker\(\)[\s\S]*?var symbol = state\.
   "late 24-hour ticker responses must not overwrite the newly selected symbol");
 assert.match(live, /symbolEl\.addEventListener\("change", function \(\) \{\s*stopWs\(\)/,
   "switching symbols must stop the old stream before requesting new market data");
+assert.match(live, /var socket = state\.ws;[\s\S]*?socket\.onmessage = function \(ev\) \{\s*if \(state\.ws !== socket\) return;/,
+  "messages from a replaced WebSocket must be ignored after a pair or interval switch");
+assert.match(live, /socket\.onclose = function \(\) \{\s*if \(state\.ws !== socket\) return;\s*state\.ws = null;\s*scheduleWs\(\);/,
+  "only the currently active WebSocket may schedule a reconnect");
 assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
   "chart label must show the actual selected interval");
 console.log("Quick Mode tests passed: 5m default, live WebSocket refresh, and selected-interval candles.");
