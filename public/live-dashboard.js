@@ -206,9 +206,13 @@
   }
 
   async function refreshTicker() {
+    var symbol = state.symbol;
     try {
-      var r = await fetch("/api/market?endpoint=ticker24hr&symbol=" + encodeURIComponent(state.symbol), { cache: "no-store" });
-      if (r.ok) { var d = await r.json(); state.tickerChange = n(d.priceChangePercent); }
+      var r = await fetch("/api/market?endpoint=ticker24hr&symbol=" + encodeURIComponent(symbol), { cache: "no-store" });
+      if (r.ok) {
+        var d = await r.json();
+        if (symbol === state.symbol) state.tickerChange = n(d.priceChangePercent);
+      }
     } catch (e) {}
   }
 
