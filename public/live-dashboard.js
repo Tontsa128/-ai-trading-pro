@@ -107,6 +107,11 @@
       var bars = await getBars(interval);
       if (interval === state.interval) { state.chartBars = bars; renderLiveChart(); }
     } catch (e) {
+      if (interval === state.interval) {
+        state.chartBars = [];
+        state.chartLive = null;
+        renderLiveChart();
+      }
       var el = $("liveMeta");
       if (el) el.textContent = "Kaavion " + interval + " datan haku epäonnistui: " + e.message;
     }
@@ -114,9 +119,13 @@
 
   function renderLiveChart() {
     var target = $("chart");
-    if (!target || state.bars.length < 2) return;
+    if (!target) return;
+    var sourceBars = Array.isArray(state.chartBars) ? state.chartBars : [];
+    if (sourceBars.length < 2) {
+      target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
+      return;
+    }
     var countEl = $("chartCount"), count = Math.max(80, Math.min(250, Number(countEl && countEl.value) || 150));
-    var sourceBars = state.chartBars.length ? state.chartBars : state.bars;
     var d = mergeLive(sourceBars, state.chartLive).slice(-count), vals = [];
     d.forEach(function (x) {
       vals.push(+x.low, +x.high);
@@ -250,7 +259,8 @@
     injectUi();
     var symbolEl = $("symbol"), intervalEl = $("interval"), countEl = $("chartCount");
     if (symbolEl) symbolEl.addEventListener("change", function () {
-      state.symbol = symbolEl.value; state.tradePrice = null; state.live = null; state.chartLive = null; state.chartBars = [];
+      state.symbol = symbolEl.value; state.tradePrice = null; state.live = null; state.chartLive = null; state.chartBars = []; state.bars = [];
+      var chartTarget = $("chart"); if (chartTarget) chartTarget.innerHTML = '<div class="status">Haetaan uuden valuuttaparin kynttilädataa…</div>';
       state.lastTradeAt = 0; state.lastBookAt = 0; state.bid = null; state.ask = null; state.lastScores = {};
       refreshTicker(); refreshScalpScores(); loadChartBars().then(startWs);
     });
