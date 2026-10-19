@@ -164,7 +164,7 @@
     if (state.tickerChange !== null) {
       var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
     }
-    var base = gatedScore(scores["1m"] || scoreFor(state.bars, livePrice));
+    var base = gatedScore(scores[state.interval] || scores["5m"] || scores["1m"] || scoreFor(state.bars, livePrice));
     if (base) {
       var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
