@@ -299,6 +299,7 @@
     startWs();
     setInterval(refreshScalpScores, 10000);
     setInterval(refreshTicker, 10000);
+    setInterval(loadChartBars, 30000);
     setInterval(function () {
       updateUi(state.lastScores || {});
       renderLiveChart();
