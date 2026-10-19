@@ -27,10 +27,10 @@ assert.ok(!dashboardSource.includes("Testi ei vielä käytä live-signaalin kork
   "dashboard must not claim higher-timeframe confirmation is missing when it is passed to backtest");
 assert.ok(dashboardSource.includes("startIndex:splitIndex") && dashboardSource.includes("viimeiset 30 %"),
   "dashboard separates the last 30% of history as a holdout test window");
-assert.ok(dashboardSource.includes("function trendFi(v)") && dashboardSource.includes("EPÄSELVÄ"),
-  "paper table uses the same Finnish labels as the live timeframe panel");
-assert.ok(dashboardSource.includes("Volyymi / 20 kynttilää"),
-  "paper table exposes measured volume ratio as its own column");
+assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPaperRefresh/i.test(dashboardSource),
+  "production dashboard must not render demo/paper-trading panels");
+assert.ok(dashboardSource.includes('id="interval"') && dashboardSource.includes("<option selected>5m</option>"),
+  "production dashboard keeps the 5-minute default interval");
 assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
   "missing numeric values are rendered as unavailable rather than zero");
 
