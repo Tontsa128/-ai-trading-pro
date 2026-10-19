@@ -87,7 +87,7 @@
 
   async function getBars(tf, requestedSymbol) {
     var symbol = requestedSymbol || state.symbol;
-    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=250", { cache: "no-store" });
+    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store" });
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
@@ -130,7 +130,7 @@
       target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
       return;
     }
-    var countEl = $("chartCount"), count = Math.max(80, Math.min(250, Number(countEl && countEl.value) || 150));
+    var countEl = $("chartCount"), count = Math.max(80, Math.min(500, Number(countEl && countEl.value) || 150));
     var d = mergeLive(sourceBars, state.chartLive).slice(-count), vals = [];
     d.forEach(function (x) {
       vals.push(+x.low, +x.high);
