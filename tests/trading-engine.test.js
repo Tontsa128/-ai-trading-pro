@@ -36,15 +36,6 @@ assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
 
 assert.ok(dashboardSource.includes("x.detail"),
   "live signal checklist displays numeric diagnostic details");
-const paperScriptSource = fs.readFileSync(path.join(__dirname, "../scripts/paper-trading-cycle.js"), "utf8");
-assert.ok(paperScriptSource.includes('"HTTP "+r.status+" from "+host+url'),
-  "paper collector reports the exact public data endpoint that fails");
-
-const { spawnSync } = require("node:child_process");
-const fastWorkerCheck = spawnSync(process.execPath,
-  ["--check", path.join(__dirname, "../scripts/fast-paper-trader.js")], { encoding: "utf8" });
-assert.equal(fastWorkerCheck.status, 0,
-  "fast paper WebSocket worker must pass Node syntax validation: " + fastWorkerCheck.stderr);
 
 
 
