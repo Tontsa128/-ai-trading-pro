@@ -24,6 +24,16 @@ assert.match(live, /state\.chartBars = \[\];\s*state\.chartLive = null;\s*render
   "a failed selected-interval fetch must clear stale candles and show an error");
 assert.match(live, /state\.chartBars = \[\]; state\.bars = \[\]/,
   "switching trading pairs must clear old-pair candles before loading new data");
+assert.match(live, /async function getBars\(tf, requestedSymbol\)/,
+  "candle requests must bind the requested symbol instead of reading mutable global state after a switch");
+assert.match(live, /var symbol = state\.symbol;[\s\S]*?getBars\(interval, symbol\)[\s\S]*?symbol === state\.symbol && interval === state\.interval/,
+  "chart history responses must be discarded if symbol or interval changed while the request was in flight");
+assert.match(live, /async function refreshScalpScores\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?if \(symbol !== state\.symbol\) return;[\s\S]*?getBars\(tf, symbol\)/,
+  "scalp scores must not combine candles from different symbols during a switch");
+assert.match(live, /async function refreshTicker\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?if \(symbol === state\.symbol\) state\.tickerChange/,
+  "late 24-hour ticker responses must not overwrite the newly selected symbol");
+assert.match(live, /symbolEl\.addEventListener\("change", function \(\) \{\s*stopWs\(\)/,
+  "switching symbols must stop the old stream before requesting new market data");
 assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
   "chart label must show the actual selected interval");
 console.log("Quick Mode tests passed: 5m default, live WebSocket refresh, and selected-interval candles.");
