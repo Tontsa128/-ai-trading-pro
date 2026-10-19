@@ -14,6 +14,8 @@ assert.match(html, /<option value="5">5 sekuntia \(varapäivitys\)<\/option>/,
 assert.match(live, /interval: "5m"/, "live chart defaults to 5m");
 assert.match(live, /var s = state\.symbol\.toLowerCase\(\), iv = state\.interval \|\| "5m"/,
   "WebSocket candle stream must follow the selected chart interval");
+assert.match(live, /scores\[state\.interval\] \|\| scores\["5m"\] \|\| scores\["1m"\]/,
+  "main signal must follow the selected interval when that timeframe is scored");
 assert.match(live, /loadChartBars\(\)\.then\(startWs\)/,
   "changing pair or interval must reload chart history before reconnecting");
 assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
