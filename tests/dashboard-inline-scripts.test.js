@@ -27,10 +27,8 @@ assert.ok(html.includes("return renderNativeCandleChart(valid,signal,symbol,coun
   "missing Plotly should render the validated, bounded candle series");
 assert.ok(html.includes(".catch(function(){renderNativeCandleChart(valid,signal,symbol,count);})"),
   "asynchronous Plotly failures should fall back locally using validated data");
-assert.ok(html.includes("VANHA RAPORTTI") && html.includes("reportAgeSeconds"),
-  "two-hour paper report must show age and warn when stale");
-assert.ok(html.includes("REST-VARASYÖTE") && html.includes("wsMessages===0&&restUpdates>0"),
-  "fast paper report must warn when REST-sampled prices replace missing WebSocket trade events");
+assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPaperRefresh|fast5Status|fast15Status/i.test(html),
+  "the user-facing dashboard must not contain demo/paper-trading report panels");
 
 const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
 assert.ok(liveDashboard.includes("Tekniset pisteet") && liveDashboard.includes("ei voittotodennäköisyys"),
