@@ -31,8 +31,9 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
   "production dashboard must not render demo/paper-trading panels");
 assert.ok(dashboardSource.includes('id="interval"') && dashboardSource.includes("<option selected>5m</option>"),
   "production dashboard keeps the 5-minute default interval");
-assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
-  "missing numeric values are rendered as unavailable rather than zero");
+const liveDashboardSource = fs.readFileSync(path.join(__dirname, "../public/live-dashboard.js"), "utf8");
+assert.ok(liveDashboardSource.includes('var n = function (v) { var x = Number(v); return Number.isFinite(x) ? x : null; }'),
+  "live market values reject missing and non-finite numbers instead of silently treating them as zero");
 
 assert.ok(dashboardSource.includes("x.detail"),
   "live signal checklist displays numeric diagnostic details");
