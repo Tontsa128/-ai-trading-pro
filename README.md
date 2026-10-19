@@ -1,6 +1,6 @@
 # Rahasampo Radar / AI Trading Pro
 
-Trading dashboard and deterministic indicator engine for research and education. The original Streamlit application (`app.py`) is preserved. The browser dashboard is served from `public/` on Vercel.
+Trading dashboard and deterministic indicator engine for research and education. The original Streamlit application (`app.py`) is preserved. The browser dashboard is served from `public/` on Vercel. No synthetic demo candles are generated: if live market data fails, signal calculation stops rather than presenting fabricated or stale prices.
 
 ## Browser dashboard
 
