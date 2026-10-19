@@ -24,9 +24,9 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 </header>
 <div class="controls">
  <div><label for="symbol">Kaupankäyntipari</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option></select></div>
- <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div>
+ <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
  <div><label for="chartCount">Kaavion kynttilät</label><select id="chartCount"><option>80</option><option selected>150</option><option>250</option><option>500</option></select></div>
- <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0">Manuaalinen</option><option value="30">30 sekuntia</option><option value="60" selected>60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
+ <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0" selected>WebSocket live (reaaliaikainen)</option><option value="5">5 sekuntia (varapäivitys)</option><option value="30">30 sekuntia</option><option value="60">60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
  <div style="display:flex;align-items:end"><button id="update">↻ Päivitä markkina</button></div>
 </div>
 <section class="panel">
