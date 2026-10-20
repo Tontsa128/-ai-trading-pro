@@ -252,6 +252,7 @@ assert.equal(E.fastReaction(invalidFastBars).signal, "EI",
   "invalid live candle data must not generate a trading signal");
 
 const liveEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine.js"), "utf8");
+const publicLiveEngineSource = fs.readFileSync(path.join(__dirname, "../public/trading-engine.js"), "utf8");
 assert.ok(liveEngineSource.includes("fastReaction:TradingEngine.fastReaction(s)"),
   "live candle scoring is wired into the browser live layer");
 assert.ok(liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
@@ -265,4 +266,4 @@ console.log("OK: market-data filtering, indicators, no-lookahead check, signal g
 assert.ok(liveDashboardSource.includes('momentumText = s && Number.isFinite(s.momentum)'), "missing momentum must render as an em dash without a plus sign");
 assert.ok(liveDashboardSource.includes('d.e === "bookTicker" || (d.s === state.symbol && d.b != null && d.a != null'), "bookTicker payloads without event type must populate bid/ask");
 
-assert.match(liveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
+assert.match(publicLiveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
