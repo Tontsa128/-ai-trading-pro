@@ -265,6 +265,8 @@ assert.ok(liveEngineSource.includes("actionable:false"),
   "diagnostic live scores are explicitly non-actionable");
 assert.ok(dashboardSource.includes("assumedSpreadPct:0"),
   "historical test does not silently add an unconfigured spread cost on top of configured fee and slippage");
+assert.ok(dashboardSource.includes('getHistoricalBars(sym,selectedInterval,2500)') && dashboardSource.includes('var selectedInterval=$("interval").value;'),
+  "historical test uses the selected signal timeframe rather than silently testing only 1h candles");
 assert.ok(dashboardSource.includes("ok=r.count>=100"),
   "OOS metrics use the same minimum 100-trade sample gate as overall metrics");
 assert.ok(liveEngineSource.includes("liveReactionNotes"),
