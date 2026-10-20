@@ -261,3 +261,7 @@ assert.ok(liveEngineSource.includes("liveReactionNotes"),
   "live signal exposes the reasons behind the fast candle score");
 
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
+
+assert.match(liveDashboardSource, /Number\.isFinite\(s\.momentum\).*"—"/, "missing momentum must render as an em dash, not +—%");
+
+assert.match(tradingEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
