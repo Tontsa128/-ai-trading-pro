@@ -84,7 +84,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="metric"><small>Suurin lasku huipusta</small><strong id="btDd">—</strong></div>
   <div class="metric"><small>Voitto/tappio-suhde</small><strong id="btPf">—</strong></div>
  </div>
- <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa ja samaa evaluateSignal()-päätöspolkua kuin live-signaali sekä 4 h / 1 d -vahvistuksia. Historiallinen spread on arvio, ei toteutunut order book -data.</div>
+ <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Historiatesti käyttää 1 h päätöksiä ja samaa evaluateSignal()-porttia sekä 4 h / 1 d -vahvistuksia. Se EI validoi 1m–15m live-paneelin teknisiä pisteitä. Kuluasetukset sisältävät palkkion ja lipsuman molempiin suuntiin; historiallista spreadiä ei lisätä, koska vanhaa order book -dataa ei ole.</div>
  <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja (koko historia)</th><th>OOS-kauppoja</th><th>OOS voitto-%</th><th>OOS nettotulos</th><th>OOS max. lasku</th><th>OOS PF</th><th>OOS-arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="9">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
@@ -102,7 +102,7 @@ function money(n){return fmt(n,2)+" USDT";}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function status(msg,type){$("status").className="status "+(type||"");$("status").textContent=msg;}
 function options(){return {capital:Math.max(0,Number($("capital").value)||0),riskPct:Number($("riskPct").value),maxExposurePct:Number($("exposurePct").value),feePct:Math.max(0,Number($("feePct").value)||0),slippagePct:Math.max(0,Number($("slippagePct").value)||0)};}
-function nextHigher(iv){var i=periods.indexOf(iv);return [periods[Math.min(i+1,periods.length-1)],periods[Math.min(i+2,periods.length-1)]];}
+function nextHigher(iv){return ["4h","1d"];}
 async function fetchJson(path){
  var parsed;
  try{parsed=new URL(path,window.location.origin);}catch(e){throw new Error("Markkinapyyntö oli virheellinen.");}
@@ -208,7 +208,7 @@ function renderBacktest(result){
  $("btPf").textContent=enough?(Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞"):"—";
  $("btWarning").className="status "+(enough?"ok":"error");
  $("btWarning").textContent=enough?"Otos sisältää "+result.count+" kauppaa. Tämä on alustava historiallinen tulos, ei näyttö tulevasta kannattavuudesta.":"VAROITUS: vain "+result.count+" kauppaa (vähintään 100 on alustava tarkistusraja). Tulosmittarit näytetään viivana (—), koska otos on liian pieni johtopäätöksiin.";
- $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h spot; päätöspolku käyttää evaluateSignal()-funktiota 4 h / 1 d -vahvistuksilla. Historiallinen spread on arvio.";
+ $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h spot; päätöspolku käyttää evaluateSignal()-funktiota 4 h / 1 d -vahvistuksilla. Testi ei ole näyttö 1m–15m live-paneelin pisteytyksen toimivuudesta. Historiallista spreadiä ei ole lisätty kuluihin; palkkio ja lipsuma lasketaan kerran sisään- ja ulostulossa.";
  var rows=result.trades.slice(-10).reverse();
  $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Kauppoja ei löytynyt. Tämä ei osoita strategian kannattavuutta.</td></tr>';
 }
@@ -221,7 +221,7 @@ async function runHistoricalBacktest(){
   var results=await Promise.all(symbols.map(async function(sym){
    var data=await Promise.all([getHistoricalBars(sym,"1h",2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",500)]);
    var bars=data[0],higher=data.slice(1);
-   var settings=Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10});
+   var settings=Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0});
    var result=TradingEngine.backtest(bars,settings);
    var splitIndex=Math.floor(bars.length*0.7);
    var outOfSample=TradingEngine.backtest(bars,Object.assign({},settings,{startIndex:splitIndex}));
@@ -230,11 +230,11 @@ async function runHistoricalBacktest(){
   var selected=results.find(function(x){return x.symbol===$("symbol").value;})||results[0];
   renderBacktest(selected.result);
   $("btCompareRows").innerHTML=results.map(function(x){
-   var r=x.outOfSample,ok=r.count>=30;
-   return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+x.result.count+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Suuntaa-antava OOS":"Alle 30 OOS-kauppaa")+"</td></tr>";
+   var r=x.outOfSample,ok=r.count>=100;
+   return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+x.result.count+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Suuntaa-antava OOS":"Alle 100 OOS-kauppaa")+"</td></tr>";
   }).join("");
   var splitTime=selected.bars[Math.min(selected.splitIndex,selected.bars.length-1)].time;
-  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". Yllä olevat yhteenvedon mittarit kattavat koko historian; vertailutaulukon OOS-mittarit kattavat viimeiset 30 %, alkaen "+new Date(splitTime).toISOString().slice(0,10)+". OOS-jakso alkaa tyhjällä virtuaalisalkulla. "+selected.result.note+" Kunkin 1 h päätöshetken kohdalla käytetään vain siihen mennessä sulkeutuneita 4 h / 1 d -kynttilöitä, jotta tulevaa tietoa ei vuoda päätökseen.";
+  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". Yllä olevat yhteenvedon mittarit kattavat koko historian; vertailutaulukon OOS-mittarit kattavat viimeiset 30 %, alkaen "+new Date(splitTime).toISOString().slice(0,10)+". OOS-jakso alkaa tyhjällä virtuaalisalkulla. OOS-mittarit näytetään vain vähintään 100 kaupan otoksesta. "+selected.result.note+" Kunkin 1 h päätöshetken kohdalla käytetään vain siihen mennessä sulkeutuneita 4 h / 1 d -kynttilöitä, jotta tulevaa tietoa ei vuoda päätökseen.";
  }catch(e){
   $("btWarning").className="status error";$("btWarning").textContent="Historiatesti epäonnistui: "+(e&&e.message?e.message:"tuntematon virhe")+". Yritä myöhemmin tai valitse toinen pari.";
   $("btCompareRows").innerHTML='<tr><td colspan="9">Testiä ei voitu laskea.</td></tr>';
@@ -370,7 +370,7 @@ async function load(){
    var val=t.a==="bull"?"NOUSU":t.a==="bear"?"LASKU":"EPÄSELVÄ";return '<div class="kv"><span>'+esc(t.name)+'</span><strong class="'+(t.a==="bull"?"good":t.a==="bear"?"bad":"neutral")+'">'+val+'</strong></div>';
   }).join("");
   $("levels").innerHTML='<div class="kv"><span>Tuki (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.support)+'</strong></div>'+
-   '<div class="kv"><span>Vastus (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
+   '<div class="kv"><span>Vastus (edelliset 30 suljettua kynttilää; close-pohjainen etäisyys)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
    '<div class="kv"><span>ATR (14)</span><strong>'+fmtPrice(latest.atr)+'</strong></div>'+
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
