@@ -25,7 +25,7 @@
     p.id = "liveScalpPanel";
     p.className = "panel";
     p.style.margin = "12px 0";
-    p.innerHTML = '<div class="section-title"><div><strong>⚡ Pikatreidaus live-paneeli</strong><div class="sub">1m · 3m · 5m · 15m · reaaliaikainen kauppavirta + kynttilä</div></div><span id="liveState" class="pill">YHDISTETÄÄN</span></div>' +
+    p.innerHTML = '<div class="section-title"><div><strong>⚡ Pikatreidaus live-paneeli</strong><div class="sub">1m · 3m · 5m · 15m · tekninen seuranta (ei vahvistettu kaupankäyntisignaali)</div></div><span id="liveState" class="pill">YHDISTETÄÄN</span></div>' +
       '<div id="liveScalpCards" class="metrics"></div>' +
       '<div class="sub" id="liveMeta">Yhdistetään Binance Spot -markkinadataan…</div>';
     chart.parentNode.insertBefore(p, chart);
@@ -34,11 +34,11 @@
   function cardHtml(tf, s) {
     var side = s && s.side || "WAIT";
     var cls = side === "BUY" ? "good" : side === "SELL" ? "bad" : "neutral";
-    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA";
+    var label = "ODOTA";
     var rawScore = s && Number.isFinite(s.score) ? s.score : null;
     var directionalPoints = rawScore === null ? null : side === "SELL" ? 100 - rawScore : rawScore;
     var points = rawScore === null ? "Tekniset pisteet eivät saatavilla" :
-      side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei voittotodennäköisyys" :
+      side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei vahvistettu signaali eikä voittotodennäköisyys" :
       "Suunnan tekniset pisteet " + num(directionalPoints, 0) + "/100 · ei voittotodennäköisyys";
     var gateText = s && s.gateReason ? '<br><strong>Signaali estetty:</strong> ' + esc(s.gateReason) : "";
     var momentumText = s && Number.isFinite(s.momentum) ? (s.momentum >= 0 ? "+" : "") + num(s.momentum, 3) + "%" : "—";
@@ -65,7 +65,7 @@
     var live = n(livePrice), mom = live !== null && live > 0 && p.close > 0 ? (live / p.close - 1) * 100 : null;
     if (mom !== null) score += Math.max(-7, Math.min(7, mom * 40));
     score = Math.max(1, Math.min(99, score));
-    return { score: score, side: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom };
+    return { score: score, side: "WAIT", candidateSide: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom, diagnosticOnly: true };
   }
 
   function currentGateReason() {
