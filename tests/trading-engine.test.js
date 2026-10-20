@@ -32,7 +32,7 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
 assert.ok(dashboardSource.includes('id="interval"') && dashboardSource.includes("<option selected>5m</option>"),
   "production dashboard keeps the 5-minute default interval");
 const liveDashboardSource = fs.readFileSync(path.join(__dirname, "../public/live-dashboard.js"), "utf8");
-assert.ok(liveDashboardSource.includes('var n = function (v) { var x = Number(v); return Number.isFinite(x) ? x : null; }'),
+assert.ok(liveDashboardSource.includes('var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; }'),
   "live market values reject missing and non-finite numbers instead of silently treating them as zero");
 
 assert.ok(dashboardSource.includes("x.detail"),
