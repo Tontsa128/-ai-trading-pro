@@ -115,7 +115,7 @@ function money(n){return fmt(n,2)+" USDT";}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function status(msg,type){$("status").className="status "+(type||"");$("status").textContent=msg;}
 function options(){return {capital:Math.max(0,Number($("capital").value)||0),riskPct:Number($("riskPct").value),maxExposurePct:Number($("exposurePct").value),feePct:Math.max(0,Number($("feePct").value)||0),slippagePct:Math.max(0,Number($("slippagePct").value)||0)};}
-function nextHigher(iv){return ["4h","1d"];}
+function nextHigher(iv){if(iv==="4h")return ["1d","3d"];if(iv==="1d")return ["3d","1w"];return ["4h","1d"];}
 async function fetchJson(path){
  var hosts=["https://data-api.binance.vision","https://api.binance.com","https://api1.binance.com"], last=null;
  for(var i=0;i<hosts.length;i++){
@@ -212,6 +212,7 @@ async function runHistoricalBacktest(){
  $("btWarning").className="status";$("btWarning").textContent="Haetaan historiaa sivuttain 1 000 kynttilän erissä. Tämä voi kestää hetken…";
  $("btCompareRows").innerHTML='<tr><td colspan="9">Historiadataa haetaan…</td></tr>';
  try{
+  var selectedInterval=$("interval").value;
   var symbols=Array.from(new Set(["BTCUSDT","ETHUSDT","SOLUSDT",$("symbol").value]));
   var results=await Promise.all(symbols.map(async function(sym){
    var data=await Promise.all([getHistoricalBars(sym,selectedInterval,2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",500)]);
