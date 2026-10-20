@@ -27,24 +27,16 @@ assert.ok(!dashboardSource.includes("Testi ei vielä käytä live-signaalin kork
   "dashboard must not claim higher-timeframe confirmation is missing when it is passed to backtest");
 assert.ok(dashboardSource.includes("startIndex:splitIndex") && dashboardSource.includes("viimeiset 30 %"),
   "dashboard separates the last 30% of history as a holdout test window");
-assert.ok(dashboardSource.includes("function trendFi(v)") && dashboardSource.includes("EPÄSELVÄ"),
-  "paper table uses the same Finnish labels as the live timeframe panel");
-assert.ok(dashboardSource.includes("Volyymi / 20 kynttilää"),
-  "paper table exposes measured volume ratio as its own column");
-assert.ok(dashboardSource.includes('v!==null&&v!==undefined&&v!==""'),
-  "missing numeric values are rendered as unavailable rather than zero");
+assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPaperRefresh/i.test(dashboardSource),
+  "production dashboard must not render demo/paper-trading panels");
+assert.ok(dashboardSource.includes('id="interval"') && dashboardSource.includes("<option selected>5m</option>"),
+  "production dashboard keeps the 5-minute default interval");
+const liveDashboardSource = fs.readFileSync(path.join(__dirname, "../public/live-dashboard.js"), "utf8");
+assert.ok(liveDashboardSource.includes('var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; }'),
+  "live market values reject missing and non-finite numbers instead of silently treating them as zero");
 
 assert.ok(dashboardSource.includes("x.detail"),
   "live signal checklist displays numeric diagnostic details");
-const paperScriptSource = fs.readFileSync(path.join(__dirname, "../scripts/paper-trading-cycle.js"), "utf8");
-assert.ok(paperScriptSource.includes('"HTTP "+r.status+" from "+host+url'),
-  "paper collector reports the exact public data endpoint that fails");
-
-const { spawnSync } = require("node:child_process");
-const fastWorkerCheck = spawnSync(process.execPath,
-  ["--check", path.join(__dirname, "../scripts/fast-paper-trader.js")], { encoding: "utf8" });
-assert.equal(fastWorkerCheck.status, 0,
-  "fast paper WebSocket worker must pass Node syntax validation: " + fastWorkerCheck.stderr);
 
 
 

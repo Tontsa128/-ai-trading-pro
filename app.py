@@ -195,24 +195,6 @@ def get_klines(symbol_code, interval_code, limit_count):
     raise RuntimeError(last_error)
 
 
-def demo_data(limit_count=360, base=78000):
-    now = pd.Timestamp.now(tz=APP_TZ).floor("min")
-    idx = pd.date_range(end=now, periods=limit_count, freq="min")
-    price = float(base)
-    rows = []
-
-    for _ in idx:
-        o = price
-        price *= 1 + np.random.normal(0, 0.0011)
-        c = price
-        h = max(o, c) * (1 + abs(np.random.normal(0, 0.0008)))
-        l = min(o, c) * (1 - abs(np.random.normal(0, 0.0008)))
-        v = abs(np.random.normal(100, 25))
-        rows.append([o, h, l, c, v])
-
-    return pd.DataFrame(rows, index=idx, columns=["Open", "High", "Low", "Close", "Volume"])
-
-
 def load_data():
     try:
         if st.session_state.df is None:
@@ -228,14 +210,10 @@ def load_data():
         return st.session_state.df.copy(), "Binance live OHLC"
 
     except Exception as e:
+        # Never substitute generated or stale candles for live market data.
+        # A failed feed must stop signal generation for this render.
         st.session_state.last_error = str(e)
-
-        if st.session_state.df is None:
-            base = 78000 if symbol == "BTCUSDT" else 3000
-            st.session_state.df = demo_data(max(candles + 230, 420), base)
-            return st.session_state.df.copy(), "Demo-varadata"
-
-        return st.session_state.df.copy(), "Vanha data käytössä"
+        return pd.DataFrame(columns=["Open", "High", "Low", "Close", "Volume"]), "MARKKINADATA EI SAATAVILLA"
 
 
 # ============================================================
@@ -1009,6 +987,12 @@ def remember(ai):
 
 def run_app():
     raw, source = load_data()
+    if raw.empty:
+        st.title("💰 Rahasampo Radar V26 PRO")
+        st.error("Reaaliaikaista markkinadataa ei saatu. Signaaleja ei lasketa eikä vanhaa tai keksittyä dataa käytetä.")
+        if st.session_state.last_error:
+            st.caption(f"Datayhteyden virhe: {st.session_state.last_error}")
+        st.stop()
     df = add_indicators(raw)
     ai = ai_engine(df)
     remember(ai)

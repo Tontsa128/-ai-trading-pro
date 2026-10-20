@@ -19,14 +19,14 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 </head>
 <body><main>
 <header class="top">
- <div><div class="brand">◈ Rahasampo Radar</div><div class="sub">Kryptomarkkinan analyysi · riskilaskenta · paper trading</div></div>
+ <div><div class="brand">◈ Rahasampo Radar</div><div class="sub">Reaaliaikainen markkina-analyysi · tekniset signaalit · riskienhallinta</div></div>
  <span class="tag">BINANCE SPOT DATA · EI AUTOMAATTISIA TOIMEKSIANTOJA</span>
 </header>
 <div class="controls">
  <div><label for="symbol">Kaupankäyntipari</label><select id="symbol"><option>BTCUSDT</option><option>ETHUSDT</option><option>SOLUSDT</option><option>BNBUSDT</option><option>XRPUSDT</option><option>DOGEUSDT</option></select></div>
- <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option>5m</option><option>15m</option><option selected>1h</option><option>4h</option><option>1d</option></select></div>
+ <div><label for="interval">Signaalin aikaväli</label><select id="interval"><option>1m</option><option>3m</option><option selected>5m</option><option>15m</option><option>1h</option><option>4h</option><option>1d</option></select></div>
  <div><label for="chartCount">Kaavion kynttilät</label><select id="chartCount"><option>80</option><option selected>150</option><option>250</option><option>500</option></select></div>
- <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0">Manuaalinen</option><option value="30">30 sekuntia</option><option value="60" selected>60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
+ <div><label for="refresh">Päivitys</label><select id="refresh"><option value="0" selected>WebSocket live (reaaliaikainen)</option><option value="5">5 sekuntia (varapäivitys)</option><option value="30">30 sekuntia</option><option value="60">60 sekuntia</option><option value="120">120 sekuntia</option></select></div>
  <div style="display:flex;align-items:end"><button id="update">↻ Päivitä markkina</button></div>
 </div>
 <section class="panel">
@@ -86,54 +86,6 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  </div>
  <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa ja samaa evaluateSignal()-päätöspolkua kuin live-signaali sekä 4 h / 1 d -vahvistuksia. Historiallinen spread on arvio, ei toteutunut order book -data.</div>
  <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja (koko historia)</th><th>OOS-kauppoja</th><th>OOS voitto-%</th><th>OOS nettotulos</th><th>OOS max. lasku</th><th>OOS PF</th><th>OOS-arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="9">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
-</section>
-<section class="panel" style="margin-top:12px">
- <div class="section-title"><div><h3 style="margin:0">Paper Trading · 2 h</h3><div class="sub">Virtuaalisalkku ja viimeisin automaattinen raportti GitHub Actionsista</div></div><button id="paperRefresh" style="width:auto">Päivitä raportti</button></div>
- <div class="metrics">
-  <div class="metric"><small>Virtuaalinen saldo</small><strong id="paperCash">—</strong></div>
-  <div class="metric"><small>Salkun arvioitu arvo</small><strong id="paperEquity">—</strong></div>
-  <div class="metric"><small>Toteutunut P/L</small><strong id="paperPnl">—</strong></div>
-  <div class="metric"><small>Avoimet positiot</small><strong id="paperPositions">—</strong></div>
-  <div class="metric"><small>Keruun virheet</small><strong id="paperErrors">—</strong></div>
- </div>
- <div id="paperUpdated" class="status">Haetaan viimeisintä paperitreidausraporttia…</div>
- <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Hinta</th><th>Signaali</th><th>Trendit 1h / 4h / 1d</th><th>Simuloitu toiminto</th><th>RSI</th><th>ADX</th><th>Volyymi / 20 kynttilää</th><th>Miksi ODOTA?</th></tr></thead><tbody id="paperRows"><tr><td colspan="9">Raporttia ei vielä ole.</td></tr></tbody></table></div>
- <p class="sub" style="font-size:12px">Paperitreidaus ei lähetä pörssiin oikeita toimeksiantoja. Ajastus on GitHub Actionsin kahden tunnin aikataulu, joka voi viivästyä. <a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/paper-trading-cycle.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa paperitreidauksen Actions-ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/paper-data/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa kaikki raportit GitHubissa</a>.</p>
-</section>
-<section class="panel" style="margin-top:12px">
- <div class="section-title"><div><h3 style="margin:0">Nopea Paper Trading · 5 s / 15 s</h3><div class="sub">WebSocket-kauppavirta tai selvästi merkitty REST-varasyöte · erilliset virtuaalisalkut</div></div><button id="fastPaperRefresh" style="width:auto">Päivitä nopeat raportit</button></div>
- <p class="sub" style="font-size:12px">Tämä kokeellinen ajastettu simulaatio käyttää vain julkista markkinadataa. Se ei kirjaudu pörssiin eikä lähetä oikeita toimeksiantoja. Raportti syntyy vasta, kun GitHub Actions -ajo valmistuu.</p>
- <div class="grid">
-  <section class="panel">
-   <div class="section-title"><h3 style="margin:0">5 sekunnin strategia</h3><span class="pill">PAPER</span></div>
-   <div class="metrics">
-    <div class="metric"><small>Virtuaalisaldo</small><strong id="fast5Cash">—</strong></div>
-    <div class="metric"><small>Salkun arvo</small><strong id="fast5Equity">—</strong></div>
-    <div class="metric"><small>Toteutunut P/L</small><strong id="fast5Pnl">—</strong></div>
-    <div class="metric"><small>Avoimet positiot</small><strong id="fast5Positions">—</strong></div>
-    <div class="metric"><small>Session tapahtumat</small><strong id="fast5Trades">—</strong></div>
-    <div class="metric"><small>Virheet</small><strong id="fast5Errors">—</strong></div>
-   </div>
-   <div id="fast5Status" class="status">Haetaan raporttia…</div>
-   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Datan ikä</th><th>Positio</th></tr></thead><tbody id="fast5Rows"><tr><td colspan="7">Odotetaan raporttia.</td></tr></tbody></table></div>
-   <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Aika</th><th>Pari</th><th>Tapahtuma</th><th>Määrä</th><th>P/L</th><th>Syy</th></tr></thead><tbody id="fast5TradeRows"><tr><td colspan="6">Ei session tapahtumia.</td></tr></tbody></table></div>
-  </section>
-  <section class="panel">
-   <div class="section-title"><h3 style="margin:0">15 sekunnin strategia</h3><span class="pill">PAPER</span></div>
-   <div class="metrics">
-    <div class="metric"><small>Virtuaalisaldo</small><strong id="fast15Cash">—</strong></div>
-    <div class="metric"><small>Salkun arvo</small><strong id="fast15Equity">—</strong></div>
-    <div class="metric"><small>Toteutunut P/L</small><strong id="fast15Pnl">—</strong></div>
-    <div class="metric"><small>Avoimet positiot</small><strong id="fast15Positions">—</strong></div>
-    <div class="metric"><small>Session tapahtumat</small><strong id="fast15Trades">—</strong></div>
-    <div class="metric"><small>Virheet</small><strong id="fast15Errors">—</strong></div>
-   </div>
-   <div id="fast15Status" class="status">Haetaan raporttia…</div>
-   <div class="table-wrap"><table><thead><tr><th>Pari</th><th>Viimeisin hinta</th><th>Bid / ask</th><th>Spread</th><th>Kynttilöitä</th><th>Positio</th></tr></thead><tbody id="fast15Rows"><tr><td colspan="7">Odotetaan raporttia.</td></tr></tbody></table></div>
-   <div class="table-wrap" style="margin-top:8px"><table><thead><tr><th>Aika</th><th>Pari</th><th>Tapahtuma</th><th>Määrä</th><th>P/L</th><th>Syy</th></tr></thead><tbody id="fast15TradeRows"><tr><td colspan="6">Ei session tapahtumia.</td></tr></tbody></table></div>
-  </section>
- </div>
- <p class="sub" style="font-size:12px"><a href="https://github.com/Tontsa128/-ai-trading-pro/actions/workflows/fast-paper-trading.yml" target="_blank" rel="noopener" style="color:var(--blue)">Avaa 5s/15s paper-treidaajan ajot</a> · <a href="https://github.com/Tontsa128/-ai-trading-pro/tree/paper-data/data" target="_blank" rel="noopener" style="color:var(--blue)">Avaa tallennetut salkut ja raportit</a>.</p>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
 <div class="foot">Markkinadata: Binance Spot API (julkinen markkinadata). Hinnat ja laskelmat esitetään USDT:ssä, eivät euroissa. Omat todelliset kulut, täyttöhinta, likviditeetti, verotus ja pörssin saatavuus voivat muuttaa tulosta. Historiallisen testin yksittäisen aikavälin signaali ei ole sama kuin live-signaalin korkeamman aikavälin vahvistus.</div>
@@ -446,89 +398,6 @@ $("backtestRun").addEventListener("click",runHistoricalBacktest);
 $("refresh").addEventListener("change",function(){setTimer();});
 window.addEventListener("resize",function(){if(window.Plotly)Plotly.Plots.resize($("chart"));});
 setTimer();load();runHistoricalBacktest();
-})();
-</script>
-<script>
-(function(){
-const base="https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/paper-data/data/latest-report.json";
-const el=id=>document.getElementById(id);
-function n(v,d){return v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—"}
-function trendFi(v){return v==="bull"?"NOUSU":v==="bear"?"LASKU":"EPÄSELVÄ"}
-function safe(s){return String(s==null?"—":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
-async function loadPaper(){
- el("paperRefresh").disabled=true;el("paperUpdated").className="status";el("paperUpdated").textContent="Haetaan viimeisintä kahden tunnin raporttia…";
- try{
-  const r=await fetch(base+"?t="+Date.now(),{cache:"no-store"});if(!r.ok)throw Error("Raporttia ei ole vielä julkaistu (HTTP "+r.status+")");
-  const d=await r.json();if(d.mode!=="paper")throw Error("Raportin tila ei ole paper");
-  const p=d.portfolio||{};el("paperCash").textContent=n(p.cash)+" USDT";el("paperEquity").textContent=n(p.equity)+" USDT";
-  el("paperPnl").textContent=n(p.realizedPnl)+" USDT";el("paperPnl").className="metric "+(Number(p.realizedPnl)>=0?"good":"bad");
-  el("paperPositions").textContent=n(p.openPositions,0);el("paperErrors").textContent=n((d.errors||[]).length,0);
-  el("paperRows").innerHTML=(d.symbols||[]).map(x=>{const v=x.indicators&&x.indicators.volumeRatio;const vol=Number.isFinite(Number(v))?n(v,2)+"×":"—";const higher=x.higherBias||[];return "<tr><td>"+safe(x.symbol)+"</td><td>"+n(x.price)+"</td><td>"+safe(x.signal)+"</td><td>"+trendFi(x.trendBias)+" / "+trendFi(higher[0])+" / "+trendFi(higher[1])+"</td><td>"+safe(x.action)+"</td><td>"+n(x.indicators&&x.indicators.rsi,1)+"</td><td>"+n(x.indicators&&x.indicators.adx,1)+"</td><td>"+vol+"</td><td>"+safe((x.blockedBy||[]).join("; ")||"—")+"</td></tr>"}).join("")||'<tr><td colspan="9">Ensimmäinen onnistunut keruu ei ole vielä valmistunut.</td></tr>';
-  const cycleMs=Date.parse(d.cycleStartedAt);const reportAgeSeconds=Number.isFinite(cycleMs)?Math.max(0,(Date.now()-cycleMs)/1000):Infinity;const reportStale=reportAgeSeconds>4*60*60;const reportErrors=(d.errors||[]).length;el("paperUpdated").className="status "+(reportStale||reportErrors?"error":"ok");el("paperUpdated").textContent="Viimeisin ajo: "+(d.cycleStartedAt||"—")+" · raportin ikä: "+(Number.isFinite(reportAgeSeconds)?Math.round(reportAgeSeconds/60)+" min":"tuntematon")+" · lähde: "+(d.source||"—")+" · keruun virheitä: "+reportErrors+(reportStale?" · VANHA RAPORTTI — kahden tunnin keruu ei ole päivittynyt ajoissa; älä tulkitse hintoja tuoreiksi. ":" · ")+(d.notes||[]).join(" ");
- }catch(e){el("paperUpdated").className="status error";el("paperUpdated").textContent=(e&&e.message?e.message:"Raportin haku epäonnistui")+". Tarkista GitHub Actions -ajon tila."}
- finally{el("paperRefresh").disabled=false}
-}
-el("paperRefresh").addEventListener("click",loadPaper);loadPaper();
-})();
-</script>
-
-<script>
-(function(){
-"use strict";
-var ids=function(prefix){return {
- cash:document.getElementById(prefix+"Cash"),equity:document.getElementById(prefix+"Equity"),
- pnl:document.getElementById(prefix+"Pnl"),positions:document.getElementById(prefix+"Positions"),
- trades:document.getElementById(prefix+"Trades"),errors:document.getElementById(prefix+"Errors"),
- status:document.getElementById(prefix+"Status"),rows:document.getElementById(prefix+"Rows"),
- tradeRows:document.getElementById(prefix+"TradeRows")
-};};
-function num(v,d){return v!==null&&v!==undefined&&v!==""&&Number.isFinite(Number(v))?Number(v).toLocaleString("en-US",{maximumFractionDigits:d===undefined?2:d,minimumFractionDigits:d===undefined?2:d}):"—";}
-function escFast(s){return String(s==null?"—":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
-function reportTime(v){if(!v)return "—";var d=new Date(v);return Number.isNaN(d.getTime())?escFast(v):d.toLocaleString("fi-FI");}
-async function loadFast(interval){
- var prefix=interval===5?"fast5":"fast15",ui=ids(prefix);
- ui.status.className="status";ui.status.textContent="Haetaan "+interval+" sekunnin viimeisintä raporttia GitHubista…";
- try{
-  var response=await fetch("https://raw.githubusercontent.com/Tontsa128/-ai-trading-pro/paper-data/data/fast-paper-latest-"+interval+"s.json?t="+Date.now(),{cache:"no-store"});
-  if(!response.ok)throw new Error("Raporttia ei ole vielä tallennettu (HTTP "+response.status+"). Ensimmäisen GitHub Actions -session pitää valmistua.");
-  var d=await response.json();
-  if(d.mode!=="paper"||Number(d.intervalSeconds)!==interval)throw new Error("Raportin tila tai aikaväli ei täsmää; tiedot jätettiin näyttämättä.");
-  var p=d.portfolio||{},trades=Array.isArray(d.sessionTrades)?d.sessionTrades:[];
-  ui.cash.textContent=num(p.cash)+" USDT";ui.equity.textContent=num(p.equity)+" USDT";
-  ui.pnl.textContent=num(p.realizedPnl)+" USDT";ui.pnl.className=p.realizedPnl>=0?"good":"bad";
-  ui.positions.textContent=num(p.openPositions,0);ui.trades.textContent=String(trades.length);ui.errors.textContent=String((d.errors||[]).length);
-  ui.rows.innerHTML=(d.symbols||[]).map(function(s){
-   var spread=Number.isFinite(Number(s.spreadPct))?num(s.spreadPct,4)+"%":"—";
-   var pos=s.position?"AVOIN":"—";
-   var updated=s.lastUpdateAt?Date.parse(s.lastUpdateAt):NaN;
-   var age=Number.isFinite(updated)?Math.max(0,(Date.now()-updated)/1000):null;
-   var ageLabel=age===null?"EI DATAA":age<60?num(age,0)+" s":num(age/60,1)+" min";
-   if(age!==null&&age>420)ageLabel="VANHA · "+ageLabel;
-   return "<tr><td>"+escFast(s.symbol)+"</td><td>"+num(s.price,s.price<1?6:2)+"</td><td>"+num(s.bid,s.bid<1?6:2)+" / "+num(s.ask,s.ask<1?6:2)+"</td><td>"+spread+"</td><td>"+num(s.closedBars,0)+"</td><td>"+ageLabel+"</td><td>"+pos+"</td></tr>";
-  }).join("")||'<tr><td colspan="7">Raportissa ei ole symboleja.</td></tr>';
-  ui.tradeRows.innerHTML=trades.slice(-10).reverse().map(function(t){
-   var side=escFast(t.side),when=reportTime(t.exitTime||t.entryTime),q=num(t.qty,6),pnl=t.pnl===undefined?"—":num(t.pnl)+" USDT";
-   var reason=escFast(t.reason||"—");
-   return "<tr><td>"+when+"</td><td>"+escFast(t.symbol)+"</td><td>"+side+"</td><td>"+q+"</td><td>"+pnl+"</td><td>"+reason+"</td></tr>";
-  }).join("")||'<tr><td colspan="6">Tässä sessionissa ei syntynyt simuloituja kauppatapahtumia.</td></tr>';
-  var feed=d.feedStatus||{}, ended=Date.parse(d.sessionEndedAt), ageSeconds=Number.isFinite(ended)?Math.max(0,(Date.now()-ended)/1000):Infinity;
-  var stale=ageSeconds>420, errCount=(d.errors||[]).length, wsMessages=Number(feed.websocketMessages)||0, restUpdates=Number(feed.restQuoteUpdates)||0;
-  var restFallback=wsMessages===0&&restUpdates>0;
-  ui.status.className="status "+(errCount||stale||restFallback?"error":"ok");
-  ui.status.textContent="Viimeisin "+interval+" s ajo: "+reportTime(d.sessionStartedAt)+" – "+reportTime(d.sessionEndedAt)+" · raportin ikä: "+(Number.isFinite(ageSeconds)?num(ageSeconds,0)+" s":"tuntematon")+" · lähde: "+escFast(d.source||"tuntematon")+" · WS-viestit: "+num(wsMessages,0)+" · REST-hakua: "+num(restUpdates,0)+" · virheitä: "+errCount+" · sulkeutuneita kynttilöitä: "+num((d.symbols||[]).reduce(function(a,x){return a+(Number(x.closedBars)||0);},0))+(restFallback?" · REST-VARASYÖTE — WebSocket-kauppatapahtumia ei saatu; näytehinnat eivät vastaa aitoa 5/15 sekunnin kauppavirtaa.":"")+(stale?" · VANHA RAPORTTI — odota seuraavaa onnistunutta ajoa":"");
- }catch(e){
-  ui.status.className="status "+((e&&e.message&&e.message.indexOf("HTTP 404")>=0)?"":"error");
-  ui.status.textContent=(e&&e.message?e.message:"Nopean paper-treidauksen raportin haku epäonnistui.");
-  ui.rows.innerHTML='<tr><td colspan="7">Ei vahvistettua raporttia. Vanhaa hintaa ei esitetä live-datana.</td></tr>';
-  ui.tradeRows.innerHTML='<tr><td colspan="6">Raportin puuttuessa tapahtumia ei näytetä.</td></tr>';
- }
-}
-async function loadAll(){
- var button=document.getElementById("fastPaperRefresh");if(button)button.disabled=true;
- try{await Promise.all([loadFast(5),loadFast(15)]);}finally{if(button)button.disabled=false;}
-}
-var button=document.getElementById("fastPaperRefresh");if(button)button.addEventListener("click",loadAll);
-loadAll();setInterval(loadAll,60000);
 })();
 </script>
 </body></html>

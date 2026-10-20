@@ -3,8 +3,8 @@
   "use strict";
 
   var state = {
-    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "1m",
-    bars: [], live: null, bid: null, ask: null, tradePrice: null,
+    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m",
+    bars: [], chartBars: [], chartLive: null, live: null, bid: null, ask: null, tradePrice: null,
     lastTradeAt: 0, lastBookAt: 0, lastScores: {}, trades: 0, reconnects: 0, wsEndpoint: 0,
     tickerChange: null, startedAt: Date.now()
   };
@@ -14,7 +14,7 @@
   ];
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
-  var n = function (v) { var x = Number(v); return Number.isFinite(x) ? x : null; };
+  var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
   var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
   var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
 
@@ -61,8 +61,8 @@
       else if (b.rsi < 28) score += 5;
     }
     if (Number.isFinite(b.volumeRatio)) score += Math.max(-5, Math.min(5, (b.volumeRatio - 1) * 5));
-    var live = n(livePrice), mom = live !== null && p.close > 0 ? (live / p.close - 1) * 100 : 0;
-    score += Math.max(-7, Math.min(7, mom * 40));
+    var live = n(livePrice), mom = live !== null && live > 0 && p.close > 0 ? (live / p.close - 1) * 100 : null;
+    if (mom !== null) score += Math.max(-7, Math.min(7, mom * 40));
     score = Math.max(1, Math.min(99, score));
     return { score: score, side: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom };
   }
@@ -85,8 +85,9 @@
     return window.LiveSignalGuards.apply(score, state, Date.now());
   }
 
-  async function getBars(tf) {
-    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(state.symbol) + "&interval=" + tf + "&limit=250", { cache: "no-store" });
+  async function getBars(tf, requestedSymbol) {
+    var symbol = requestedSymbol || state.symbol;
+    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store" });
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
@@ -101,11 +102,36 @@
     return arr;
   }
 
+  async function loadChartBars() {
+    var interval = state.interval || "5m";
+    var symbol = state.symbol;
+    try {
+      var bars = await getBars(interval, symbol);
+      if (symbol === state.symbol && interval === state.interval) {
+        state.chartBars = bars;
+        renderLiveChart();
+      }
+    } catch (e) {
+      if (symbol === state.symbol && interval === state.interval) {
+        state.chartBars = [];
+        state.chartLive = null;
+        renderLiveChart();
+        var el = $("liveMeta");
+        if (el) el.textContent = "Kaavion " + interval + " / " + symbol + " datan haku epäonnistui: " + e.message;
+      }
+    }
+  }
+
   function renderLiveChart() {
     var target = $("chart");
-    if (!target || state.bars.length < 2) return;
-    var countEl = $("chartCount"), count = Math.max(80, Math.min(250, Number(countEl && countEl.value) || 150));
-    var d = mergeLive(state.bars, state.live).slice(-count), vals = [];
+    if (!target) return;
+    var sourceBars = Array.isArray(state.chartBars) ? state.chartBars : [];
+    if (sourceBars.length < 2) {
+      target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
+      return;
+    }
+    var countEl = $("chartCount"), count = Math.max(80, Math.min(500, Number(countEl && countEl.value) || 150));
+    var d = mergeLive(sourceBars, state.chartLive).slice(-count), vals = [];
     d.forEach(function (x) {
       vals.push(+x.low, +x.high);
       [x.ema9, x.ema21, x.ema50, x.ema200].forEach(function (v) { if (Number.isFinite(v)) vals.push(v); });
@@ -121,7 +147,7 @@
       out.push('<line x1="' + l + '" y1="' + gy.toFixed(1) + '" x2="' + (w - r) + '" y2="' + gy.toFixed(1) + '" stroke="#263750"/>');
       out.push('<text x="' + (w - r + 7) + '" y="' + (gy + 4).toFixed(1) + '" fill="#a8bdd7" font-size="11">' + esc(price(pv)) + '</text>');
     }
-    out.push('<text x="' + l + '" y="18" fill="#dce9fa" font-size="13" font-weight="700">' + esc(state.symbol) + ' · LIVE 1m · ' + d.length + ' kynttilää</text>');
+    out.push('<text x="' + l + '" y="18" fill="#dce9fa" font-size="13" font-weight="700">' + esc(state.symbol) + ' · LIVE ' + esc(state.interval.toUpperCase()) + ' · ' + d.length + ' kynttilää</text>');
     d.forEach(function (v, k) {
       var op = +v.open, cl = +v.close, hh = +v.high, ll = +v.low, cx = x(k), c = cl >= op ? '#28d7a0' : '#ff647c';
       out.push('<line x1="' + cx.toFixed(1) + '" y1="' + y(hh).toFixed(1) + '" x2="' + cx.toFixed(1) + '" y2="' + y(ll).toFixed(1) + '" stroke="' + c + '" stroke-width="1.4"/>');
@@ -152,7 +178,7 @@
     if (state.tickerChange !== null) {
       var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
     }
-    var base = gatedScore(scores["1m"] || scoreFor(state.bars, livePrice));
+    var base = gatedScore(scores[state.interval] || scores["5m"] || scores["1m"] || scoreFor(state.bars, livePrice));
     if (base) {
       var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
@@ -163,7 +189,7 @@
         sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
       }
     }
-    var sp = $("spread"); if (sp && state.bid !== null && state.ask !== null && state.bid > 0) sp.textContent = num((state.ask - state.bid) / state.bid * 100, 4) + "%";
+    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
   }
 
   function updateUi(scores) {
@@ -180,22 +206,33 @@
   }
 
   async function refreshTicker() {
+    var symbol = state.symbol;
     try {
-      var r = await fetch("/api/market?endpoint=ticker24hr&symbol=" + encodeURIComponent(state.symbol), { cache: "no-store" });
-      if (r.ok) { var d = await r.json(); state.tickerChange = n(d.priceChangePercent); }
+      var r = await fetch("/api/market?endpoint=ticker24hr&symbol=" + encodeURIComponent(symbol), { cache: "no-store" });
+      if (r.ok) {
+        var d = await r.json();
+        if (symbol === state.symbol) state.tickerChange = n(d.priceChangePercent);
+      }
     } catch (e) {}
   }
 
   async function refreshScalpScores() {
+    var symbol = state.symbol;
     var scores = {};
     for (var i = 0; i < 4; i++) {
+      if (symbol !== state.symbol) return;
       var tf = ["1m", "3m", "5m", "15m"][i];
       try {
-        var bars = await getBars(tf);
+        var bars = await getBars(tf, symbol);
+        if (symbol !== state.symbol) return;
         scores[tf] = scoreFor(bars, state.tradePrice);
         if (tf === "1m") state.bars = bars;
-      } catch (e) { scores[tf] = null; }
+      } catch (e) {
+        if (symbol !== state.symbol) return;
+        scores[tf] = null;
+      }
     }
+    if (symbol !== state.symbol) return;
     state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }
@@ -214,44 +251,68 @@
 
   function startWs() {
     stopWs();
-    var s = state.symbol.toLowerCase(), iv = "1m";
+    var s = state.symbol.toLowerCase(), iv = state.interval || "5m";
     var base = WS_ENDPOINTS[state.wsEndpoint % WS_ENDPOINTS.length];
     var streams = s + "@trade/" + s + "@bookTicker/" + s + "@kline_" + iv;
     try { state.ws = new WebSocket(base + streams); } catch (e) { state.wsEndpoint++; scheduleWs(); return; }
-    state.ws.onopen = function () { var el = $("liveState"); if (el) { el.textContent = "● LIVE"; el.className = "pill good"; } };
-    state.ws.onmessage = function (ev) {
+    var socket = state.ws;
+    socket.onopen = function () {
+      if (state.ws !== socket) return;
+      var el = $("liveState"); if (el) { el.textContent = "● LIVE"; el.className = "pill good"; }
+    };
+    socket.onmessage = function (ev) {
+      if (state.ws !== socket) return;
       try {
         var wrap = JSON.parse(ev.data), d = wrap.data || wrap;
         if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.trades++; }
         if (d.e === "bookTicker") { state.bid = n(d.b); state.ask = n(d.a); state.lastBookAt = Date.now(); }
-        if (d.e === "kline") { var k = d.k; state.live = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; }
+        if (d.e === "kline") { var k = d.k; var candle = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; if (k.i === "1m") state.live = candle; if (k.i === state.interval) state.chartLive = candle; }
         var quick = scoreFor(state.bars, state.tradePrice);
         state.lastScores = Object.assign({}, state.lastScores || {}, { "1m": quick });
         updateUi(state.lastScores); renderLiveChart();
       } catch (e) {}
     };
-    state.ws.onerror = function () { state.wsEndpoint++; try { state.ws.close(); } catch (e) {} };
-    state.ws.onclose = function () { scheduleWs(); };
+    socket.onerror = function () {
+      if (state.ws !== socket) return;
+      state.wsEndpoint++;
+      try { socket.close(); } catch (e) {}
+    };
+    socket.onclose = function () {
+      if (state.ws !== socket) return;
+      state.ws = null;
+      scheduleWs();
+    };
   }
 
   async function boot() {
     injectUi();
     var symbolEl = $("symbol"), intervalEl = $("interval"), countEl = $("chartCount");
     if (symbolEl) symbolEl.addEventListener("change", function () {
-      state.symbol = symbolEl.value; state.tradePrice = null; state.live = null;
+      stopWs();
+      state.symbol = symbolEl.value; state.tradePrice = null; state.tickerChange = null; state.live = null; state.chartLive = null; state.chartBars = []; state.bars = [];
+      var chartTarget = $("chart"); if (chartTarget) chartTarget.innerHTML = '<div class="status">Haetaan uuden valuuttaparin kynttilädataa…</div>';
       state.lastTradeAt = 0; state.lastBookAt = 0; state.bid = null; state.ask = null; state.lastScores = {};
-      refreshTicker(); refreshScalpScores(); startWs();
+      refreshTicker(); refreshScalpScores(); loadChartBars().then(function () {
+        if (state.symbol === symbolEl.value) startWs();
+      });
     });
-    if (intervalEl) intervalEl.addEventListener("change", function () { state.interval = intervalEl.value; });
+    if (intervalEl) intervalEl.addEventListener("change", function () {
+      stopWs();
+      state.interval = intervalEl.value; state.chartLive = null; state.chartBars = [];
+      loadChartBars().then(function () {
+        if (state.interval === intervalEl.value) startWs();
+      });
+    });
     if (countEl) countEl.addEventListener("change", renderLiveChart);
     state.symbol = symbolEl ? symbolEl.value : "BTCUSDT";
-    state.interval = "1m";
-    try { state.bars = await getBars("1m"); } catch (e) { var st = $("status"); if (st) { st.textContent = "Reaaliaikaisen datan alustaminen epäonnistui: " + e.message; st.className = "status error"; } }
+    state.interval = intervalEl ? intervalEl.value : "5m";
+    try { state.bars = await getBars("1m"); await loadChartBars(); } catch (e) { var st = $("status"); if (st) { st.textContent = "Reaaliaikaisen datan alustaminen epäonnistui: " + e.message; st.className = "status error"; } }
     await refreshTicker();
     await refreshScalpScores();
     startWs();
     setInterval(refreshScalpScores, 10000);
     setInterval(refreshTicker, 10000);
+    setInterval(loadChartBars, 30000);
     setInterval(function () {
       updateUi(state.lastScores || {});
       renderLiveChart();
