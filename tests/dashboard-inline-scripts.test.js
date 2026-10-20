@@ -33,10 +33,10 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
 const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
 assert.ok(liveDashboard.includes("Tekniset pisteet") && liveDashboard.includes("ei voittotodennäköisyys"),
   "heuristic live scores must be explicitly identified as technical points, not win probabilities");
-assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pisteet "),
-  "bearish spot guidance must not imply short-selling or probability");
+assert.ok(liveDashboard.includes("side: \"WAIT\"") && liveDashboard.includes("diagnosticOnly: true") && liveDashboard.includes("pisteet "),
+  "short-timeframe scores are diagnostic-only and cannot present actionable buy/sell guidance");
 assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
-  "bearish technical points must be oriented to the displayed direction");
+  "technical score display retains consistent formatting if a directional score is used in a future validated mode");
 assert.ok(liveDashboard.includes('"ODOTA"'),
   "WAIT must not be decorated with a fabricated confidence percentage");
 assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&

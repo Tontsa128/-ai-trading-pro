@@ -19,8 +19,10 @@ assert.match(live, /setInterval\(loadChartBars, 30000\)/,
   "chart history must retry periodically after transient market-data failures");
 assert.match(live, /var s = state\.symbol\.toLowerCase\(\), iv = state\.interval \|\| "5m"/,
   "WebSocket candle stream must follow the selected chart interval");
-assert.match(live, /scores\[state\.interval\] \|\| scores\["5m"\] \|\| scores\["1m"\]/,
-  "main signal must follow the selected interval when that timeframe is scored");
+assert.match(live, /function updateMainMetrics\(\) \{[\s\S]*?Keep the canonical strategy panel authoritative[\s\S]*?function updateUi\(scores\)/,
+  "scalp diagnostics must not overwrite the canonical strategy signal or its RSI/ADX");
+assert.match(live, /\["1m", "3m", "5m", "15m"\]\.forEach\(function \(tf\) \{ displayScores\[tf\] = gatedScore\(scores\[tf\]\); \}\)/,
+  "short-timeframe cards remain separately gated diagnostics");
 assert.match(live, /loadChartBars\(\)\.then\(function \(\) \{[\s\S]*?startWs\(\)/,
   "changing pair or interval must reload matching chart history before reconnecting");
 assert.match(live, /var sourceBars = Array\.isArray\(state\.chartBars\) \? state\.chartBars : \[\]/,
