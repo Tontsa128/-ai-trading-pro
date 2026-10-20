@@ -158,7 +158,7 @@
     var b=series[series.length-1],checks=explainCandle(b);
     var longCore=b.close>b.ema200&&b.ema50>b.ema200&&b.ema9>b.ema21&&b.macdHist>0&&b.rsi>=50&&b.rsi<=68&&b.adx>=18&&b.pdi>b.mdi&&Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO;
     var shortCore=b.close<b.ema200&&b.ema50<b.ema200&&b.ema9<b.ema21&&b.macdHist<0&&b.rsi>=32&&b.rsi<=50&&b.adx>=18&&b.mdi>b.pdi&&Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO;
-    var overextended=Math.abs(b.close-b.ema21)>1.6*b.atr,highVolatility=b.atrPct>3;
+    var validEmaDistance=Number.isFinite(b.close)&&Number.isFinite(b.ema21)&&Number.isFinite(b.atr)&&b.atr>0;var overextended=!validEmaDistance||Math.abs(b.close-b.ema21)>1.6*b.atr,highVolatility=!Number.isFinite(b.atrPct)||b.atrPct>3;
     return {bar:b,checks:checks,longCore:longCore,shortCore:shortCore,overextended:overextended,highVolatility:highVolatility,support:Math.min.apply(null,series.slice(-31,-1).map(function(x){return x.low;})),resistance:Math.max.apply(null,series.slice(-31,-1).map(function(x){return x.high;})),high:series};
   }
   function evaluateSignal(main,higher,market,options) {
