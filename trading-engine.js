@@ -310,18 +310,18 @@
       if(candles.length<220)return;
       var iv=intervalEl.value, mainScore=scoreSeries(candles), current=candles[candles.length-1];
       var fast=mainScore.fastReaction||{score:0,signal:"EI",notes:[],atr:null};
-      var side=fast.signal==="NOPEA OSTA"?"BUY":fast.signal==="NOPEA MYY"?"SELL":mainScore.score>2?"BUY":mainScore.score<-2?"SELL":"WAIT";
+      var side="WAIT"; // Single-timeframe momentum is diagnostic only; it cannot override evaluateSignal() confirmation gates.
       var p=ensureProbability();
       if(p){
-        var fastLabel=fast.signal==="NOPEA OSTA"?"⚡ NOPEA OSTA":fast.signal==="NOPEA MYY"?"⚡ NOPEA MYY":(side==="BUY"?"🟢 OSTA":side==="SELL"?"🔴 MYY":"🟡 ODOTA");
+        var fastLabel="🟡 ODOTA · tekninen seuranta (ei vahvistettu signaali)";
         p.textContent=fastLabel+" · live-pisteet "+(fast.score>0?"+":"")+fast.score+" · trendipisteet "+(mainScore.score>0?"+":"")+mainScore.score;
         p.style.color=side==="BUY"?"#28d7a0":side==="SELL"?"#ff647c":"#ffd166";
         var reason=document.getElementById("liveReactionNotes");
         if(!reason){reason=document.createElement("div");reason.id="liveReactionNotes";reason.style.cssText="font-size:12px;font-weight:500;line-height:1.5;margin-top:5px;letter-spacing:0;";p.parentNode.appendChild(reason);}
-        reason.textContent=fast.notes.length?fast.notes.join(" · "):"Nopea kynttiläpisteytys ei ylitä +30 / −30 pisteen rajaa.";
+        reason.textContent=(fast.notes.length?fast.notes.join(" · "):"Nopea kynttiläpisteytys ei ylitä +30 / −30 pisteen rajaa.")+" · Osto/myynti estetty: yksittäinen aikaväli ei täytä strategian vahvistusporttia.";
         reason.style.color=side==="BUY"?"#8de8c0":side==="SELL"?"#ffadb8":"#a9bad0";
       }
-      var sig=window.__liveSignal={direction:side,probability:mainScore.prob,score:mainScore.score,fastScore:fast.score,fastSignal:fast.signal,fastNotes:fast.notes,stop:null,target:null};
+      var sig=window.__liveSignal={direction:side,probability:null,score:mainScore.score,fastScore:fast.score,fastSignal:fast.signal,fastNotes:fast.notes,actionable:false,stop:null,target:null};
       var a=mainScore.analysis,b=a.bar,riskAtr=fast.signal!=="EI"&&Number.isFinite(fast.atr)?fast.atr:b.atr;
       if(side!=="WAIT"&&Number.isFinite(riskAtr)&&riskAtr>0){sig.stop=side==="BUY"?b.close-1.5*riskAtr:b.close+1.5*riskAtr;sig.target=side==="BUY"?b.close+2.5*riskAtr:b.close-2.5*riskAtr;}
       renderSvg(sig);
