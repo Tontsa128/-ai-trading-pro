@@ -171,26 +171,20 @@
     target.innerHTML = out.join('');
   }
 
-  function updateMainMetrics(scores) {
+  function updateMainMetrics() {
+    // Keep the canonical strategy panel authoritative. The separate 1m–15m
+    // scalp panel is diagnostic-only and must not overwrite signal/RSI/ADX.
     var livePrice = state.tradePrice || (state.live && state.live.close);
     if (livePrice !== null) {
       var pe = $("price"); if (pe) pe.textContent = price(livePrice);
     }
-    if (state.tickerChange !== null) {
-      var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
+    var sp = $("spread");
+    if (sp) {
+      var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) &&
+        state.bid > 0 && state.ask >= state.bid;
+      sp.textContent = validBook ? num((state.ask - state.bid) /
+        ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—";
     }
-    var base = gatedScore(scores[state.interval] || scores["5m"] || scores["1m"] || scoreFor(state.bars, livePrice));
-    if (base) {
-      var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
-      var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      var sig = $("signal"); if (sig) {
-        sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" :
-          base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" :
-          base.gateReason ? "ODOTA · " + base.gateReason : "ODOTA";
-        sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
-      }
-    }
-    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
   }
 
   function updateUi(scores) {
@@ -204,7 +198,7 @@
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
     $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
-    updateMainMetrics(displayScores);
+    updateMainMetrics();
   }
 
   async function refreshTicker() {
