@@ -259,9 +259,14 @@ const liveEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine
 const publicLiveEngineSource = fs.readFileSync(path.join(__dirname, "../public/trading-engine.js"), "utf8");
 assert.ok(liveEngineSource.includes("fastReaction:TradingEngine.fastReaction(s)"),
   "live candle scoring is wired into the browser live layer");
-assert.ok(liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
-  liveEngineSource.includes('fast.signal==="NOPEA MYY"'),
-  "fast buy/sell thresholds can drive the live signal label");
+assert.ok(liveEngineSource.includes('var side="WAIT"; // Single-timeframe momentum is diagnostic only'),
+  "single-timeframe momentum cannot issue a trade direction without canonical confirmation gates");
+assert.ok(liveEngineSource.includes("actionable:false"),
+  "diagnostic live scores are explicitly non-actionable");
+assert.ok(dashboardSource.includes("assumedSpreadPct:0"),
+  "historical test does not silently add an unconfigured spread cost on top of configured fee and slippage");
+assert.ok(dashboardSource.includes("ok=r.count>=100"),
+  "OOS metrics use the same minimum 100-trade sample gate as overall metrics");
 assert.ok(liveEngineSource.includes("liveReactionNotes"),
   "live signal exposes the reasons behind the fast candle score");
 
