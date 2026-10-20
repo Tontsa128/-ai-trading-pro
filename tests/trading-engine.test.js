@@ -271,3 +271,4 @@ assert.ok(liveDashboardSource.includes('momentumText = s && Number.isFinite(s.mo
 assert.ok(liveDashboardSource.includes('d.e === "bookTicker" || (d.s === state.symbol && d.b != null && d.a != null'), "bookTicker payloads without event type must populate bid/ask");
 
 assert.match(publicLiveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
+assert.match(liveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "server/test engine uses the same 5-second clock-skew guard as the browser engine");
