@@ -41,7 +41,8 @@
       side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei voittotodennäköisyys" :
       "Suunnan tekniset pisteet " + num(directionalPoints, 0) + "/100 · ei voittotodennäköisyys";
     var gateText = s && s.gateReason ? '<br><strong>Signaali estetty:</strong> ' + esc(s.gateReason) : "";
-    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + (s && s.momentum >= 0 ? "+" : "") + num(s && s.momentum, 3) + '%</div></div>';
+    var momentumText = s && Number.isFinite(s.momentum) ? (s.momentum >= 0 ? "+" : "") + num(s.momentum, 3) + "%" : "—";
+    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + momentumText + '</div></div>';
   }
 
   function scoreFor(bars, livePrice) {
@@ -201,7 +202,8 @@
     var gateReason = currentGateReason();
     $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (state.bid && state.ask ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
@@ -265,7 +267,13 @@
       try {
         var wrap = JSON.parse(ev.data), d = wrap.data || wrap;
         if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.trades++; }
-        if (d.e === "bookTicker") { state.bid = n(d.b); state.ask = n(d.a); state.lastBookAt = Date.now(); }
+        // Binance bookTicker stream payloads may omit the event-type field; identify them by bid/ask fields too.
+        if (d.e === "bookTicker" || (d.s === state.symbol && d.b != null && d.a != null && d.B != null && d.A != null && d.p == null)) {
+          var bid = n(d.b), ask = n(d.a);
+          if (bid !== null && ask !== null && bid > 0 && ask >= bid) {
+            state.bid = bid; state.ask = ask; state.lastBookAt = Date.now();
+          }
+        }
         if (d.e === "kline") { var k = d.k; var candle = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; if (k.i === "1m") state.live = candle; if (k.i === state.interval) state.chartLive = candle; }
         var quick = scoreFor(state.bars, state.tradePrice);
         state.lastScores = Object.assign({}, state.lastScores || {}, { "1m": quick });
