@@ -135,6 +135,10 @@ const extendedSignal = E.evaluateSignal(extendedMain, [analysed, analysed],
   {price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*0.9999,ask:analysed.bar.close*1.0001}, opts);
 assert.ok(extendedSignal.blockingReasons.some(x => x.includes("Hinta on liian kaukana EMA 21:stä") && x.includes("ehto ei täyty")),
   "failed EMA-distance gate is described as a failure, not as a satisfied condition");
+const invalidIndicatorBars = full.map((bar, index) => index === full.length - 1 ? {...bar, ema21: NaN, atr: NaN, atrPct: NaN} : bar);
+const invalidIndicatorMain = E.analyzeSeries(invalidIndicatorBars);
+assert.equal(invalidIndicatorMain.overextended, true, "missing EMA21 or ATR must fail the distance gate closed");
+assert.equal(invalidIndicatorMain.highVolatility, true, "missing ATR percentage must fail the volatility gate closed");
 const volatileMain = {...analysed, highVolatility:true, bar:{...analysed.bar,atrPct:4.2}};
 const volatileSignal = E.evaluateSignal(volatileMain, [analysed, analysed],
   {price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*0.9999,ask:analysed.bar.close*1.0001}, opts);
