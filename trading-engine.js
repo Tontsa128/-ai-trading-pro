@@ -164,7 +164,7 @@
   function evaluateSignal(main,higher,market,options) {
     var opts=Object.assign({},COST_DEFAULTS,options||{}),checks=main.checks,b=main.bar;
     var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
-    var priceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);
+    var rawPriceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);var priceAgeMs=rawPriceAgeMs<0&&rawPriceAgeMs>=-5000?0:rawPriceAgeMs;
     var common=[{name:"Riittävästi historiadataa",ok:main.high.length>=220},{name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 5 min)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=300000)},{name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},{name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}];
     var upConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bull";}),downConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bear";});
     var supportRoom=main.support>0&&Number.isFinite(b.atr)?(b.close-main.support)/b.atr:NaN,resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-b.close)/b.atr:NaN;
