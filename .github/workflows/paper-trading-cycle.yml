@@ -50,5 +50,6 @@ jobs:
             echo "No report changes to persist"
           else
             git commit -m "Record two-hour paper trading cycle"
+            git pull --rebase origin paper-data
             git push origin HEAD:paper-data
           fi
