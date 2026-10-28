@@ -27,7 +27,10 @@ function integer(value, min, max) {
 
 module.exports = async function marketProxy(req, res) {
   res.setHeader("Content-Type", "application/json; charset=utf-8");
-  res.setHeader("Cache-Control", "public, max-age=1, s-maxage=3, stale-while-revalidate=5");
+  // Live prices and candles must never be served from a stale browser, CDN, or proxy cache.
+  res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
   res.setHeader("X-Content-Type-Options", "nosniff");
 
   if (req.method !== "GET") {
@@ -99,6 +102,5 @@ module.exports = async function marketProxy(req, res) {
     }
   }
 
-  res.setHeader("Cache-Control", "no-store");
   return res.status(lastStatus).json({ error: lastError });
 };
