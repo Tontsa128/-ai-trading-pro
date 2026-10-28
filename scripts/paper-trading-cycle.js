@@ -28,7 +28,10 @@ async function run(){
     if(cb.closeTime<=Number(pos.entryCandleTime||0))continue;
     const stop=cb.low<=pos.stop,target=cb.high>=pos.target;
     if(stop||target){
-     const t=sell(s,sym,pos,stop?pos.stop:pos.target,stop&&target?"Stop-first ambiguous candle":stop?"Stop-loss":"Take-profit",cb.closeTime);
+     // A stop-market order gaps through at the candle open, not at the more favorable stop price.
+     // A target limit remains conservatively filled at its target even if the candle opens above it.
+     const exitPrice=stop?(Number.isFinite(cb.open)&&cb.open<pos.stop?cb.open:pos.stop):pos.target;
+     const t=sell(s,sym,pos,exitPrice,stop&&target?"Stop-first ambiguous candle":stop?(exitPrice<pos.stop?"Stop-loss gap":"Stop-loss"):"Take-profit",cb.closeTime);
      closed.push(t);action="PAPER_SELL";reason=t.reason;pos=null;break;
     }
    }
