@@ -102,18 +102,17 @@ console.log("Dashboard engine integration tests passed: deployed API, indicators
 
 
 // The live dashboard must not have its own independent EMA/MACD score thresholds.
-// Its only direction source is the canonical engine, with two distinct real higher timeframes.
 const fs = require("node:fs");
 const dashboardSource = fs.readFileSync(require.resolve("../public/live-dashboard.js"), "utf8");
-assert.match(dashboardSource, /TradingEngine\\.evaluateSignal\\(main, higher,/,
+assert.ok(dashboardSource.includes("TradingEngine.evaluateSignal(main, higher,"),
   "live dashboard must use canonical TradingEngine.evaluateSignal");
-assert.match(dashboardSource, /"1m": \\["3m", "15m"\\]/,
+assert.ok(dashboardSource.includes('"1m": ["3m", "15m"]'),
   "1m signals must use actual 3m and 15m confirmation data");
-assert.match(dashboardSource, /"3m": \\["15m", "1h"\\]/,
+assert.ok(dashboardSource.includes('"3m": ["15m", "1h"]'),
   "3m signals must use actual 15m and 1h confirmation data");
-assert.match(dashboardSource, /"5m": \\["15m", "1h"\\]/,
+assert.ok(dashboardSource.includes('"5m": ["15m", "1h"]'),
   "5m signals must use actual 15m and 1h confirmation data");
-assert.match(dashboardSource, /"15m": \\["1h", "4h"\\]/,
+assert.ok(dashboardSource.includes('"15m": ["1h", "4h"]'),
   "15m signals must use actual 1h and 4h confirmation data");
-assert.doesNotMatch(dashboardSource, /score >= 65 \\? "BUY" : score <= 35 \\? "SELL"/,
+assert.ok(!dashboardSource.includes('score >= 65 ? "BUY" : score <= 35 ? "SELL"'),
   "legacy independent threshold scorer must not generate BUY/SELL");
