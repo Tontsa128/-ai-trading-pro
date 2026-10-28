@@ -33,8 +33,8 @@ assert.match(live, /async function getBars\(tf, requestedSymbol\)/,
   "candle requests must bind the requested symbol instead of reading mutable global state after a switch");
 assert.match(live, /var symbol = state\.symbol;[\s\S]*?getBars\(interval, symbol\)[\s\S]*?symbol === state\.symbol && interval === state\.interval/,
   "chart history responses must be discarded if symbol or interval changed while the request was in flight");
-assert.match(live, /async function refreshScalpScores\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?if \(symbol !== state\.symbol\) return;[\s\S]*?getBars\(tf, symbol\)/,
-  "scalp scores must not combine candles from different symbols during a switch");
+assert.match(live, /async function refreshScalpScores\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?getBars\(tf, symbol\)[\s\S]*?if \(symbol !== state\.symbol\) return;/,
+  "parallel scalp-score requests bind the requested symbol and discard stale results after a symbol switch");
 assert.match(live, /async function refreshTicker\(\)[\s\S]*?var symbol = state\.symbol;[\s\S]*?if \(symbol === state\.symbol\) state\.tickerChange/,
   "late 24-hour ticker responses must not overwrite the newly selected symbol");
 assert.match(live, /state\.symbol = symbolEl\.value; state\.tradePrice = null; state\.tickerChange = null;/,
