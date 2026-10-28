@@ -98,7 +98,7 @@ const wideSpreadSignal = E.evaluateSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.2}, opts);
 const wideSpreadGate = wideSpreadSignal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
 assert.equal(wideSpreadGate.ok, false, "spread above 0.15% must fail closed");
-assert.ok(wideSpreadSignal.blockingReasons.some(x => x.includes("0.1500 %")),
+assert.ok(wideSpreadSignal.blockingReasons.some(x => x.includes("0,15 %")),
   "failed spread gate explains the configured limit");
 
 const bearRaw = [];
@@ -127,7 +127,7 @@ const lowVolumeBar = {...bearAnalysis.bar, volumeRatio: 0.43};
 const lowVolumeMain = {...bearAnalysis, bar: lowVolumeBar, checks: E.explainCandle(lowVolumeBar)};
 const lowVolumeSignal = E.evaluateSignal(lowVolumeMain, [bearAnalysis, bearAnalysis],
   {price:lowVolumeBar.close,closeTime:Date.now(),bid:lowVolumeBar.close*0.9999,ask:lowVolumeBar.close*1.0001}, opts);
-assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0.43×") && x.includes("vaatimus ≥ 0.50×")),
+assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0,43×") && x.includes("vaatimus ≥ 0.50×")),
   "volume blocker states the measured ratio and the required minimum");
 
 const extendedMain = {...analysed, overextended:true};
