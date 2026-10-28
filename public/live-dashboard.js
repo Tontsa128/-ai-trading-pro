@@ -109,7 +109,11 @@
     if (!window.LiveSignalGuards || typeof window.LiveSignalGuards.apply !== "function") {
       return Object.assign({}, score, { side: "WAIT", gateReason: reason, actionable: false });
     }
-    return window.LiveSignalGuards.apply(score, state, Date.now());
+    var guarded = window.LiveSignalGuards.apply(score, state, Date.now());
+    // Preserve data-quality blockers from the canonical engine when the WebSocket itself is fresh.
+    if (guarded && !guarded.gateReason && score.gateReason) guarded.gateReason = score.gateReason;
+    if (guarded && score.actionable === false) guarded.actionable = false;
+    return guarded;
   }
 
   async function getBars(tf, requestedSymbol) {
