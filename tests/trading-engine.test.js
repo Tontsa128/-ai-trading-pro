@@ -257,13 +257,17 @@ assert.equal(E.fastReaction(invalidFastBars).signal, "EI",
 
 const liveEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine.js"), "utf8");
 const publicLiveEngineSource = fs.readFileSync(path.join(__dirname, "../public/trading-engine.js"), "utf8");
-assert.ok(liveEngineSource.includes("fastReaction:TradingEngine.fastReaction(s)"),
-  "live candle scoring is wired into the browser live layer");
-assert.ok(liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
-  liveEngineSource.includes('fast.signal==="NOPEA MYY"'),
-  "fast buy/sell thresholds can drive the live signal label");
-assert.ok(liveEngineSource.includes("liveReactionNotes"),
-  "live signal exposes the reasons behind the fast candle score");
+assert.ok(liveEngineSource.includes("TradingEngine.evaluateSignal(main,higher"),
+  "live dashboard direction must come from the canonical multi-timeframe engine");
+assert.ok(liveEngineSource.includes("function seedHigher"),
+  "live dashboard must fetch real higher-timeframe Binance candles");
+assert.ok(liveEngineSource.includes("if(!k||k.x!==true)return"),
+  "live dashboard must update signal candles only after the exchange marks them closed");
+assert.ok(!liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
+  !liveEngineSource.includes('fast.signal==="NOPEA MYY"'),
+  "short-term heuristic must not override canonical BUY/SELL/WAIT");
+assert.ok(liveEngineSource.includes("not a win probability"),
+  "the UI must not label technical checklist scores as win probabilities");
 
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
 
