@@ -106,7 +106,7 @@
     }
     if (x.name.indexOf("Volyymi") === 0) {
       var ratio = Number.isFinite(b.volumeRatio) ? fixedFi(b.volumeRatio, 2) + "×" : "ei saatavilla";
-      return "Volyymi " + ratio + " (" + (x.ok ? "vaatimus ≥ 0.50× täyttyy" : "vaatimus ≥ 0.50× ei täyty") + ")";
+      return "Volyymi " + ratio + " (" + (x.ok ? "vaatimus ≥ 0,50× täyttyy" : "vaatimus ≥ 0,50× ei täyty") + ")";
     }
     if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) {
       var hasOneHour = higher.length >= 3;
