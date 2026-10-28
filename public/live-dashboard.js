@@ -182,7 +182,7 @@
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
       // The canonical TradingEngine.evaluateSignal() owns the main decision.
     }
-    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
+    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 6) + "%" : "—"; }
   }
 
   function updateUi(scores) {
@@ -195,7 +195,7 @@
     $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 6) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
