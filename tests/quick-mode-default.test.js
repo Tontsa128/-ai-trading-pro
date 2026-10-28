@@ -11,8 +11,8 @@ assert.match(html, /<option value="5" selected>5 sekuntia \(Binance REST\)<\/opt
   "real Binance REST refresh should be the default instead of claiming a WebSocket that is not connected");
 assert.match(html, /<option value="0">Manuaalinen \(ei automaattista päivitystä\)<\/option>/,
   "manual mode must be labeled honestly");
-assert.match(html, /<option value="5">5 sekuntia \(varapäivitys\)<\/option>/,
-  "a 5-second fallback refresh should be available");
+assert.match(html, /<option value="5" selected>5 sekuntia \(Binance REST\)<\/option>/,
+  "the selected automatic refresh must use real Binance REST data");
 assert.match(live, /interval: "5m"/, "live chart defaults to 5m");
 assert.match(live, /&limit=500/, "chart history must fetch enough real candles for the 500-candle option");
 assert.match(live, /Math\.min\(500, Number\(countEl && countEl\.value\) \|\| 150\)/,
