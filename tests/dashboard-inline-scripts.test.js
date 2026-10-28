@@ -65,7 +65,7 @@ assert.ok(engineSource.includes('"+DI " + fixedFi(b.pdi, 1)') &&
   engineSource.includes('"−DI " + fixedFi(b.mdi, 1)') &&
   engineSource.includes('"RSI " + fixedFi(b.rsi, 1)'),
   "the checklist must expose the actual RSI, ADX and directional-index values");
-assert.ok(!/toLocaleString\\("en-US"/.test(html),
+assert.ok(!/toLocaleString\("en-US"/.test(html),
   "dashboard numeric formatting must use Finnish locale consistently");
 
 const repairScript = fs.readFileSync("scripts/repair-mobile-chart.js", "utf8");
