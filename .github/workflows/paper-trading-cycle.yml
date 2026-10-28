@@ -34,6 +34,8 @@ jobs:
           node-version: 20
       - name: Validate collector syntax
         run: node --check scripts/paper-trading-cycle.js
+      - name: Verify canonical pattern and risk engine
+        run: node -e "global.window=global; require('./public/trading-engine.js'); const e=global.TradingEngine; if(!e || typeof e.evaluateSignal!=='function' || typeof e.detectPatterns!=='function' || typeof e.calculateTradePlan!=='function') throw new Error('Canonical risk engine missing'); console.log('Canonical risk engine validated')"
       - name: Collect public market data and run paper-trading cycle
         run: node scripts/paper-trading-cycle.js
       - name: Verify state and report are valid JSON
