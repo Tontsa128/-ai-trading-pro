@@ -370,7 +370,7 @@ async function load(){
   $("price").textContent=fmtPrice(price);$("change").textContent=fmt(Number(day.priceChangePercent),2)+"%";
   $("change").className=Number(day.priceChangePercent)>=0?"good":"bad";
   $("rsi").textContent=fmt(latest.rsi,1);$("adx").textContent=fmt(latest.adx,1);
-  $("spread").textContent=fmt(signal.spreadPct,3)+"%";
+  $("spread").textContent=fmt(signal.spreadPct,6)+"%";
   $("signal").textContent=signal.direction==="BUY"?"OSTA (SPOT)":signal.direction==="SELL"?"MYY / KEVENNÄ":"ODOTA";
   $("signal").className="signal "+(signal.direction==="BUY"?"buy":signal.direction==="SELL"?"sell":"wait");
   $("summary").textContent=signal.reason==="ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta."?"Kaikki 14 ehtoa eivät täyty, joten signaalia ei anneta.":signal.reason;
