@@ -115,7 +115,7 @@
       var daily = higher[hasOneHour ? 2 : 1] && higher[hasOneHour ? 2 : 1].checks ? higher[hasOneHour ? 2 : 1].checks.bias : "neutral";
       var requiredBias = side === "SELL" ? "bear" : "bull";
       return "1 h: " + trendLabelFi(oneHour) + ", 4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
-        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d " + trendLabelFi(requiredBias).toLowerCase() + ".");
+        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d " + (side === "SELL" ? "laskua" : "nousua") + ".");
     }
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
       var supportDistance = referencePrice - main.support;
