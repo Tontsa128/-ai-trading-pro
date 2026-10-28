@@ -101,18 +101,17 @@ assert.equal(typeof deployedBacktest.profitFactor, "number",
 console.log("Dashboard engine integration tests passed: deployed API, indicators, signals, and backtest match the canonical engine.");
 
 
-// The live dashboard must not have its own independent EMA/MACD score thresholds.
+// The live dashboard must not have an independent heuristic scorer.
 const fs = require("node:fs");
-const dashboardSource = fs.readFileSync(require.resolve("../public/live-dashboard.js"), "utf8");
-assert.ok(dashboardSource.includes("TradingEngine.evaluateSignal(main, higher,"),
-  "live dashboard must use canonical TradingEngine.evaluateSignal");
-assert.ok(dashboardSource.includes('"1m": ["3m", "15m"]'),
-  "1m signals must use actual 3m and 15m confirmation data");
-assert.ok(dashboardSource.includes('"3m": ["15m", "1h"]'),
-  "3m signals must use actual 15m and 1h confirmation data");
-assert.ok(dashboardSource.includes('"5m": ["15m", "1h"]'),
-  "5m signals must use actual 15m and 1h confirmation data");
-assert.ok(dashboardSource.includes('"15m": ["1h", "4h"]'),
-  "15m signals must use actual 1h and 4h confirmation data");
-assert.ok(!dashboardSource.includes('score >= 65 ? "BUY" : score <= 35 ? "SELL"'),
-  "legacy independent threshold scorer must not generate BUY/SELL");
+const liveSource = fs.readFileSync(require.resolve("../trading-engine.js"), "utf8");
+assert.ok(liveSource.includes("TradingEngine.evaluateSignal(main,higher"),
+  "live layer must use canonical signal evaluation");
+assert.ok(liveSource.includes("function seedHigher"),
+  "live layer must fetch genuine higher-timeframe candles");
+assert.ok(liveSource.includes("if(!k||k.x!==true)return"),
+  "live layer must use closed candles only");
+assert.ok(!liveSource.includes('fast.signal==="NOPEA OSTA"') &&
+  !liveSource.includes('fast.signal==="NOPEA MYY"'),
+  "fast heuristic must not generate directional live signals");
+assert.ok(liveSource.includes("not a win probability"),
+  "no technical score may be displayed as win probability");
