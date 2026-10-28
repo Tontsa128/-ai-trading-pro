@@ -109,10 +109,12 @@
       return "Volyymi " + ratio + " (" + (x.ok ? "vaatimus ≥ 0.50× täyttyy" : "vaatimus ≥ 0.50× ei täyty") + ")";
     }
     if (x.name.indexOf("Kaksi suurempaa aikaväliä") === 0) {
-      var fourHour = higher[0] && higher[0].checks ? higher[0].checks.bias : "neutral";
-      var daily = higher[1] && higher[1].checks ? higher[1].checks.bias : "neutral";
+      var hasOneHour = higher.length >= 3;
+      var oneHour = hasOneHour && higher[0] && higher[0].checks ? higher[0].checks.bias : checks.bias;
+      var fourHour = higher[hasOneHour ? 1 : 0] && higher[hasOneHour ? 1 : 0].checks ? higher[hasOneHour ? 1 : 0].checks.bias : "neutral";
+      var daily = higher[hasOneHour ? 2 : 1] && higher[hasOneHour ? 2 : 1].checks ? higher[hasOneHour ? 2 : 1].checks.bias : "neutral";
       var requiredBias = side === "SELL" ? "bear" : "bull";
-      return "1 h: " + trendLabelFi(checks.bias) + ", 4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
+      return "1 h: " + trendLabelFi(oneHour) + ", 4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
         "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d " + trendLabelFi(requiredBias).toLowerCase() + ".");
     }
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
@@ -180,7 +182,9 @@
     var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
     var rawPriceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);var priceAgeMs=rawPriceAgeMs<0&&rawPriceAgeMs>=-5000?0:rawPriceAgeMs;
     var common=[{name:"Riittävästi historiadataa",ok:main.high.length>=220},{name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 30 s)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=30000)},{name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},{name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}];
-    var upConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bull";}),downConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bear";});
+    var hasThreeHigher=higher.length>=3;
+    var confirmationHigher=hasThreeHigher?[higher[1],higher[2]]:higher;
+    var upConfirmed=confirmationHigher.length>=2&&confirmationHigher.every(function(x){return x&&x.checks&&x.checks.bias==="bull";}),downConfirmed=confirmationHigher.length>=2&&confirmationHigher.every(function(x){return x&&x.checks&&x.checks.bias==="bear";});
     var referencePrice=Number.isFinite(market.price)&&market.price>0?market.price:b.close;
     var supportRoom=main.support>0&&Number.isFinite(b.atr)?(referencePrice-main.support)/b.atr:NaN,resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-referencePrice)/b.atr:NaN;
     var longSpace=Number.isFinite(resistanceRoom)&&resistanceRoom>=MIN_LEVEL_CLEARANCE_ATR,shortSpace=Number.isFinite(supportRoom)&&supportRoom>=MIN_LEVEL_CLEARANCE_ATR;
