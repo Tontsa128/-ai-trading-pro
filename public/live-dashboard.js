@@ -177,11 +177,8 @@
       var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
     }
     var base = gatedScore(scores[state.interval] || scores["5m"] || scores["1m"] || scoreFor(state.bars, livePrice));
-    if (base) {
-      var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
-      var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      // The canonical TradingEngine.evaluateSignal() owns the main decision.
-    }
+    // The canonical evaluator owns RSI, ADX, and the decision for the selected interval.
+    // The WebSocket layer updates only live price, 24 h change, and order-book spread.
     var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 6) + "%" : "—"; }
   }
 
