@@ -2,6 +2,7 @@
 global.window=global;
 require("../public/trading-engine.js");
 const E=global.TradingEngine,fs=require("node:fs"),path=require("node:path");
+const resolvePaperExit=require("./paper-exit.js");
 if(!E||typeof E.evaluateSignal!=="function"||typeof E.calculateTradePlan!=="function"||typeof E.detectPatterns!=="function")throw Error("Canonical risk engine unavailable; refusing to run paper cycle.");
 const root=path.resolve(__dirname,".."),data=path.join(root,"data"),reports=path.join(data,"reports");
 const symbols=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"],feePct=.10,slipPct=.05,cycleAt=Date.now();
@@ -26,12 +27,9 @@ async function run(){
    pos.lastPrice=m.price;
    for(const cb of newBars){
     if(cb.closeTime<=Number(pos.entryCandleTime||0))continue;
-    const stop=cb.low<=pos.stop,target=cb.high>=pos.target;
-    if(stop||target){
-     // A stop-market order gaps through at the candle open, not at the more favorable stop price.
-     // A target limit remains conservatively filled at its target even if the candle opens above it.
-     const exitPrice=stop?(Number.isFinite(cb.open)&&cb.open<pos.stop?cb.open:pos.stop):pos.target;
-     const t=sell(s,sym,pos,exitPrice,stop&&target?"Stop-first ambiguous candle":stop?(exitPrice<pos.stop?"Stop-loss gap":"Stop-loss"):"Take-profit",cb.closeTime);
+    const outcome=resolvePaperExit(cb,pos.stop,pos.target);
+    if(outcome){
+     const t=sell(s,sym,pos,outcome.price,outcome.reason,cb.closeTime);
      closed.push(t);action="PAPER_SELL";reason=t.reason;pos=null;break;
     }
    }
