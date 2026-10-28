@@ -56,6 +56,18 @@ assert.ok(liveGuards.includes("MAX_TRADE_AGE_MS = 5000") &&
   liveGuards.includes("MAX_BOOK_AGE_MS = 3000") &&
   liveGuards.includes("MAX_SPREAD_PCT = 0.15"),
   "live signal guard must enforce documented data-age and spread thresholds");
+const engineSource = fs.readFileSync("public/trading-engine.js", "utf8");
+assert.ok(engineSource.includes('b.close > b.ema200 ? "yläpuolella"') &&
+  engineSource.includes('b.ema50 > b.ema200 ? "yläpuolella"') &&
+  engineSource.includes('b.ema9 > b.ema21 ? "yläpuolella"'),
+  "EMA checklist descriptions must be generated from the actual measured relationships");
+assert.ok(engineSource.includes('"+DI " + fixedFi(b.pdi, 1)') &&
+  engineSource.includes('"−DI " + fixedFi(b.mdi, 1)') &&
+  engineSource.includes('"RSI " + fixedFi(b.rsi, 1)'),
+  "the checklist must expose the actual RSI, ADX and directional-index values");
+assert.ok(!/toLocaleString\\("en-US"/.test(html),
+  "dashboard numeric formatting must use Finnish locale consistently");
+
 const repairScript = fs.readFileSync("scripts/repair-mobile-chart.js", "utf8");
 assert.ok(repairScript.indexOf("live-signal-guards.js") < repairScript.indexOf("live-dashboard.js"),
   "Vercel build must load live signal guards before live dashboard code");
