@@ -1,0 +1,52 @@
+name: Paper trading data collection (2-hour cycle)
+
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/paper-trading-cycle.yml"
+      - "trading-engine.js"
+      - "public/trading-engine.js"
+      - "scripts/paper-trading-cycle.js"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: paper-trading-cycle
+  cancel-in-progress: false
+
+jobs:
+  collect-and-simulate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout persisted paper portfolio and reports
+        uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Validate collector syntax
+        run: node --check scripts/paper-trading-cycle.js
+      - name: Collect public market data and run paper-trading cycle
+        run: node scripts/paper-trading-cycle.js
+      - name: Verify state and report are valid JSON
+        run: |
+          node -e "const s=require('./data/paper-state.json'); const r=require('./data/latest-report.json'); if(s.mode!=='paper'||r.mode!=='paper'||!Array.isArray(r.symbols)) process.exit(1); console.log('Validated paper state and latest report')"
+      - name: Persist cycle state and report
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/
+          if git diff --cached --quiet; then
+            echo "No report changes to persist"
+          else
+            git commit -m "Record two-hour paper trading cycle"
+            git push
+          fi
