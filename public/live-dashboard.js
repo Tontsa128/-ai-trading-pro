@@ -207,7 +207,7 @@
     $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
@@ -224,21 +224,25 @@
 
   async function refreshScalpScores() {
     var symbol = state.symbol;
-    var scores = {};
-    for (var i = 0; i < 4; i++) {
-      if (symbol !== state.symbol) return;
-      var tf = ["1m", "3m", "5m", "15m"][i];
-      try {
-        var bars = await getBars(tf, symbol);
-        if (symbol !== state.symbol) return;
-        scores[tf] = scoreFor(bars, state.tradePrice);
-        if (tf === "1m") state.bars = bars;
-      } catch (e) {
-        if (symbol !== state.symbol) return;
-        scores[tf] = null;
-      }
-    }
+    var timeframes = ["1m", "3m", "5m", "15m"];
+    var fetched = await Promise.all(timeframes.map(async function (tf) {
+      try { return { tf: tf, bars: await getBars(tf, symbol), error: null }; }
+      catch (error) { return { tf: tf, bars: null, error: error }; }
+    }));
     if (symbol !== state.symbol) return;
+    // Align every card to the newest candle close shared by all successfully fetched intervals.
+    var latestCloses = fetched.filter(function (item) { return item.bars && item.bars.length; })
+      .map(function (item) { return item.bars[item.bars.length - 1].closeTime; });
+    var snapshotCloseTime = latestCloses.length ? Math.min.apply(null, latestCloses) : NaN;
+    var scores = {};
+    fetched.forEach(function (item) {
+      if (!item.bars || !Number.isFinite(snapshotCloseTime)) { scores[item.tf] = null; return; }
+      var aligned = item.bars.filter(function (bar) { return bar.closeTime <= snapshotCloseTime; });
+      scores[item.tf] = aligned.length >= 60 ? scoreFor(aligned, state.tradePrice) : null;
+      if (item.tf === "1m") state.bars = aligned;
+    });
+    if (symbol !== state.symbol) return;
+    state.snapshotCloseTime = snapshotCloseTime;
     state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }
