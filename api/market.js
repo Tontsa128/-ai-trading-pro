@@ -20,7 +20,7 @@ function one(value) {
 
 function integer(value, min, max) {
   if (value === "") return null;
-  if (!/^\\d+$/.test(value)) return null;
+  if (!/^\d+$/.test(value)) return null;
   const n = Number(value);
   return Number.isSafeInteger(n) && n >= min && n <= max ? n : null;
 }
