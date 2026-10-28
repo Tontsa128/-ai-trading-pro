@@ -277,7 +277,7 @@
         if (d.e === "kline") { var k = d.k; var candle = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; if (k.i === "1m") state.live = candle; if (k.i === state.interval) state.chartLive = candle; }
         var quick = scoreFor(state.bars, state.tradePrice);
         state.lastScores = Object.assign({}, state.lastScores || {}, { "1m": quick });
-        updateUi(state.lastScores); renderLiveChart();
+        updateUi(state.lastScores);
       } catch (e) {}
     };
     socket.onerror = function () {
