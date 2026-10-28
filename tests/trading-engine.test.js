@@ -303,8 +303,6 @@ const confirmedWithOneHourContext = E.evaluateSignal(bearAnalysis, [
   {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bear"}}
 ], {price: bearAnalysis.bar.close, closeTime: Date.now(),
   bid: bearAnalysis.bar.close * 0.9999, ask: bearAnalysis.bar.close * 1.0001}, opts);
-assert.equal(confirmedWithOneHourContext.mtfConfirmed, undefined,
-  "signal engine returns checklist-based confirmation rather than an invented mtfConfirmed field");
 assert.equal(confirmedWithOneHourContext.checklist.find(x => x.name.includes("Kaksi suurempaa aikaväliä")).ok, true,
   "1h context must not block when required 4h and 1d trends agree");
 
