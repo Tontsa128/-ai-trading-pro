@@ -85,7 +85,7 @@
         macdHist:hist[i],volumeRatio:volumeRatio[i]});
     });
   }
-  function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "EPÄSELVÄ"; }
+  function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "Ei vahvistusta"; }
   function fixed(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla"; }
   function signedFixed(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla"; }
   // Percent inputs are expressed in percentage points; half the spread is charged per side.
@@ -111,7 +111,7 @@
       var daily = higher[1] && higher[1].checks ? higher[1].checks.bias : "neutral";
       var requiredBias = side === "SELL" ? "bear" : "bull";
       return "1 h: " + trendLabelFi(checks.bias) + ", 4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
-        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d laskua.");
+        "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d " + trendLabelFi(requiredBias).toLowerCase() + ".");
     }
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
       var supportDistance = referencePrice - main.support;
@@ -153,7 +153,7 @@
       return "Nykyinen hajonta " + fixed(spreadPct, 4) + " %; raja enintään 0.1500 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
-      return "Markkinahinnan ikä " + fixed(priceAgeMs / 1000, 1) + " sekuntia";
+      return "Ikä " + fixed(priceAgeMs / 1000, 1) + " s; raja 30 s";
     }
     return x.name;
   }
@@ -177,7 +177,7 @@
     var opts=Object.assign({},COST_DEFAULTS,options||{}),checks=main.checks,b=main.bar;
     var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
     var rawPriceAgeMs=opts.historical?0:Date.now()-Number(market.closeTime||0);var priceAgeMs=rawPriceAgeMs<0&&rawPriceAgeMs>=-5000?0:rawPriceAgeMs;
-    var common=[{name:"Riittävästi historiadataa",ok:main.high.length>=220},{name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 5 min)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=300000)},{name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},{name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}];
+    var common=[{name:"Riittävästi historiadataa",ok:main.high.length>=220},{name:opts.historical?"Historiallinen kynttilä sulkeutunut":"Markkinahinta tuore (alle 30 s)",ok:opts.historical===true||(Number.isFinite(priceAgeMs)&&priceAgeMs>=-30000&&priceAgeMs<=30000)},{name:"Osto/myyntihajonta enintään 0,15 %",ok:spreadPct<=0.15},{name:"Ei poikkeuksellisen suuri ATR-volatiliteetti",ok:!main.highVolatility},{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended}];
     var upConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bull";}),downConfirmed=higher.length>=2&&higher.every(function(x){return x.checks.bias==="bear";});
     var referencePrice=Number.isFinite(market.price)&&market.price>0?market.price:b.close;
     var supportRoom=main.support>0&&Number.isFinite(b.atr)?(referencePrice-main.support)/b.atr:NaN,resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-referencePrice)/b.atr:NaN;
