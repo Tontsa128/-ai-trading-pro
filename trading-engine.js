@@ -120,8 +120,8 @@
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
       var supportDistance = referencePrice - main.support;
       var supportMin = 0.5 * b.atr;
-      return "Viitehinta " + fixedFi(referencePrice, 2) + "; tuki " + fixedFi(main.support, 2) + "; etäisyys " + fixedFi(supportDistance, 2) +
-        " hinnan yksikköä (" + fixedFi(supportRoom, 2) + " ATR); vaatimus ≥ " + fixedFi(supportMin, 2) + " (0.50 ATR)";
+      return "Tukea " + fixedFi(supportRoom, 2) + " ATR:n päässä; vaaditaan vähintään 0,50 ATR. Viitehinta " + fixedFi(referencePrice, 2) +
+        "; tuki " + fixedFi(main.support, 2) + "; hintaero " + fixedFi(supportDistance, 2) + ".";
     }
     if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) {
       var resistanceDistance = main.resistance - referencePrice;
@@ -154,7 +154,7 @@
       return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan 32–50";
     }
     if (x.name.indexOf("Osto/myyntihajonta") === 0) {
-      return "Nykyinen hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0.1500 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "Hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
       return "Ikä " + fixedFi(priceAgeMs / 1000, 1) + " s; raja 30 s";
