@@ -96,7 +96,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 "use strict";
 var $=function(id){return document.getElementById(id);}, timer=null, busy=false, refreshToken=0;
 var periods=["1m","3m","5m","15m","1h","4h","1d","3d","1w"];
-function fmt(n,d){if(n===null||n===undefined||n===""||!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("en-US",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
+function fmt(n,d){if(n===null||n===undefined||n===""||!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("fi-FI",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
 function fmtPrice(n){if(n===null||n===undefined||n==="")return "—";var v=Number(n);return fmt(v,v<0.01?6:v<1?5:2);}
 function money(n){return fmt(n,2)+" USDT";}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
@@ -267,7 +267,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  var plotW=width-left-right,plotH=height-top-bottom,step=plotW/d.length,candleW=Math.max(1.5,Math.min(10,step*0.68));
  function x(i){return left+step*(i+0.5);}
  function y(v){return top+(max-v)/(max-min)*plotH;}
- function num(v){return Number(v).toLocaleString("en-US",{maximumSignificantDigits:7});}
+ function num(v){return Number(v).toLocaleString("fi-FI",{maximumSignificantDigits:7});}
  function escSvg(v){return String(v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
  var out=['<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="',escSvg(symbol),' kynttiläkaavio; ',d.length,' kynttilää" viewBox="0 0 ',width,' ',height,'" style="width:100%;height:auto;display:block;background:#101d30;border-radius:10px" preserveAspectRatio="xMidYMid meet">'];
  out.push('<rect width="100%" height="100%" fill="#101d30"/>');
