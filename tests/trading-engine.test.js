@@ -269,6 +269,10 @@ assert.ok(!liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
 assert.ok(liveEngineSource.includes("not a win probability"),
   "the UI must not label technical checklist scores as win probabilities");
 
+assert.match(publicLiveEngineSource, /b\.closeTime>=entryBar\.time/, "backtest cannot enter before the signal candle has closed");
+assert.match(publicLiveEngineSource, /calculateTradePlan\("BUY",entry,atr,decision\.patterns/, "backtest sizes the position with the same canonical risk planner at the actual next-candle entry");
+assert.match(publicLiveEngineSource, /Number\.isFinite\(x\.closeTime\)&&x\.closeTime<=b\.closeTime/, "higher-timeframe history is limited to candles already closed at signal time");
+assert.match(liveEngineSource, /b\.closeTime>=entryBar\.time/, "server engine backtest has the same no-lookahead entry guard");
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
 
 assert.ok(liveDashboardSource.includes('momentumText = s && Number.isFinite(s.momentum)'), "missing momentum must render as an em dash without a plus sign");
