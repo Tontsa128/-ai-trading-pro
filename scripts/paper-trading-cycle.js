@@ -1,7 +1,8 @@
 "use strict";
 global.window=global;
-require("../trading-engine.js");
+require("../public/trading-engine.js");
 const E=global.TradingEngine,fs=require("node:fs"),path=require("node:path");
+if(!E||typeof E.evaluateSignal!=="function"||typeof E.calculateTradePlan!=="function"||typeof E.detectPatterns!=="function")throw Error("Canonical risk engine unavailable; refusing to run paper cycle.");
 const root=path.resolve(__dirname,".."),data=path.join(root,"data"),reports=path.join(data,"reports");
 const symbols=["BTCUSDT","ETHUSDT","SOLUSDT","BNBUSDT","XRPUSDT","DOGEUSDT"],feePct=.10,slipPct=.05,cycleAt=Date.now();
 const statePath=path.join(data,"paper-state.json");
