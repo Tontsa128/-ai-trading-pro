@@ -15,7 +15,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
   var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
-  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d }); };
   var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
 
   function injectUi() {
