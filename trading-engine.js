@@ -88,6 +88,8 @@
   function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "Ei vahvistusta"; }
   function fixed(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla"; }
   function signedFixed(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla"; }
+  function fixedFi(value, digits) { return Number.isFinite(value) ? value.toLocaleString("fi-FI", {minimumFractionDigits:digits,maximumFractionDigits:digits}) : "ei saatavilla"; }
+  function signedFixedFi(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + fixedFi(value, digits) : "ei saatavilla"; }
   // Percent inputs are expressed in percentage points; half the spread is charged per side.
   function estimatePerSideFriction(feePct, slippagePct, spreadPct) {
     var feeRate = Math.max(0, number(feePct) || 0) / 100;
@@ -100,7 +102,7 @@
     if (x.name.indexOf("MACD-histogrammi") === 0) {
       var bearishMacd = x.name.indexOf("negatiivinen") >= 0;
       var requirement = bearishMacd ? "< 0 (laskusuunnan ehto)" : "> 0 (noususuunnan ehto)";
-      return "MACD-histogrammi " + signedFixed(b.macdHist, 6) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "MACD-histogrammi " + signedFixedFi(b.macdHist, 6) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Volyymi") === 0) {
       var ratio = Number.isFinite(b.volumeRatio) ? b.volumeRatio.toFixed(2) + "×" : "ei saatavilla";
@@ -116,44 +118,44 @@
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
       var supportDistance = referencePrice - main.support;
       var supportMin = 0.5 * b.atr;
-      return "Viitehinta " + fixed(referencePrice, 2) + "; tuki " + fixed(main.support, 2) + "; etäisyys " + fixed(supportDistance, 2) +
-        " hinnan yksikköä (" + fixed(supportRoom, 2) + " ATR); vaatimus ≥ " + fixed(supportMin, 2) + " (0.50 ATR)";
+      return "Viitehinta " + fixedFi(referencePrice, 2) + "; tuki " + fixedFi(main.support, 2) + "; etäisyys " + fixedFi(supportDistance, 2) +
+        " hinnan yksikköä (" + fixedFi(supportRoom, 2) + " ATR); vaatimus ≥ " + fixedFi(supportMin, 2) + " (0.50 ATR)";
     }
     if (x.name.indexOf("Ostolle tilaa vastukseen") === 0) {
       var resistanceDistance = main.resistance - referencePrice;
       var resistanceMin = 0.5 * b.atr;
-      return "Viitehinta " + fixed(referencePrice, 2) + "; vastus " + fixed(main.resistance, 2) + "; etäisyys " + fixed(resistanceDistance, 2) +
-        " hinnan yksikköä (" + fixed(resistanceRoom, 2) + " ATR); vaatimus ≥ " + fixed(resistanceMin, 2) + " (0.50 ATR)";
+      return "Viitehinta " + fixedFi(referencePrice, 2) + "; vastus " + fixedFi(main.resistance, 2) + "; etäisyys " + fixedFi(resistanceDistance, 2) +
+        " hinnan yksikköä (" + fixedFi(resistanceRoom, 2) + " ATR); vaatimus ≥ " + fixedFi(resistanceMin, 2) + " (0.50 ATR)";
     }
     if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") {
       var emaDistanceAtr = Number.isFinite(b.atr) && b.atr > 0 ? Math.abs(b.close-b.ema21)/b.atr : NaN;
       return (x.ok ? "Hinta ei ole liian kaukana" : "Hinta on liian kaukana") + " EMA 21:stä: " +
-        fixed(Math.abs(b.close-b.ema21), 2) + " hinnan yksikköä (" + fixed(emaDistanceAtr, 2) +
+        fixedFi(Math.abs(b.close-b.ema21), 2) + " hinnan yksikköä (" + fixedFi(emaDistanceAtr, 2) +
         " ATR; sallittu enintään 1.60 ATR); " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) {
-      return "ATR-volatiliteetti " + fixed(b.atrPct, 2) + " %; raja enintään 3.00 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "ATR-volatiliteetti " + fixedFi(b.atrPct, 2) + " %; raja enintään 3.00 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Riittävästi historiadataa") === 0) {
       return main.high.length + " suljettua kynttilää; vähimmäismäärä 220";
     }
     if (x.name.indexOf("Hinta EMA 200:n") === 0) {
-      return "Hinta " + fixed(b.close, 2) + " on EMA 200:n (" + fixed(b.ema200, 2) + ") alapuolella";
+      return "Hinta " + fixedFi(b.close, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
     }
     if (x.name.indexOf("EMA 50 EMA 200:n") === 0) {
-      return "EMA 50 = " + fixed(b.ema50, 2) + " on EMA 200:n (" + fixed(b.ema200, 2) + ") alapuolella";
+      return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
     }
     if (x.name.indexOf("EMA 9 EMA 21:n") === 0) {
-      return "EMA 9 = " + fixed(b.ema9, 2) + " on EMA 21:n (" + fixed(b.ema21, 2) + ") alapuolella";
+      return "EMA 9 = " + fixedFi(b.ema9, 2) + " on EMA 21:n (" + fixedFi(b.ema21, 2) + ") alapuolella";
     }
     if (x.name.indexOf("RSI 32–50") === 0) {
-      return "RSI " + fixed(b.rsi, 1) + "; vaaditaan 32–50";
+      return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan 32–50";
     }
     if (x.name.indexOf("Osto/myyntihajonta") === 0) {
-      return "Nykyinen hajonta " + fixed(spreadPct, 4) + " %; raja enintään 0.1500 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "Nykyinen hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0.1500 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
-      return "Ikä " + fixed(priceAgeMs / 1000, 1) + " s; raja 30 s";
+      return "Ikä " + fixedFi(priceAgeMs / 1000, 1) + " s; raja 30 s";
     }
     return x.name;
   }
