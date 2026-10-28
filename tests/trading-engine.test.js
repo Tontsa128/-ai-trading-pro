@@ -127,7 +127,7 @@ const lowVolumeBar = {...bearAnalysis.bar, volumeRatio: 0.43};
 const lowVolumeMain = {...bearAnalysis, bar: lowVolumeBar, checks: E.explainCandle(lowVolumeBar)};
 const lowVolumeSignal = E.evaluateSignal(lowVolumeMain, [bearAnalysis, bearAnalysis],
   {price:lowVolumeBar.close,closeTime:Date.now(),bid:lowVolumeBar.close*0.9999,ask:lowVolumeBar.close*1.0001}, opts);
-assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0,43×") && x.includes("vaatimus ≥ 0.50×")),
+assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0,43×") && x.includes("vaatimus ≥ 0,50×")),
   "volume blocker states the measured ratio and the required minimum");
 
 const extendedMain = {...analysed, overextended:true};
@@ -142,7 +142,7 @@ assert.equal(invalidIndicatorMain.highVolatility, true, "missing ATR percentage 
 const volatileMain = {...analysed, highVolatility:true, bar:{...analysed.bar,atrPct:4.2}};
 const volatileSignal = E.evaluateSignal(volatileMain, [analysed, analysed],
   {price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*0.9999,ask:analysed.bar.close*1.0001}, opts);
-assert.ok(volatileSignal.blockingReasons.some(x => x.includes("ATR-volatiliteetti 4.20 %") && x.includes("ehto ei täyty")),
+assert.ok(volatileSignal.blockingReasons.some(x => x.includes("ATR-volatiliteetti 4,20 %") && x.includes("ehto ei täyty")),
   "high ATR volatility blocker displays the measured value and explicit failure");
 
 assert.ok(lowVolumeSignal.blockingReasons.every(x => !x.includes("neutral")),
