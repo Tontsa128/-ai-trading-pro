@@ -168,7 +168,7 @@ function paintChecklist(sig){
   if(group!==lastGroup){list+='<div class="sub" style="font-weight:800;margin:12px 0 4px">'+esc(group)+'</div>';lastGroup=group;}
   list+='<div class="check"><span class="check-mark '+(x.ok?"yes":"no")+'">'+(x.ok?"✓":"×")+'</span><span>'+esc(x.name)+(x.detail?'<small class="sub" style="display:block;margin-top:3px">'+esc(x.detail)+'</small>':'')+'</span></div>';
  });
- var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":sig.checks.bias==="bear"?"Myyntiehdot: ei vahvistettu":sig.checks.bias==="bull"?"Ostoehdot: ei vahvistettu":(sig.checks.bearN>sig.checks.bullN?"Myyntiehdot: ei vahvistettu":"Ostoehdot: ei vahvistettu");
+ var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":sig.checks.bias==="bear"?"Myyntiehdot: ei vahvistettu. Spot-käytössä myynti koskee vain omistamaasi BTC:tä.":sig.checks.bias==="bull"?"Ostoehdot: ei vahvistettu":(sig.checks.bearN>sig.checks.bullN?"Myyntiehdot: ei vahvistettu. Spot-käytössä myynti koskee vain omistamaasi BTC:tä.":"Ostoehdot: ei vahvistettu");
  $("checklist").innerHTML='<div class="sub">Arvioitava suunta: <strong>'+esc(side)+'</strong></div>'+list;
  $("passed").textContent=sig.passed+" / "+sig.total+" ehtoa täyttyy";
 }
@@ -375,8 +375,10 @@ async function load(){
   $("signal").className="signal "+(signal.direction==="BUY"?"buy":signal.direction==="SELL"?"sell":"wait");
   $("summary").textContent=signal.reason==="ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta."?"Kaikki 14 ehtoa eivät täyty, joten signaalia ei anneta.":signal.reason;
   $("snapshotTime").textContent=new Date(snapshotCloseTime).toLocaleTimeString("fi-FI");
-  var timeframeRows=[{name:iv+" (valittu)",a:signal.main.checks.bias},{name:"1 h",a:higher[0].checks.bias},{name:"4 h",a:higher[1].checks.bias},{name:"1 d",a:higher[2].checks.bias}];
-  $("timeframes").innerHTML=timeframeRows.filter(function(t,i){return !(i>0&&t.name===iv);}).map(function(t){
+  var timeframeRows=[{name:iv+" (valittu)",a:signal.main.checks.bias}];
+  if(iv!=="1h")timeframeRows.push({name:"1 h",a:higher[0].checks.bias});
+  timeframeRows.push({name:"4 h",a:higher[1].checks.bias},{name:"1 d",a:higher[2].checks.bias});
+  $("timeframes").innerHTML=timeframeRows.map(function(t){
    var val=t.a==="bull"?"NOUSU":t.a==="bear"?"LASKU":"Ei vahvistusta";return '<div class="kv"><span>'+esc(t.name)+'</span><strong class="'+(t.a==="bull"?"good":t.a==="bear"?"bad":"neutral")+'">'+val+'</strong></div>';
   }).join("");
   $("levels").innerHTML='<div class="kv"><span>Tuki (30 edellistä suljettua kynttilää)</span><strong>'+fmtPrice(signal.main.support)+'</strong></div>'+
