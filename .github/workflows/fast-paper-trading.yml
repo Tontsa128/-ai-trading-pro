@@ -77,8 +77,8 @@ jobs:
           else
             git commit -m "Record 5-second paper trading session"
             for attempt in 1 2 3 4; do
-              git fetch origin main
-              git rebase origin/main
+              git fetch origin paper-data
+              git rebase origin/paper-data
               if git push origin HEAD:paper-data; then
                 exit 0
               fi
