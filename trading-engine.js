@@ -333,7 +333,7 @@
      WebSocket carries trade/bookTicker/kline events, while the chart is rendered locally.
      This keeps the candle chart alive on mobile even when Plotly fails or is slow. */
   function startLiveLayer(){
-    if(!document.getElementById("chart") || !window.TradingEngine) return;
+    if(!document.getElementById("chart") || !window.TradingEngine || document.getElementById("refresh")) return;
     var chart=document.getElementById("chart"), symbolEl=document.getElementById("symbol"), intervalEl=document.getElementById("interval"), statusEl=document.getElementById("status");
     var candles=[], higherCandles={}, socket=null, reconnectTimer=null, higherRefreshTimer=null, lastTrade=0, bid=NaN, ask=NaN, lastPrice=NaN, generation=0;
     var allowed={"1m":true,"3m":true,"5m":true,"15m":true,"1h":true,"4h":true,"1d":true};
