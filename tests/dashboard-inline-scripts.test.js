@@ -31,18 +31,22 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
   "the user-facing dashboard must not contain demo/paper-trading report panels");
 
 const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
-assert.ok(liveDashboard.includes("Tekninen pistemäärä") && liveDashboard.includes("Tämä ei ole kaupankäyntipäätös") && html.includes("Voittotodennäköisyyttä ei arvioida."),
-  "technical scores are distinguished from trading decisions and win probability is clarified once in the page header");
-assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pisteet "),
-  "bearish spot guidance must not imply short-selling or probability");
-assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
-  "bearish technical points must be oriented to the displayed direction");
-assert.ok(liveDashboard.includes("ODOTA · ehdot eivät täyty"),
-  "WAIT must explain that conditions are not met and must not be decorated with a fabricated confidence percentage");
-assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
-  !liveDashboard.includes('Math.round(base.score) + "%"') &&
+assert.ok(liveDashboard.includes("indikaattorit") && liveDashboard.includes("EI PÄÄTÖSTÄ"),
+  "short-timeframe cards display measured indicators, not an independent buy/sell decision");
+assert.ok(!liveDashboard.includes('var label = side === "BUY" ? "OSTA"') &&
+  !liveDashboard.includes('var sig = gatedScore(scoreFor(state.bars'),
+  "the independent score heuristic must not create buy labels or chart signal annotations");
+assert.ok(liveDashboard.includes("canonical evaluator owns RSI, ADX, and the decision for the selected interval"),
+  "the canonical evaluator is the sole owner of the main decision and selected-timeframe indicators");
+assert.ok(!liveDashboard.includes('var sig = $("signal"); if (sig)'),
+  "the live indicator layer must not overwrite the canonical decision");
+assert.ok(!liveDashboard.includes('var re = $("rsi")') && !liveDashboard.includes('var ae = $("adx")'),
+  "the WebSocket layer must not overwrite RSI/ADX from the selected analysis timeframe");
+assert.ok(html.includes("Voittotodennäköisyyttä ei arvioida."),
+  "the dashboard must not claim to estimate win probability");
+assert.ok(!liveDashboard.includes('Math.round(base.score) + "%"') &&
   !liveDashboard.includes('Math.round(50 + Math.abs(base.score - 50)) + "%"'),
-  "heuristic scores must never be rendered as percentages or win probabilities");
+  "heuristic scores must never be rendered as win probabilities");
 
 const liveGuards = fs.readFileSync("public/live-signal-guards.js", "utf8");
 assert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
@@ -54,6 +58,18 @@ assert.ok(liveGuards.includes("MAX_TRADE_AGE_MS = 5000") &&
   liveGuards.includes("MAX_BOOK_AGE_MS = 3000") &&
   liveGuards.includes("MAX_SPREAD_PCT = 0.15"),
   "live signal guard must enforce documented data-age and spread thresholds");
+const engineSource = fs.readFileSync("public/trading-engine.js", "utf8");
+assert.ok(engineSource.includes('b.close > b.ema200 ? "yläpuolella"') &&
+  engineSource.includes('b.ema50 > b.ema200 ? "yläpuolella"') &&
+  engineSource.includes('b.ema9 > b.ema21 ? "yläpuolella"'),
+  "EMA checklist descriptions must be generated from the actual measured relationships");
+assert.ok(engineSource.includes('"+DI " + fixedFi(b.pdi, 1)') &&
+  engineSource.includes('"−DI " + fixedFi(b.mdi, 1)') &&
+  engineSource.includes('"RSI " + fixedFi(b.rsi, 1)'),
+  "the checklist must expose the actual RSI, ADX and directional-index values");
+assert.ok(!/toLocaleString\("en-US"/.test(html),
+  "dashboard numeric formatting must use Finnish locale consistently");
+
 const repairScript = fs.readFileSync("scripts/repair-mobile-chart.js", "utf8");
 assert.ok(repairScript.indexOf("live-signal-guards.js") < repairScript.indexOf("live-dashboard.js"),
   "Vercel build must load live signal guards before live dashboard code");

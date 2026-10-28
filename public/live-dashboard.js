@@ -15,7 +15,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
   var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
-  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d }); };
   var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
 
   function injectUi() {
@@ -32,21 +32,19 @@
   }
 
   function cardHtml(tf, s) {
-    var side = s && s.side || "WAIT";
-    var cls = side === "BUY" ? "good" : side === "SELL" ? "bad" : "neutral";
-    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA · ehdot eivät täyty";
-    var rawScore = s && Number.isFinite(s.score) ? s.score : null;
-    var directionalPoints = rawScore === null ? null : side === "SELL" ? 100 - rawScore : rawScore;
-    var blocked = !!(s && s.gateReason);
-    var points = blocked ? "Pistemäärää ei näytetä, koska signaali on estetty." :
-      rawScore === null ? "Teknistä pistemäärää ei voi laskea." :
-      "Tekninen pistemäärä " + num(directionalPoints, 0) + "/100. Tämä ei ole kaupankäyntipäätös.";
-    var gateText = blocked ? '<br><strong>Esto:</strong> ' + esc(s.gateReason) : "";
-    var momentumText = s && Number.isFinite(s.momentum) ? (s.momentum >= 0 ? "+" : "") + s.momentum.toLocaleString("fi-FI", {minimumFractionDigits:3,maximumFractionDigits:3}) + " %" : "—";
-    var rsiValue = s && Number.isFinite(s.rsi) ? s.rsi.toLocaleString("fi-FI", {minimumFractionDigits:1,maximumFractionDigits:1}) : "—";
-    var rsiText = s && Number.isFinite(s.rsi) && s.rsi < 32 ? "RSI " + rsiValue + " alle 32 (ylimyyty)" : "RSI " + rsiValue;
-    var emaText = s && s.ema === "9<21" ? "EMA 9 alle EMA 21" : s && s.ema === "9>21" ? "EMA 9 yli EMA 21" : "EMA-suhde ei saatavilla";
-    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>' + emaText + ' · ' + rsiText + ' · momentti ' + momentumText + '</div></div>';
+    var momentumText = s && Number.isFinite(s.momentum)
+      ? (s.momentum >= 0 ? "+" : "") + s.momentum.toLocaleString("fi-FI", {minimumFractionDigits:3,maximumFractionDigits:3}) + " %"
+      : "—";
+    var rsiText = s && Number.isFinite(s.rsi)
+      ? s.rsi.toLocaleString("fi-FI", {minimumFractionDigits:1,maximumFractionDigits:1})
+      : "—";
+    var emaText = s && s.ema === "9<21" ? "EMA 9 alle EMA 21"
+      : s && s.ema === "9>21" ? "EMA 9 yli EMA 21" : "EMA-suhde ei saatavilla";
+    var adxText = s && Number.isFinite(s.adx)
+      ? s.adx.toLocaleString("fi-FI", {minimumFractionDigits:1,maximumFractionDigits:1}) : "—";
+    return '<div class="metric"><small>' + tf + ' · indikaattorit</small><strong class="neutral">EI PÄÄTÖSTÄ</strong>' +
+      '<div class="sub" style="font-size:12px;margin-top:5px">Live-kortti näyttää vain indikaattorit; osto-/myyntipäätös tulee yhteisestä tarkistuslogiikasta.' +
+      '<br>' + emaText + ' · RSI ' + rsiText + ' · ADX ' + adxText + ' · momentti ' + momentumText + '</div></div>';
   }
 
   function scoreFor(bars, livePrice) {
@@ -164,12 +162,7 @@
       d.forEach(function (v, k) { var q = Number(v[o[0]]); if (Number.isFinite(q)) pts.push(x(k).toFixed(1) + ',' + y(q).toFixed(1)); });
       if (pts.length > 1) out.push('<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + o[1] + '" stroke-width="' + (o[0] === 'ema200' ? 2 : 1.4) + '"/>');
     });
-    var sig = gatedScore(scoreFor(state.bars, state.tradePrice || state.live && state.live.close));
-    if (sig && sig.side !== "WAIT") {
-      var sc = sig.side === "BUY" ? '#28d7a0' : '#ff647c', points = Math.round(sig.side === "BUY" ? sig.score : 100 - sig.score), txt = sig.side === "BUY" ? "OSTA" : "MYY", yy2 = y(state.tradePrice || state.live.close);
-      out.push('<line x1="' + l + '" y1="' + yy2.toFixed(1) + '" x2="' + (w - r) + '" y2="' + yy2.toFixed(1) + '" stroke="' + sc + '" stroke-width="2" stroke-dasharray="7 4"/>');
-      out.push('<rect x="' + (w - r - 100) + '" y="' + Math.max(t, yy2 - 18).toFixed(1) + '" width="96" height="22" rx="8" fill="' + sc + '"/><text x="' + (w - r - 52) + '" y="' + Math.max(t + 15, yy2 - 3).toFixed(1) + '" text-anchor="middle" fill="#07111f" font-size="11" font-weight="900">' + txt + ' ' + points + '/100p</text>');
-    }
+    // Keep chart rendering independent of a second decision calculation.
     [0, Math.floor((d.length - 1) / 2), d.length - 1].forEach(function (k) { var dt = new Date(d[k].time), lab = dt.toLocaleString('fi-FI', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); out.push('<text x="' + x(k).toFixed(1) + '" y="' + (h - 12) + '" text-anchor="middle" fill="#a8bdd7" font-size="11">' + esc(lab) + '</text>'); });
     out.push('</svg>');
     target.innerHTML = out.join('');
@@ -184,17 +177,9 @@
       var ce = $("change"); if (ce) { ce.textContent = (state.tickerChange >= 0 ? "+" : "") + num(state.tickerChange, 2) + "%"; ce.className = state.tickerChange >= 0 ? "good" : "bad"; }
     }
     var base = gatedScore(scores[state.interval] || scores["5m"] || scores["1m"] || scoreFor(state.bars, livePrice));
-    if (base) {
-      var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
-      var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      var sig = $("signal"); if (sig) {
-        sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" :
-          base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" :
-          base.gateReason ? "ODOTA · " + base.gateReason : "ODOTA";
-        sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
-      }
-    }
-    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
+    // The canonical evaluator owns RSI, ADX, and the decision for the selected interval.
+    // The WebSocket layer updates only live price, 24 h change, and order-book spread.
+    var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 6) + "%" : "—"; }
   }
 
   function updateUi(scores) {
@@ -207,7 +192,7 @@
     $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 6) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
