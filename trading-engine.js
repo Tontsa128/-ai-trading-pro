@@ -147,13 +147,24 @@
         "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
     if (x.name.indexOf("EMA 50 EMA 200:n") === 0) {
-      return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
+      var ema50Relation = b.ema50 > b.ema200 ? "yläpuolella" : b.ema50 < b.ema200 ? "alapuolella" : "tasolla";
+      return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") " + ema50Relation +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
     if (x.name.indexOf("EMA 9 EMA 21:n") === 0) {
-      return "EMA 9 = " + fixedFi(b.ema9, 2) + " on EMA 21:n (" + fixedFi(b.ema21, 2) + ") alapuolella";
+      var ema9Relation = b.ema9 > b.ema21 ? "yläpuolella" : b.ema9 < b.ema21 ? "alapuolella" : "tasolla";
+      return "EMA 9 = " + fixedFi(b.ema9, 2) + " on EMA 21:n (" + fixedFi(b.ema21, 2) + ") " + ema9Relation +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
-    if (x.name.indexOf("RSI 32–50") === 0) {
-      return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan 32–50";
+    if (x.name.indexOf("RSI 32–50") === 0 || x.name.indexOf("RSI 50–68") === 0) {
+      var rsiRange = x.name.indexOf("RSI 32–50") === 0 ? "32–50" : "50–68";
+      return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan " + rsiRange + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("ADX vähintään 18") === 0) {
+      var directional = side === "SELL" ? "−DI " + fixedFi(b.mdi, 1) + " > +DI " + fixedFi(b.pdi, 1) :
+        "+DI " + fixedFi(b.pdi, 1) + " > −DI " + fixedFi(b.mdi, 1);
+      return "ADX " + fixedFi(b.adx, 1) + " (vaatimus ≥ 18); " + directional + "; " +
+        (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Osto/myyntihajonta") === 0) {
       return "Hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
