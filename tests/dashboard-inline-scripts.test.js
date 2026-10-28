@@ -36,8 +36,8 @@ assert.ok(liveDashboard.includes("indikaattorit") && liveDashboard.includes("EI 
 assert.ok(!liveDashboard.includes('var label = side === "BUY" ? "OSTA"') &&
   !liveDashboard.includes('var sig = gatedScore(scoreFor(state.bars'),
   "the independent score heuristic must not create buy labels or chart signal annotations");
-assert.ok(liveDashboard.includes("canonical TradingEngine.evaluateSignal() owns the main decision"),
-  "the canonical evaluator is the sole owner of the main decision");
+assert.ok(liveDashboard.includes("canonical evaluator owns RSI, ADX, and the decision for the selected interval"),
+  "the canonical evaluator is the sole owner of the main decision and selected-timeframe indicators");
 assert.ok(!liveDashboard.includes('var sig = $("signal"); if (sig)'),
   "the live indicator layer must not overwrite the canonical decision");
 assert.ok(!liveDashboard.includes('var re = $("rsi")') && !liveDashboard.includes('var ae = $("adx")'),
