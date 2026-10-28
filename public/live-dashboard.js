@@ -239,7 +239,7 @@
       if (!item.bars || !Number.isFinite(snapshotCloseTime)) { scores[item.tf] = null; return; }
       var aligned = item.bars.filter(function (bar) { return bar.closeTime <= snapshotCloseTime; });
       scores[item.tf] = aligned.length >= 60 ? scoreFor(aligned, state.tradePrice) : null;
-      if (item.tf === "1m") state.bars = aligned;
+      if (item.tf === "1m") state.bars = item.bars;
     });
     if (symbol !== state.symbol) return;
     state.snapshotCloseTime = snapshotCloseTime;
