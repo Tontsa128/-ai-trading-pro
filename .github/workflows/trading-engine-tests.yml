@@ -15,3 +15,10 @@ jobs:
         with:
           node-version: 20
       - run: npm test
+      - name: Checkout paper-data branch for paper exit regression tests
+        uses: actions/checkout@v4
+        with:
+          ref: paper-data
+          path: paper-data
+      - name: Test conservative paper exit fills
+        run: node paper-data/tests/paper-exit.test.js
