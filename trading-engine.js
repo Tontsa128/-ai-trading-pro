@@ -167,7 +167,7 @@
         (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Osto/myyntihajonta") === 0) {
-      return "Hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "Hajonta " + fixedFi(spreadPct, 6) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
       return "Ikä " + fixedFi(priceAgeMs / 1000, 1) + " s; raja 30 s";
