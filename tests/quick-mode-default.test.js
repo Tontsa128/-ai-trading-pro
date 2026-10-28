@@ -50,5 +50,6 @@ assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
 console.log("Quick Mode tests passed: 5m default, live WebSocket refresh, and selected-interval candles.");
 
 assert.match(live, /v == null \|\| v === ""/, "missing market values must remain missing rather than becoming zero");
-assert.match(live, /live !== null && live > 0 && p\.close > 0 \? \(live \/ p\.close - 1\) \* 100 : null/, "missing live price must not produce a false -100% momentum reading");
+assert.match(live, /if \(live === null \|\| live <= 0 \|\| !Number\.isFinite\(state\.lastTradeAt\)/, "missing live price must fail closed before momentum is calculated");
+assert.match(live, /live \/ enriched\[enriched\.length - 2\]\.close - 1/, "momentum must use a valid live price and the prior real candle");
 assert.match(live, /validBook = Number\.isFinite\(state\.bid\).*state\.bid > 0 && state\.ask >= state\.bid/, "zero or invalid bid/ask must not be rendered as a valid spread");
