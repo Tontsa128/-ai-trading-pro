@@ -349,19 +349,20 @@ function renderChart(series,signal,symbol,chartCount){
 async function load(){
  if(busy)return;busy=true;var myToken=++refreshToken;$("update").disabled=true;status("Haetaan sulkeutuneita kynttilöitä, suurempia aikavälejä ja spot-hintaa…");
  try{
-  var symbol=$("symbol").value,iv=$("interval").value,n=nextHigher(iv),opts=options();
+  var symbol=$("symbol").value,iv=$("interval").value,opts=options();
   var paths=[
    getBars(symbol,iv,500),
-   getBars(symbol,n[0],300),
-   getBars(symbol,n[1],300),
+   getBars(symbol,"1h",300),
+   getBars(symbol,"4h",300),
+   getBars(symbol,"1d",300),
    fetchJson("/api/v3/ticker/24hr?symbol="+symbol),
    fetchJson("/api/v3/ticker/bookTicker?symbol="+symbol)
   ];
   var data=await Promise.all(paths);if(myToken!==refreshToken)return;
   var main=data[0],snapshotCloseTime=main[main.length-1].closeTime;
-  var higherBars=data.slice(1,3).map(function(series){return series.filter(function(bar){return bar.closeTime<=snapshotCloseTime;});});
+  var higherBars=data.slice(1,4).map(function(series){return series.filter(function(bar){return bar.closeTime<=snapshotCloseTime;});});
   var higher=higherBars.map(function(series){return TradingEngine.analyzeSeries(series);});
-  var day=data[3],book=data[4],price=Number(day.lastPrice);
+  var day=data[4],book=data[5],price=Number(day.lastPrice);
   if(!Number.isFinite(price)||price<=0)throw new Error("Markkinahinta ei ole kelvollinen.");
   var signal=TradingEngine.evaluateSignal(TradingEngine.analyzeSeries(main),higher,
    {price:price,closeTime:Number(day.closeTime),bid:Number(book.bidPrice),ask:Number(book.askPrice)},opts);
@@ -374,11 +375,12 @@ async function load(){
   $("signal").className="signal "+(signal.direction==="BUY"?"buy":signal.direction==="SELL"?"sell":"wait");
   $("summary").textContent=signal.reason==="ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta."?"Kaikki 14 ehtoa eivät täyty, joten signaalia ei anneta.":signal.reason;
   $("snapshotTime").textContent=new Date(snapshotCloseTime).toLocaleTimeString("fi-FI");
-  $("timeframes").innerHTML=[{name:iv+" (valittu)",a:signal.main.checks.bias}, {name:n[0],a:higher[0].checks.bias},{name:n[1],a:higher[1].checks.bias}].map(function(t){
+  var timeframeRows=[{name:iv+" (valittu)",a:signal.main.checks.bias},{name:"1 h",a:higher[0].checks.bias},{name:"4 h",a:higher[1].checks.bias},{name:"1 d",a:higher[2].checks.bias}];
+  $("timeframes").innerHTML=timeframeRows.filter(function(t,i){return !(i>0&&t.name===iv);}).map(function(t){
    var val=t.a==="bull"?"NOUSU":t.a==="bear"?"LASKU":"Ei vahvistusta";return '<div class="kv"><span>'+esc(t.name)+'</span><strong class="'+(t.a==="bull"?"good":t.a==="bear"?"bad":"neutral")+'">'+val+'</strong></div>';
   }).join("");
-  $("levels").innerHTML='<div class="kv"><span>Tuki (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.support)+'</strong></div>'+
-   '<div class="kv"><span>Vastus (viimeiset 30 kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
+  $("levels").innerHTML='<div class="kv"><span>Tuki (30 edellistä suljettua kynttilää)</span><strong>'+fmtPrice(signal.main.support)+'</strong></div>'+
+   '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
    '<div class="kv"><span>ATR (14)</span><strong>'+fmtPrice(latest.atr)+'</strong></div>'+
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
