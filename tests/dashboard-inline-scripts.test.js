@@ -40,6 +40,8 @@ assert.ok(liveDashboard.includes("canonical TradingEngine.evaluateSignal() owns 
   "the canonical evaluator is the sole owner of the main decision");
 assert.ok(!liveDashboard.includes('var sig = $("signal"); if (sig)'),
   "the live indicator layer must not overwrite the canonical decision");
+assert.ok(!liveDashboard.includes('var re = $("rsi")') && !liveDashboard.includes('var ae = $("adx")'),
+  "the WebSocket layer must not overwrite RSI/ADX from the selected analysis timeframe");
 assert.ok(html.includes("Voittotodennäköisyyttä ei arvioida."),
   "the dashboard must not claim to estimate win probability");
 assert.ok(!liveDashboard.includes('Math.round(base.score) + "%"') &&
