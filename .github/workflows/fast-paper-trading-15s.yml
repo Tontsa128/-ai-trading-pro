@@ -42,7 +42,7 @@ jobs:
       - name: Checkout persistent 15-second paper portfolio
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || 'main' }}
+          ref: paper-data
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -71,7 +71,7 @@ jobs:
             for attempt in 1 2 3 4; do
               git fetch origin main
               git rebase origin/main
-              if git push origin HEAD:main; then
+              if git push origin HEAD:paper-data; then
                 exit 0
               fi
               git rebase --abort || true
