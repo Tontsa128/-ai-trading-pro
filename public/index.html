@@ -201,11 +201,11 @@ function renderRisk(sig){
 function renderBacktest(result){
  var enough=result.count>=100;
  $("btTrades").textContent=String(result.count);
- $("btWin").textContent=enough?fmt(result.winRate,1)+"%":"—";
- $("btPnl").textContent=enough?money(result.netPnl):"—";$("btPnl").className=enough?(result.netPnl>=0?"good":"bad"):"";
- $("btPct").textContent=enough?fmt(result.netPct,2)+"%":"—";$("btPct").className=enough?(result.netPct>=0?"good":"bad"):"";
- $("btDd").textContent=enough?fmt(result.maxDrawdownPct,2)+"%":"—";
- $("btPf").textContent=enough?(Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞"):"—";
+ $("btWin").textContent=enough?fmt(result.winRate,1)+"%":"Tuloksia ei näytetä, koska otos on liian pieni.";
+ $("btPnl").textContent=enough?money(result.netPnl):"Tuloksia ei näytetä, koska otos on liian pieni.";$("btPnl").className=enough?(result.netPnl>=0?"good":"bad"):"";
+ $("btPct").textContent=enough?fmt(result.netPct,2)+"%":"Tuloksia ei näytetä, koska otos on liian pieni.";$("btPct").className=enough?(result.netPct>=0?"good":"bad"):"";
+ $("btDd").textContent=enough?fmt(result.maxDrawdownPct,2)+"%":"Tuloksia ei näytetä, koska otos on liian pieni.";
+ $("btPf").textContent=enough?(Number.isFinite(result.profitFactor)?fmt(result.profitFactor,2):"∞"):"Tuloksia ei näytetä, koska otos on liian pieni.";
  $("btWarning").className="status "+(enough?"ok":"error");
  $("btWarning").textContent=enough?"Otos sisältää "+result.count+" kauppaa. Tämä on alustava historiallinen tulos, ei näyttö tulevasta kannattavuudesta.":"VAROITUS: vain "+result.count+" kauppaa (vähintään 100 on alustava tarkistusraja). Tulosmittarit näytetään viivana (—), koska otos on liian pieni johtopäätöksiin.";
  $("backtestNote").textContent=result.note+" Lähtöpääoma: "+money(result.startCapital)+", loppuarvo: "+(enough?money(result.endEquity):"—")+". Testi on long-only 1 h spot; päätöspolku käyttää evaluateSignal()-funktiota 4 h / 1 d -vahvistuksilla. Historiallinen spread on arvio.";
@@ -229,6 +229,11 @@ async function runHistoricalBacktest(){
   }));
   var selected=results.find(function(x){return x.symbol===$("symbol").value;})||results[0];
   renderBacktest(selected.result);
+  var countSummary=results.map(function(x){return x.symbol+": "+x.result.count+" kauppaa";}).join(", ");
+  if(results.some(function(x){return x.result.count<100;})){
+   $("btWarning").className="status error";
+   $("btWarning").textContent="Varoitus: "+countSummary+". Alustava raja on 100 kauppaa, joten tuloksista ei voi tehdä johtopäätöksiä.";
+  }
   $("btCompareRows").innerHTML=results.map(function(x){
    var r=x.outOfSample,ok=r.count>=30;
    return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+x.result.count+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Suuntaa-antava OOS":"Liian vähän dataa (alle 30 kauppaa)")+"</td></tr>";
@@ -387,6 +392,7 @@ async function load(){
   $("summary").textContent="Uutta signaalia ei muodostettu datan tai laskennan virheen vuoksi.";
   ["price","change","rsi","adx","spread"].forEach(function(id){$(id).textContent="—";});
   $("timestamp").textContent="Data ei päivittynyt";
+  $("snapshotTime").textContent="—";
   $("passed").textContent="Ehdot —";
   $("checklist").textContent="Tarkistuslista ei ole voimassa, koska tuoretta dataa ei saatu.";
   $("timeframes").textContent="Aikavälivahvistusta ei saatu.";
