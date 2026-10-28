@@ -45,27 +45,53 @@
     return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + momentumText + '</div></div>';
   }
 
-  function scoreFor(bars, livePrice) {
-    if (!Array.isArray(bars) || bars.length < 60 || !window.TradingEngine) return null;
-    var e = TradingEngine.enrich(bars), b = e[e.length - 1], p = e[e.length - 2];
-    if (!b || !p) return null;
-    var score = 50;
-    if (b.close > b.ema9) score += 8; else score -= 8;
-    if (b.ema9 > b.ema21) score += 12; else score -= 12;
-    if (b.close > b.ema50) score += 8; else score -= 8;
-    if (b.macdHist > 0) score += 10; else score -= 10;
-    if (Number.isFinite(b.adx)) score += b.adx >= 18 ? (b.pdi > b.mdi ? 8 : -8) : 0;
-    if (Number.isFinite(b.rsi)) {
-      if (b.rsi >= 50 && b.rsi <= 68) score += 7;
-      else if (b.rsi >= 32 && b.rsi < 50) score -= 4;
-      else if (b.rsi > 72) score -= 8;
-      else if (b.rsi < 28) score += 5;
+  // The canonical engine is the only source of BUY/SELL/WAIT decisions.
+  // Higher-timeframe candles are fetched from the real market endpoint; no timeframe is duplicated.
+  function scoreFor(bars, livePrice, higherBars, timeframe) {
+    if (!Array.isArray(bars) || bars.length < 220 || !window.TradingEngine ||
+        !Array.isArray(higherBars) || higherBars.length !== 2 ||
+        higherBars.some(function (series) { return !Array.isArray(series) || series.length < 220; })) {
+      return { score: null, side: "WAIT", actionable: false,
+        gateReason: "DATA FAIL: tarvitaan vähintään 220 kynttilää pää- ja molemmilta suuremmilta aikaväleiltä" };
     }
-    if (Number.isFinite(b.volumeRatio)) score += Math.max(-5, Math.min(5, (b.volumeRatio - 1) * 5));
-    var live = n(livePrice), mom = live !== null && live > 0 && p.close > 0 ? (live / p.close - 1) * 100 : null;
-    if (mom !== null) score += Math.max(-7, Math.min(7, mom * 40));
-    score = Math.max(1, Math.min(99, score));
-    return { score: score, side: score >= 65 ? "BUY" : score <= 35 ? "SELL" : "WAIT", rsi: b.rsi, adx: b.adx, ema: b.ema9 > b.ema21 ? "9>21" : "9<21", momentum: mom };
+    var live = n(livePrice);
+    if (live === null || live <= 0 || !Number.isFinite(state.lastTradeAt) || state.lastTradeAt <= 0 ||
+        !Number.isFinite(state.bid) || !Number.isFinite(state.ask) || state.bid <= 0 || state.ask < state.bid) {
+      return { score: null, side: "WAIT", actionable: false,
+        gateReason: "Odotetaan tuoretta Binance-kauppahintaa ja bid/ask-tarjousta" };
+    }
+    try {
+      var enriched = TradingEngine.enrich(bars);
+      var main = TradingEngine.analyzeSeries(enriched);
+      var higher = higherBars.map(function (series) {
+        return TradingEngine.analyzeSeries(TradingEngine.enrich(series));
+      });
+      var signal = TradingEngine.evaluateSignal(main, higher, {
+        price: live, closeTime: state.lastTradeAt, bid: state.bid, ask: state.ask
+      }, {
+        historical: false, capital: 1000, riskPct: 0.5, maxExposurePct: 25,
+        feePct: 0.1, slippagePct: 0.05
+      });
+      var score = signal.total > 0 ? Math.round(signal.passed / signal.total * 100) : null;
+      var side = signal.direction || "WAIT";
+      var result = {
+        score: score, side: side, rsi: main.bar.rsi, adx: main.bar.adx,
+        ema: main.bar.ema9 > main.bar.ema21 ? "9>21" : "9<21",
+        momentum: Number.isFinite(enriched[enriched.length - 2].close) && enriched[enriched.length - 2].close > 0
+          ? (live / enriched[enriched.length - 2].close - 1) * 100 : null,
+        timeframe: timeframe || null, reason: signal.reason,
+        blockingReasons: signal.blockingReasons, riskReward: signal.riskReward,
+        stop: signal.stop, target: signal.target, qty: signal.qty,
+        actionable: false
+      };
+      if (side === "WAIT" && signal.blockingReasons && signal.blockingReasons.length) {
+        result.gateReason = signal.blockingReasons[0];
+      }
+      return result;
+    } catch (error) {
+      return { score: null, side: "WAIT", actionable: false,
+        gateReason: "DATA FAIL: tekninen arvio epäonnistui (" + String(error && error.message || error) + ")" };
+    }
   }
 
   function currentGateReason() {
@@ -160,7 +186,7 @@
       d.forEach(function (v, k) { var q = Number(v[o[0]]); if (Number.isFinite(q)) pts.push(x(k).toFixed(1) + ',' + y(q).toFixed(1)); });
       if (pts.length > 1) out.push('<polyline points="' + pts.join(' ') + '" fill="none" stroke="' + o[1] + '" stroke-width="' + (o[0] === 'ema200' ? 2 : 1.4) + '"/>');
     });
-    var sig = gatedScore(scoreFor(state.bars, state.tradePrice || state.live && state.live.close));
+    var sig = gatedScore(state.lastScores && (state.lastScores[state.interval] || state.lastScores["5m"]));
     if (sig && sig.side !== "WAIT") {
       var sc = sig.side === "BUY" ? '#28d7a0' : '#ff647c', points = Math.round(sig.side === "BUY" ? sig.score : 100 - sig.score), txt = sig.side === "BUY" ? "OSTA" : "MYY", yy2 = y(state.tradePrice || state.live.close);
       out.push('<line x1="' + l + '" y1="' + yy2.toFixed(1) + '" x2="' + (w - r) + '" y2="' + yy2.toFixed(1) + '" stroke="' + sc + '" stroke-width="2" stroke-dasharray="7 4"/>');
@@ -221,20 +247,33 @@
   async function refreshScalpScores() {
     var symbol = state.symbol;
     var scores = {};
-    for (var i = 0; i < 4; i++) {
+    var timeframes = ["1m", "3m", "5m", "15m", "1h", "4h"];
+    var barsByTf = {};
+    // Fetch each real Binance timeframe once. A missing higher timeframe blocks the signal.
+    for (var i = 0; i < timeframes.length; i++) {
       if (symbol !== state.symbol) return;
-      var tf = ["1m", "3m", "5m", "15m"][i];
+      var tf = timeframes[i];
       try {
-        var bars = await getBars(tf, symbol);
-        if (symbol !== state.symbol) return;
-        scores[tf] = scoreFor(bars, state.tradePrice);
-        if (tf === "1m") state.bars = bars;
+        barsByTf[tf] = await getBars(tf, symbol);
       } catch (e) {
-        if (symbol !== state.symbol) return;
-        scores[tf] = null;
+        barsByTf[tf] = null;
       }
     }
     if (symbol !== state.symbol) return;
+    if (barsByTf["1m"]) state.bars = barsByTf["1m"];
+    var higherByTf = {
+      "1m": ["3m", "15m"],
+      "3m": ["15m", "1h"],
+      "5m": ["15m", "1h"],
+      "15m": ["1h", "4h"]
+    };
+    ["1m", "3m", "5m", "15m"].forEach(function (tf) {
+      var required = higherByTf[tf].map(function (higherTf) { return barsByTf[higherTf]; });
+      scores[tf] = barsByTf[tf] && required.every(function (series) { return Array.isArray(series); })
+        ? scoreFor(barsByTf[tf], state.tradePrice, required, tf)
+        : { score: null, side: "WAIT", actionable: false,
+            gateReason: "DATA FAIL: pää- tai suuremman aikavälin Binance-data puuttuu" };
+    });
     state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }
@@ -275,9 +314,9 @@
           }
         }
         if (d.e === "kline") { var k = d.k; var candle = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; if (k.i === "1m") state.live = candle; if (k.i === state.interval) state.chartLive = candle; }
-        var quick = scoreFor(state.bars, state.tradePrice);
-        state.lastScores = Object.assign({}, state.lastScores || {}, { "1m": quick });
-        updateUi(state.lastScores); renderLiveChart();
+        // WebSocket ticks refresh the freshness gate only; direction remains from the
+        // canonical engine's latest closed-candle + higher-timeframe evaluation.
+        updateUi(state.lastScores || {}); renderLiveChart();
       } catch (e) {}
     };
     socket.onerror = function () {
