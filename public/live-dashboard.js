@@ -25,7 +25,7 @@
     p.id = "liveScalpPanel";
     p.className = "panel";
     p.style.margin = "12px 0";
-    p.innerHTML = '<div class="section-title"><div><strong>⚡ Pikatreidaus live-paneeli</strong><div class="sub">1m · 3m · 5m · 15m · reaaliaikainen kauppavirta + kynttilä</div></div><span id="liveState" class="pill">YHDISTETÄÄN</span></div>' +
+    p.innerHTML = '<div class="section-title"><div><strong>Live-signaalit</strong><div class="sub">Aikaväli 1–15 min · päivittyy reaaliajassa</div></div><span id="liveState" class="pill">YHDISTETÄÄN</span></div>' +
       '<div id="liveScalpCards" class="metrics"></div>' +
       '<div class="sub" id="liveMeta">Yhdistetään Binance Spot -markkinadataan…</div>';
     chart.parentNode.insertBefore(p, chart);
@@ -34,15 +34,19 @@
   function cardHtml(tf, s) {
     var side = s && s.side || "WAIT";
     var cls = side === "BUY" ? "good" : side === "SELL" ? "bad" : "neutral";
-    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA";
+    var label = side === "BUY" ? "OSTA" : side === "SELL" ? "MYY / KEVENNÄ" : "ODOTA · ehdot eivät täyty";
     var rawScore = s && Number.isFinite(s.score) ? s.score : null;
     var directionalPoints = rawScore === null ? null : side === "SELL" ? 100 - rawScore : rawScore;
-    var points = rawScore === null ? "Tekniset pisteet eivät saatavilla" :
-      side === "WAIT" ? "Ei toimintarajaa · tekninen raakaskoori " + num(rawScore, 0) + "/100 · ei voittotodennäköisyys" :
-      "Suunnan tekniset pisteet " + num(directionalPoints, 0) + "/100 · ei voittotodennäköisyys";
-    var gateText = s && s.gateReason ? '<br><strong>Signaali estetty:</strong> ' + esc(s.gateReason) : "";
-    var momentumText = s && Number.isFinite(s.momentum) ? (s.momentum >= 0 ? "+" : "") + num(s.momentum, 3) + "%" : "—";
-    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>EMA ' + (s && s.ema || "—") + ' · RSI ' + num(s && s.rsi, 1) + ' · momentum ' + momentumText + '</div></div>';
+    var blocked = !!(s && s.gateReason);
+    var points = blocked ? "Pistemäärää ei näytetä, koska signaali on estetty." :
+      rawScore === null ? "Teknistä pistemäärää ei voi laskea." :
+      "Tekninen pistemäärä " + num(directionalPoints, 0) + "/100. Tämä ei ole kaupankäyntipäätös.";
+    var gateText = blocked ? '<br><strong>Esto:</strong> ' + esc(s.gateReason) : "";
+    var momentumText = s && Number.isFinite(s.momentum) ? (s.momentum >= 0 ? "+" : "") + s.momentum.toLocaleString("fi-FI", {minimumFractionDigits:3,maximumFractionDigits:3}) + " %" : "—";
+    var rsiValue = s && Number.isFinite(s.rsi) ? s.rsi.toLocaleString("fi-FI", {minimumFractionDigits:1,maximumFractionDigits:1}) : "—";
+    var rsiText = s && Number.isFinite(s.rsi) && s.rsi < 32 ? "RSI " + rsiValue + " alle 32 (ylimyyty)" : "RSI " + rsiValue;
+    var emaText = s && s.ema === "9<21" ? "EMA 9 alle EMA 21" : s && s.ema === "9>21" ? "EMA 9 yli EMA 21" : "EMA-suhde ei saatavilla";
+    return '<div class="metric"><small>' + tf + ' · live-signaali</small><strong class="' + cls + '">' + label + '</strong><div class="sub" style="font-size:12px;margin-top:5px">' + points + gateText + '<br>' + emaText + ' · ' + rsiText + ' · momentti ' + momentumText + '</div></div>';
   }
 
   function scoreFor(bars, livePrice) {
@@ -203,7 +207,7 @@
     $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
@@ -220,21 +224,25 @@
 
   async function refreshScalpScores() {
     var symbol = state.symbol;
-    var scores = {};
-    for (var i = 0; i < 4; i++) {
-      if (symbol !== state.symbol) return;
-      var tf = ["1m", "3m", "5m", "15m"][i];
-      try {
-        var bars = await getBars(tf, symbol);
-        if (symbol !== state.symbol) return;
-        scores[tf] = scoreFor(bars, state.tradePrice);
-        if (tf === "1m") state.bars = bars;
-      } catch (e) {
-        if (symbol !== state.symbol) return;
-        scores[tf] = null;
-      }
-    }
+    var timeframes = ["1m", "3m", "5m", "15m"];
+    var fetched = await Promise.all(timeframes.map(async function (tf) {
+      try { return { tf: tf, bars: await getBars(tf, symbol), error: null }; }
+      catch (error) { return { tf: tf, bars: null, error: error }; }
+    }));
     if (symbol !== state.symbol) return;
+    // Align every card to the newest candle close shared by all successfully fetched intervals.
+    var latestCloses = fetched.filter(function (item) { return item.bars && item.bars.length; })
+      .map(function (item) { return item.bars[item.bars.length - 1].closeTime; });
+    var snapshotCloseTime = latestCloses.length ? Math.min.apply(null, latestCloses) : NaN;
+    var scores = {};
+    fetched.forEach(function (item) {
+      if (!item.bars || !Number.isFinite(snapshotCloseTime)) { scores[item.tf] = null; return; }
+      var aligned = item.bars.filter(function (bar) { return bar.closeTime <= snapshotCloseTime; });
+      scores[item.tf] = aligned.length >= 60 ? scoreFor(aligned, state.tradePrice) : null;
+      if (item.tf === "1m") state.bars = item.bars;
+    });
+    if (symbol !== state.symbol) return;
+    state.snapshotCloseTime = snapshotCloseTime;
     state.lastScores = scores;
     updateUi(scores); renderLiveChart();
   }

@@ -98,7 +98,7 @@ const wideSpreadSignal = E.evaluateSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.2}, opts);
 const wideSpreadGate = wideSpreadSignal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
 assert.equal(wideSpreadGate.ok, false, "spread above 0.15% must fail closed");
-assert.ok(wideSpreadSignal.blockingReasons.some(x => x.includes("0.1500 %")),
+assert.ok(wideSpreadSignal.blockingReasons.some(x => x.includes("0,15 %")),
   "failed spread gate explains the configured limit");
 
 const bearRaw = [];
@@ -127,7 +127,7 @@ const lowVolumeBar = {...bearAnalysis.bar, volumeRatio: 0.43};
 const lowVolumeMain = {...bearAnalysis, bar: lowVolumeBar, checks: E.explainCandle(lowVolumeBar)};
 const lowVolumeSignal = E.evaluateSignal(lowVolumeMain, [bearAnalysis, bearAnalysis],
   {price:lowVolumeBar.close,closeTime:Date.now(),bid:lowVolumeBar.close*0.9999,ask:lowVolumeBar.close*1.0001}, opts);
-assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0.43×") && x.includes("vaatimus ≥ 0.50×")),
+assert.ok(lowVolumeSignal.blockingReasons.some(x => x.includes("Volyymi 0,43×") && x.includes("vaatimus ≥ 0,50×")),
   "volume blocker states the measured ratio and the required minimum");
 
 const extendedMain = {...analysed, overextended:true};
@@ -142,7 +142,7 @@ assert.equal(invalidIndicatorMain.highVolatility, true, "missing ATR percentage 
 const volatileMain = {...analysed, highVolatility:true, bar:{...analysed.bar,atrPct:4.2}};
 const volatileSignal = E.evaluateSignal(volatileMain, [analysed, analysed],
   {price:analysed.bar.close,closeTime:Date.now(),bid:analysed.bar.close*0.9999,ask:analysed.bar.close*1.0001}, opts);
-assert.ok(volatileSignal.blockingReasons.some(x => x.includes("ATR-volatiliteetti 4.20 %") && x.includes("ehto ei täyty")),
+assert.ok(volatileSignal.blockingReasons.some(x => x.includes("ATR-volatiliteetti 4,20 %") && x.includes("ehto ei täyty")),
   "high ATR volatility blocker displays the measured value and explicit failure");
 
 assert.ok(lowVolumeSignal.blockingReasons.every(x => !x.includes("neutral")),
@@ -272,3 +272,47 @@ assert.ok(liveDashboardSource.includes('d.e === "bookTicker" || (d.s === state.s
 
 assert.match(publicLiveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
 assert.match(liveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "server/test engine uses the same 5-second clock-skew guard as the browser engine");
+
+
+// Live support/resistance clearance and checklist explanation must use the same current reference price.
+const liveReferencePrice = bearAnalysis.bar.close + bearAnalysis.bar.atr * 0.8;
+const liveReferenceSignal = E.evaluateSignal(bearAnalysis, [bearAnalysis, bearAnalysis], {
+  price: liveReferencePrice, closeTime: Date.now(),
+  bid: liveReferencePrice * 0.9999, ask: liveReferencePrice * 1.0001
+}, opts);
+assert.ok(Math.abs(liveReferenceSignal.supportDistanceAtr -
+  (liveReferencePrice - bearAnalysis.support) / bearAnalysis.bar.atr) < 1e-9,
+  "support clearance must be computed from the same live reference price shown in the checklist");
+const supportDetail = liveReferenceSignal.checklist.find(x => x.name.includes("Myynnille tilaa tukeen"));
+assert.ok(supportDetail && supportDetail.detail.includes("Viitehinta") &&
+  supportDetail.detail.includes("Tukea") && supportDetail.detail.includes("hintaero"),
+  "support detail must show the reference price, support level and the matching price difference");
+
+// 4h and 1d are the required confirmation intervals; 1h is contextual, not an extra gate.
+const noDailyConfirmation = E.evaluateSignal(bearAnalysis, [
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bear"}},
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bear"}},
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bull"}}
+], {price: bearAnalysis.bar.close, closeTime: Date.now(),
+  bid: bearAnalysis.bar.close * 0.9999, ask: bearAnalysis.bar.close * 1.0001}, opts);
+assert.equal(noDailyConfirmation.direction, "WAIT",
+  "a bullish daily trend must block a bearish signal even when 1h and 4h are bearish");
+const confirmedWithOneHourContext = E.evaluateSignal(bearAnalysis, [
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bull"}},
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bear"}},
+  {...bearAnalysis, checks: {...bearAnalysis.checks, bias: "bear"}}
+], {price: bearAnalysis.bar.close, closeTime: Date.now(),
+  bid: bearAnalysis.bar.close * 0.9999, ask: bearAnalysis.bar.close * 1.0001}, opts);
+assert.equal(confirmedWithOneHourContext.checklist.find(x => x.name.includes("Kaksi suurempaa aikaväliä")).ok, true,
+  "1h context must not block when required 4h and 1d trends agree");
+
+assert.ok(dashboardSource.includes('getBars(symbol,"1h",300)') &&
+  dashboardSource.includes('getBars(symbol,"4h",300)') &&
+  dashboardSource.includes('getBars(symbol,"1d",300)'),
+  "main dashboard fetches 1h, 4h and 1d confirmation data explicitly");
+assert.ok(dashboardSource.includes('bar.closeTime<=snapshotCloseTime'),
+  "main dashboard aligns higher-timeframe candles to the selected candle close");
+assert.ok(liveDashboardSource.includes('Promise.all(timeframes.map') &&
+  liveDashboardSource.includes('Math.min.apply(null, latestCloses)') &&
+  liveDashboardSource.includes('bar.closeTime <= snapshotCloseTime'),
+  "live timeframe cards are fetched concurrently and aligned to one shared candle snapshot");
