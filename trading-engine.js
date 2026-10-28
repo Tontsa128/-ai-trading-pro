@@ -142,7 +142,9 @@
       return main.high.length + " suljettua kynttilää; vähimmäismäärä 220";
     }
     if (x.name.indexOf("Hinta EMA 200:n") === 0) {
-      return "Hinta " + fixedFi(b.close, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
+      var relation200 = b.close > b.ema200 ? "yläpuolella" : b.close < b.ema200 ? "alapuolella" : "tasolla";
+      return "Hinta " + fixedFi(b.close, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") " + relation200 +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
     if (x.name.indexOf("EMA 50 EMA 200:n") === 0) {
       return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
