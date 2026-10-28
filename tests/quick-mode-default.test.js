@@ -4,13 +4,17 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const html = fs.readFileSync("public/index.html", "utf8");
 const live = fs.readFileSync("public/live-dashboard.js", "utf8");
+const mainHtml = fs.readFileSync("index.html", "utf8");
+const engine = fs.readFileSync("trading-engine.js", "utf8");
 
 assert.match(html, /<select id="interval">[\s\S]*?<option selected>5m<\/option>/,
   "dashboard must open with the 5-minute analysis interval selected");
-assert.match(html, /<option value="0" selected>WebSocket live \(reaaliaikainen\)<\/option>/,
-  "live WebSocket updates should be the default refresh mode");
-assert.match(html, /<option value="5">5 sekuntia \(varapäivitys\)<\/option>/,
-  "a 5-second fallback refresh should be available");
+assert.match(html, /<option value="5" selected>5 sekuntia \(Binance REST\)<\/option>/,
+  "real Binance REST refresh should be the default instead of claiming a WebSocket that is not connected");
+assert.match(html, /<option value="0">Manuaalinen \(ei automaattista päivitystä\)<\/option>/,
+  "manual mode must be labeled honestly");
+assert.match(html, /<option value="5" selected>5 sekuntia \(Binance REST\)<\/option>/,
+  "the selected automatic refresh must use real Binance REST data");
 assert.match(live, /interval: "5m"/, "live chart defaults to 5m");
 assert.match(live, /&limit=500/, "chart history must fetch enough real candles for the 500-candle option");
 assert.match(live, /Math\.min\(500, Number\(countEl && countEl\.value\) \|\| 150\)/,
@@ -50,5 +54,13 @@ assert.match(live, /LIVE '\s*\+ esc\(state\.interval\.toUpperCase\(\)\)/,
 console.log("Quick Mode tests passed: 5m default, live WebSocket refresh, and selected-interval candles.");
 
 assert.match(live, /v == null \|\| v === ""/, "missing market values must remain missing rather than becoming zero");
-assert.match(live, /live !== null && live > 0 && p\.close > 0 \? \(live \/ p\.close - 1\) \* 100 : null/, "missing live price must not produce a false -100% momentum reading");
+assert.match(live, /if \(live === null \|\| live <= 0 \|\| !Number\.isFinite\(state\.lastTradeAt\)/, "missing live price must fail closed before momentum is calculated");
+assert.match(live, /live \/ enriched\[enriched\.length - 2\]\.close - 1/, "momentum must use a valid live price and the prior real candle");
 assert.match(live, /validBook = Number\.isFinite\(state\.bid\).*state\.bid > 0 && state\.ask >= state\.bid/, "zero or invalid bid/ask must not be rendered as a valid spread");
+
+assert.match(mainHtml, /<option value="5" selected>5 sekuntia \(Binance REST\)<\/option>/,
+  "main dashboard must default to real Binance REST refresh rather than claim websocket mode");
+assert.match(mainHtml, /<option value="0">Manuaalinen \(ei automaattista päivitystä\)<\/option>/,
+  "main dashboard manual mode must be labeled honestly");
+assert.match(engine, /document\.getElementById\("refresh"\)/,
+  "standalone websocket layer must not start on the main dashboard and overwrite its canonical REST signal");

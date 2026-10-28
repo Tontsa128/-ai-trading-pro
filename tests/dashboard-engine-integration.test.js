@@ -99,3 +99,19 @@ assert.equal(typeof deployedBacktest.profitFactor, "number",
   "dashboard backtest must return profit factor");
 
 console.log("Dashboard engine integration tests passed: deployed API, indicators, signals, and backtest match the canonical engine.");
+
+
+// The live dashboard must not have an independent heuristic scorer.
+const fs = require("node:fs");
+const liveSource = fs.readFileSync(require.resolve("../trading-engine.js"), "utf8");
+assert.ok(liveSource.includes("TradingEngine.evaluateSignal(main,higher"),
+  "live layer must use canonical signal evaluation");
+assert.ok(liveSource.includes("function seedHigher"),
+  "live layer must fetch genuine higher-timeframe candles");
+assert.ok(liveSource.includes("if(!k||k.x!==true)return"),
+  "live layer must use closed candles only");
+assert.ok(!liveSource.includes('fast.signal==="NOPEA OSTA"') &&
+  !liveSource.includes('fast.signal==="NOPEA MYY"'),
+  "fast heuristic must not generate directional live signals");
+assert.ok(liveSource.includes("not a win probability"),
+  "no technical score may be displayed as win probability");

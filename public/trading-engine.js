@@ -161,6 +161,73 @@
     var validEmaDistance=Number.isFinite(b.close)&&Number.isFinite(b.ema21)&&Number.isFinite(b.atr)&&b.atr>0;var overextended=!validEmaDistance||Math.abs(b.close-b.ema21)>1.6*b.atr,highVolatility=!Number.isFinite(b.atrPct)||b.atrPct>3;
     return {bar:b,checks:checks,longCore:longCore,shortCore:shortCore,overextended:overextended,highVolatility:highVolatility,support:Math.min.apply(null,series.slice(-31,-1).map(function(x){return x.low;})),resistance:Math.max.apply(null,series.slice(-31,-1).map(function(x){return x.high;})),high:series};
   }
+
+  function detectPatterns(series) {
+    var bars=Array.isArray(series)?series:[], n=bars.length, patterns=[];
+    function valid(b){return b&&[b.open,b.high,b.low,b.close,b.volume].every(Number.isFinite)&&b.high>=Math.max(b.open,b.close,b.low)&&b.low<=Math.min(b.open,b.close,b.high);}
+    function candle(b){
+      var range=b.high-b.low, body=Math.abs(b.close-b.open), upper=b.high-Math.max(b.open,b.close), lower=Math.min(b.open,b.close)-b.low;
+      return {range:range,body:body,upper:upper,lower:lower};
+    }
+    if(n<3||!bars.slice(-Math.min(n,40)).every(valid)) return {items:[],names:[],bullish:[],bearish:[],flag:null,pivots:{highs:[],lows:[]}};
+    var last=bars[n-1], prev=bars[n-2], p=candle(last), pp=candle(prev);
+    function add(name,direction,confidence,detail){patterns.push({name:name,direction:direction,confidence:confidence,detail:detail});}
+    if(p.range>0&&p.upper>=Math.max(p.body*2,p.range*.45)&&p.lower<=Math.max(p.body*.35,p.range*.12)&&p.body/p.range<=.35)
+      add("Shooting Star","bear",0.65,"Pitkä ylävarjo ja pieni runko; vahvistus vaatii seuraavan sulkeutuneen kynttilän.");
+    if(p.range>0&&p.lower>=Math.max(p.body*2,p.range*.45)&&p.upper<=Math.max(p.body*.35,p.range*.12)&&p.body/p.range<=.35)
+      add("Hammer","bull",0.65,"Pitkä alavarjo ja pieni runko; sijainti trendissä vaikuttaa tulkintaan.");
+    if(prev.close<prev.open&&last.close>last.open&&last.open<=prev.close&&last.close>=prev.open)
+      add("Bullish Engulfing","bull",0.7,"Nousukynttilän runko peittää edellisen laskukynttilän rungon.");
+    if(n>=3){
+      var a=bars[n-3],m=bars[n-2],z=bars[n-1],ca=candle(a),cm=candle(m);
+      if(a.close<a.open&&cm.body<=ca.body*.55&&z.close>z.open&&z.close>=a.open-(a.open-a.close)*.5)
+        add("Morning Star","bull",0.65,"Kolmen kynttilän käännekuvio; trendi- ja volyymivahvistus tarkistetaan erikseen.");
+    }
+    var flag=null;
+    for(var pull=4;pull<=10&&!flag;pull++){
+      for(var pole=5;pole<=12&&!flag;pole++){
+        var poleStart=n-1-pull-pole, poleEnd=n-1-pull, flagStart=poleEnd+1, flagEnd=n-2;
+        if(poleStart<0||flagStart>flagEnd) continue;
+        var start=bars[poleStart].close, top=Math.max.apply(null,bars.slice(poleStart,poleEnd+1).map(function(b){return b.high;}));
+        var poleMove=top-start, atrVals=bars.slice(Math.max(0,poleStart-14),poleEnd+1).map(function(b){return b.atr;}).filter(Number.isFinite);
+        var atr=atrVals.length?atrVals[atrVals.length-1]:Math.max(start*.001,0);
+        var flagBars=bars.slice(flagStart,flagEnd+1), allFlag=flagBars.concat([last]);
+        if(!(poleMove>0&&atr>0&&poleMove>=2*atr&&flagBars.length>=3)) continue;
+        var flagHigh=Math.max.apply(null,flagBars.map(function(b){return b.high;})), flagLow=Math.min.apply(null,flagBars.map(function(b){return b.low;}));
+        var retrace=top-flagLow, descending=flagBars[0].high>flagBars[flagBars.length-1].high&&flagBars[0].low>=flagBars[flagBars.length-1].low;
+        var poleVol=bars.slice(poleStart,poleEnd+1).reduce(function(s,b){return s+b.volume;},0)/(poleEnd-poleStart+1);
+        var flagVol=flagBars.reduce(function(s,b){return s+b.volume;},0)/flagBars.length;
+        var breakout=last.close>flagHigh&&Number.isFinite(last.volumeRatio)&&last.volumeRatio>=1.2;
+        if(retrace<=poleMove*.5&&descending&&flagVol<poleVol){
+          flag={name:"Bullish Flag",direction:"bull",poleStart:bars[poleStart].time,poleEnd:bars[poleEnd].time,poleLength:poleMove,flagHigh:flagHigh,flagLow:flagLow,retracementPct:retrace/poleMove*100,volumeContracting:true,breakout:breakout,breakoutPrice:breakout?last.close:null,detail:breakout?"Vastuksen ylitys ja vähintään 1,2× volyymi havaittu.":"Lippuehdokas: breakout- ja volyymivahvistus puuttuu."};
+          add("Bullish Flag", "bull", breakout?0.85:0.55, flag.detail);
+        }
+      }
+    }
+    var highs=[],lows=[];
+    for(var i=Math.max(1,n-40);i<n-1;i++){
+      if(bars[i].high>bars[i-1].high&&bars[i].high>=bars[i+1].high) highs.push({time:bars[i].time,price:bars[i].high});
+      if(bars[i].low<bars[i-1].low&&bars[i].low<=bars[i+1].low) lows.push({time:bars[i].time,price:bars[i].low});
+    }
+    return {items:patterns,names:patterns.map(function(x){return x.name;}),bullish:patterns.filter(function(x){return x.direction==="bull";}),bearish:patterns.filter(function(x){return x.direction==="bear";}),flag:flag,pivots:{highs:highs,lows:lows}};
+  }
+  function calculateTradePlan(direction,entry,atr,patterns,options,spreadPct){
+    var opts=Object.assign({},COST_DEFAULTS,options||{}),capital=Math.max(0,number(opts.capital)||0);
+    var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5)),exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25));
+    if(!Number.isFinite(entry)||entry<=0||!Number.isFinite(atr)||atr<=0||direction==="WAIT") return {entry:entry,stop:null,target:null,qty:0,notional:0,riskCash:capital*riskPct/100,estimatedLoss:0,estimatedGain:0,riskReward:null,patternTarget:false,tradable:false,reason:"Suunnitelmaa ei lasketa: suunta, hinta tai ATR puuttuu."};
+    var stopDistance=1.5*atr,targetDistance=2.5*atr,stop=direction==="BUY"?entry-stopDistance:entry+stopDistance,target=direction==="BUY"?entry+targetDistance:entry-targetDistance,patternTarget=false;
+    var flag=patterns&&patterns.flag;
+    if(flag&&flag.breakout&&Number.isFinite(flag.poleLength)&&flag.poleLength>0){
+      if(direction==="BUY"){target=flag.breakoutPrice+flag.poleLength;stop=Math.min(flag.flagLow-.15*atr,entry-.5*atr);patternTarget=true;}
+      else {target=flag.breakoutPrice-flag.poleLength;stop=Math.max(flag.flagHigh+.15*atr,entry+.5*atr);patternTarget=true;}
+    }
+    var friction=estimatePerSideFriction(opts.feePct,opts.slippagePct,spreadPct),riskPerUnit=Math.abs(entry-stop)+(entry+stop)*friction;
+    var rewardPerUnit=Math.abs(target-entry)-(entry+target)*friction;
+    var rr=riskPerUnit>0?rewardPerUnit/riskPerUnit:null, riskCash=capital*riskPct/100;
+    var qty=direction==="BUY"&&riskPerUnit>0&&rewardPerUnit>0?Math.min(riskCash/riskPerUnit,capital*(exposurePct/100)/entry):0;
+    return {entry:entry,stop:stop,target:target,qty:qty,notional:qty*entry,riskCash:riskCash,estimatedLoss:qty*riskPerUnit,estimatedGain:qty*rewardPerUnit,riskReward:rr,patternTarget:patternTarget,tradable:direction==="BUY"&&qty>0&&Number.isFinite(rr)&&rr>=1.2,reason:rr===null?"Nettotuotto–riskisuhdetta ei voida laskea.":rr<1.2?"Nettotuotto–riskisuhde alle 1,2 kulujen jälkeen.":direction==="SELL"?"Spot-myynti edellyttää käyttäjän olemassa olevaa omistusta.":"Riskiraja ja nettotuotto–riskisuhde täyttyvät."};
+  }
+
   function evaluateSignal(main,higher,market,options) {
     var opts=Object.assign({},COST_DEFAULTS,options||{}),checks=main.checks,b=main.bar;
     var spreadPct=market.bid>0&&market.ask>=market.bid?(market.ask-market.bid)/((market.ask+market.bid)/2)*100:Infinity;
@@ -176,9 +243,9 @@
     var timingChecks=[{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side,detail:describeCheck({name:"Hinta ei ole liian kaukana EMA 21:stä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs)},{name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side,detail:describeCheck({name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs)},{name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side,detail:describeCheck({name:"Kaksi suurempaa aikaväliä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs)}];
     var checklist=dataChecks.concat(directional,timingChecks),passes=checklist.filter(function(x){return x.ok;}).length;
     var capital=Math.max(0,number(opts.capital)||0),riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5)),exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25));
-    var spreadFriction=estimatePerSideFriction(opts.feePct,opts.slippagePct,spreadPct),riskCash=capital*riskPct/100,entry=Number(market.price),stop=null,target=null,qty=0,notional=0,estLoss=0,estGain=0;
-    if(direction!=="WAIT"&&Number.isFinite(entry)&&entry>0&&Number.isFinite(b.atr)&&b.atr>0){var stopDistance=1.5*b.atr,targetDistance=2.5*b.atr;stop=direction==="BUY"?entry-stopDistance:entry+stopDistance;target=direction==="BUY"?entry+targetDistance:entry-targetDistance;if(direction==="BUY"){var costPerUnit=stopDistance+(entry+stop)*spreadFriction;qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;notional=qty*entry;estLoss=qty*costPerUnit;estGain=qty*(targetDistance-(entry+target)*spreadFriction);}}
-    return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",params:opts,main:main};
+    var entry=Number(market.price),patterns=detectPatterns(main.high),plan=calculateTradePlan(direction,entry,b.atr,patterns,opts,spreadPct),stop=plan.stop,target=plan.target,qty=plan.qty,notional=plan.notional,riskCash=plan.riskCash,estLoss=plan.estimatedLoss,estGain=plan.estimatedGain,riskReward=plan.riskReward,riskBlocker=null;
+    if(direction==="BUY"&&!plan.tradable){riskBlocker=plan.reason;direction="WAIT";stop=null;target=null;qty=0;notional=0;estLoss=0;estGain=0;}
+    return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs);}).concat(riskBlocker?[riskBlocker]:[]),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,patterns:patterns,patternNames:patterns.names,patternScore:patterns.items.reduce(function(sum,x){return sum+(x.direction==="bull"?x.confidence:-x.confidence);},0),riskReward:riskReward,patternTarget:plan.patternTarget,riskPlan:plan,reason:riskBlocker?"ODOTA: "+riskBlocker:direction==="BUY"?"Nousuehdot ja riskirajat täyttyivät. Spot-osto, ei automaattista toimeksiantoa.":direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",params:opts,main:main};
   }
   function fastReaction(series) {
     function idle(note) {
@@ -256,9 +323,9 @@
   function backtest(series,options){
     var opts=Object.assign({},COST_DEFAULTS,options||{}),startCapital=Math.max(100,number(opts.capital)||10000),equity=startCapital,peak=equity,maxDd=0,trades=[];
     var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100,exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100,higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[],assumedSpreadRaw=number(opts.assumedSpreadPct),assumedSpreadPct=Math.max(0,Number.isFinite(assumedSpreadRaw)?assumedSpreadRaw:0.10),friction=estimatePerSideFriction(opts.feePct,opts.slippagePct,assumedSpreadPct),requestedStart=Number(opts.startIndex),startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220,inPositionUntil=-1;
-    for(var i=startIndex;i<series.length-2;i++){if(i<=inPositionUntil)continue;var b=series[i],prefix=series.slice(0,i+1),main;try{main=analyzeSeries(prefix);}catch(_){continue;}var higher=[];for(var h=0;h<higherSeries.length;h++){var hist=higherSeries[h].filter(function(x){return x.closeTime<=b.closeTime;});if(hist.length<220){higher=[];break;}try{higher.push(analyzeSeries(hist));}catch(_){higher=[];break;}}if(higher.length<2)continue;var halfSpread=b.close*assumedSpreadPct/200,decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},Object.assign({},opts,{capital:equity,historical:true}));if(decision.direction!=="BUY")continue;var entryBar=series[i+1],entry=entryBar.open,atr=b.atr;if(!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0)continue;var stop=entry-1.5*atr,target=entry+2.5*atr,riskPerUnit=(entry-stop)+(entry+stop)*friction,qty=Math.min((equity*riskPct)/riskPerUnit,(equity*exposurePct)/entry);if(!(qty>0))continue;var exit=entry,exitIndex=i+1,cause="Aikaraja",maxIndex=Math.min(series.length-1,i+30);for(var j=i+1;j<=maxIndex;j++){var bar=series[j],outcome=resolveLongExit(bar,stop,target);if(outcome){exit=outcome.price;exitIndex=j;cause=outcome.cause;break;}exit=bar.close;exitIndex=j;}var gross=(exit-entry)*qty,costs=(entry+exit)*qty*friction,pnl=gross-costs,before=equity;equity+=pnl;peak=Math.max(peak,equity);maxDd=Math.max(maxDd,peak>0?(peak-equity)/peak*100:0);trades.push({entryTime:entryBar.time,exitTime:series[exitIndex].time,entry:entry,exit:exit,stop:stop,target:target,qty:qty,pnl:pnl,returnPct:before>0?pnl/before*100:0,cause:cause,win:pnl>0});inPositionUntil=exitIndex;}
+    for(var i=startIndex;i<series.length-2;i++){if(i<=inPositionUntil)continue;var b=series[i],entryBar=series[i+1];if(!b||!entryBar||!Number.isFinite(b.closeTime)||!Number.isFinite(entryBar.time)||b.closeTime>=entryBar.time)continue;var prefix=series.slice(0,i+1),main;try{main=analyzeSeries(prefix);}catch(_){continue;}var higher=[];for(var h=0;h<higherSeries.length;h++){var hist=higherSeries[h].filter(function(x){return Number.isFinite(x.closeTime)&&x.closeTime<=b.closeTime;});if(hist.length<220){higher=[];break;}try{higher.push(analyzeSeries(hist));}catch(_){higher=[];break;}}if(higher.length<2)continue;var halfSpread=b.close*assumedSpreadPct/200,decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},Object.assign({},opts,{capital:equity,historical:true}));if(decision.direction!=="BUY")continue;var entry=entryBar.open,atr=b.atr;if(!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0)continue;var entryPlan=calculateTradePlan("BUY",entry,atr,decision.patterns,Object.assign({},opts,{capital:equity}),assumedSpreadPct);if(!entryPlan.tradable)continue;var stop=entryPlan.stop,target=entryPlan.target,qty=entryPlan.qty;if(!(qty>0)||!Number.isFinite(stop)||!Number.isFinite(target)||stop>=entry||target<=entry)continue;var exit=entry,exitIndex=i+1,cause="Aikaraja",maxIndex=Math.min(series.length-1,i+30);for(var j=i+1;j<=maxIndex;j++){var bar=series[j],outcome=resolveLongExit(bar,stop,target);if(outcome){exit=outcome.price;exitIndex=j;cause=outcome.cause;break;}exit=bar.close;exitIndex=j;}var gross=(exit-entry)*qty,costs=(entry+exit)*qty*friction,pnl=gross-costs,before=equity;equity+=pnl;peak=Math.max(peak,equity);maxDd=Math.max(maxDd,peak>0?(peak-equity)/peak*100:0);trades.push({entryTime:entryBar.time,exitTime:series[exitIndex].time,entry:entry,exit:exit,stop:stop,target:target,qty:qty,pnl:pnl,returnPct:before>0?pnl/before*100:0,cause:cause,win:pnl>0});inPositionUntil=exitIndex;}
     var wins=trades.filter(function(t){return t.win;}),losses=trades.filter(function(t){return !t.win;}),grossWins=wins.reduce(function(a,t){return a+t.pnl;},0),grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
     return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; kulut ja lipsuma vähennetään. Historiallinen tulos ei ennusta tulevaa."};
   }
-  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,fastReaction:fastReaction,resolveLongExit:resolveLongExit,estimatePerSideFriction:estimatePerSideFriction,backtest:backtest,defaults:COST_DEFAULTS};
+  root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,fastReaction:fastReaction,resolveLongExit:resolveLongExit,estimatePerSideFriction:estimatePerSideFriction,detectPatterns:detectPatterns,calculateTradePlan:calculateTradePlan,backtest:backtest,defaults:COST_DEFAULTS};
 })(typeof window !== "undefined" ? window : globalThis);
