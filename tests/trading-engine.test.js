@@ -204,6 +204,8 @@ assert.ok(holdoutBt.trades.every(t => t.entryTime >= full[holdoutStart + 1].time
   "holdout trades cannot be opened before the holdout window");
 assert.ok(holdoutBt.trades.every(t => t.exitTime > t.entryTime), "holdout trades still exit after entry");
 assert.ok(alignedBt.trades.every(t => Number.isFinite(t.pnl) && t.entryTime < t.exitTime), "backtest trades have valid timing and P/L");
+assert.ok(alignedBt.trades.every(t => full.some(bar => bar.closeTime === t.exitTime)),
+  "backtest exits must use the actual exit candle close timestamp, not its open timestamp");
 function makeFastReactionSeries(lastBar, count) {
   const bars = [];
   const size = count || 40;
