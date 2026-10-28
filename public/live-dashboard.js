@@ -180,12 +180,7 @@
     if (base) {
       var re = $("rsi"); if (re) re.textContent = num(base.rsi, 1);
       var ae = $("adx"); if (ae) ae.textContent = num(base.adx, 1);
-      var sig = $("signal"); if (sig) {
-        sig.textContent = base.side === "BUY" ? "OSTA · pisteet " + Math.round(base.score) + "/100" :
-          base.side === "SELL" ? "MYY / KEVENNÄ · pisteet " + Math.round(100 - base.score) + "/100" :
-          base.gateReason ? "ODOTA · " + base.gateReason : "ODOTA";
-        sig.className = "signal " + (base.side === "BUY" ? "buy" : base.side === "SELL" ? "sell" : "wait");
-      }
+      // The canonical TradingEngine.evaluateSignal() owns the main decision.
     }
     var sp = $("spread"); if (sp) { var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid; sp.textContent = validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—"; }
   }
