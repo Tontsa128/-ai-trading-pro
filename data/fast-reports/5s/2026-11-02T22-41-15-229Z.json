@@ -1,0 +1,113 @@
+{
+  "schema": 2,
+  "mode": "paper",
+  "source": "Binance public REST ticker fallback (no WebSocket market events received)",
+  "intervalSeconds": 5,
+  "sessionStartedAt": "2026-11-02T22:37:45.228Z",
+  "sessionEndedAt": "2026-11-02T22:41:15.229Z",
+  "requestedSessionSeconds": 210,
+  "feedStatus": {
+    "websocketConnectedAtEnd": false,
+    "websocketMessages": 0,
+    "websocketErrors": 3,
+    "consecutiveWebSocketFailures": 3,
+    "websocketDisabled": true,
+    "lastWebSocketFailureAt": "2026-11-02T22:37:51.228Z",
+    "lastWebSocketMessageAt": null,
+    "restQuoteUpdates": 588,
+    "restQuoteErrors": 0,
+    "lastRestError": null
+  },
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "price": 76835.55,
+      "bid": 76835.54,
+      "ask": 76835.55,
+      "spreadPct": 0.00001301480975935451,
+      "lastUpdateAt": "2026-11-02T22:41:14.908Z",
+      "marketAgeMs": 321,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 2249.78,
+      "bid": 2249.77,
+      "ask": 2249.78,
+      "spreadPct": 0.00044448889334348007,
+      "lastUpdateAt": "2026-11-02T22:41:14.908Z",
+      "marketAgeMs": 321,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    },
+    {
+      "symbol": "SOLUSDT",
+      "price": 91.89,
+      "bid": 91.89,
+      "ask": 91.9,
+      "spreadPct": 0.010881984874046591,
+      "lastUpdateAt": "2026-11-02T22:41:14.908Z",
+      "marketAgeMs": 321,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    },
+    {
+      "symbol": "BNBUSDT",
+      "price": 698.29,
+      "bid": 698.28,
+      "ask": 698.29,
+      "spreadPct": 0.001432080024630474,
+      "lastUpdateAt": "2026-11-02T22:41:14.909Z",
+      "marketAgeMs": 320,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 1.2498,
+      "bid": 1.2497,
+      "ask": 1.2498,
+      "spreadPct": 0.00800160032006313,
+      "lastUpdateAt": "2026-11-02T22:41:14.908Z",
+      "marketAgeMs": 321,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.0741,
+      "bid": 0.0741,
+      "ask": 0.07411,
+      "spreadPct": 0.01349436610214712,
+      "lastUpdateAt": "2026-11-02T22:41:14.909Z",
+      "marketAgeMs": 320,
+      "feed": "restFallback",
+      "closedBars": 241,
+      "position": null
+    }
+  ],
+  "portfolio": {
+    "initialCash": 1000,
+    "cash": 1000,
+    "equity": 1000,
+    "realizedPnl": 0,
+    "openPositions": 0,
+    "positions": {}
+  },
+  "sessionTrades": [],
+  "errors": [],
+  "notes": [
+    "Paper trading only: no private API keys and no real exchange orders.",
+    "WebSocket events are preferred; REST ticker samples with zero synthetic volume are used only when symbol trade events are stale.",
+    "5/15-second bars are aggregated from public trade events or sampled public REST prices when WS data is stale; sampled fallback volume is zero.",
+    "Estimated fee 0.10% and slippage 0.05% per side; actual fills and costs can differ.",
+    "The strategy is experimental, long-only, and not demonstrated profitable. Do not infer edge from a small sample.",
+    "A 5-second/15-second strategy can lose to fees, spread, latency and adverse selection even when direction is correct."
+  ]
+}
