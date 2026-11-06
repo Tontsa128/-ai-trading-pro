@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from radar_indicators import add_indicators, rsi
 
 
 # ============================================================
@@ -217,50 +218,8 @@ def load_data():
 
 
 # ============================================================
-# INDICATORS
+# INDICATORS (causal calculations; see radar_indicators.py)
 # ============================================================
-
-def rsi(close, period=14):
-    delta = close.diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, np.nan)
-    return (100 - (100 / (1 + rs))).fillna(50).clip(0, 100)
-
-
-def add_indicators(df):
-    df = df.copy()
-
-    df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
-    df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
-    df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
-    df["EMA100"] = df["Close"].ewm(span=100, adjust=False).mean()
-
-    df["RSI"] = rsi(df["Close"])
-
-    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
-    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
-    df["MACD"] = ema12 - ema26
-    df["MACD_SIGNAL"] = df["MACD"].ewm(span=9, adjust=False).mean()
-    df["MACD_HIST"] = df["MACD"] - df["MACD_SIGNAL"]
-
-    tr = pd.concat([
-        df["High"] - df["Low"],
-        (df["High"] - df["Close"].shift()).abs(),
-        (df["Low"] - df["Close"].shift()).abs(),
-    ], axis=1).max(axis=1)
-
-    df["ATR"] = tr.rolling(14, min_periods=5).mean().bfill()
-    df["VOL_MA"] = df["Volume"].rolling(20, min_periods=5).mean().bfill()
-
-    typical = (df["High"] + df["Low"] + df["Close"]) / 3
-    volume_sum = df["Volume"].replace(0, np.nan).cumsum()
-    df["VWAP"] = ((typical * df["Volume"]).cumsum() / volume_sum).ffill().bfill()
-
-    return df
-
 
 @st.cache_data(ttl=20, show_spinner=False)
 def higher_tf_bias(symbol_code):
