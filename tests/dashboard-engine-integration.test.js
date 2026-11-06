@@ -11,6 +11,25 @@ assert.ok(canonical, "canonical trading engine must load in Node without a DOM")
 require("../public/trading-engine.js");
 const deployed = global.TradingEngine;
 assert.ok(deployed, "deployed dashboard engine must load without starting browser-only code");
+
+// Keep the pure decision-engine implementation byte-identical in both entry points.
+// Runtime-specific code after the export (WebSocket layer vs. mobile chart fallback)
+// is intentionally allowed to differ.
+const fs = require("node:fs");
+const path = require("node:path");
+const rootEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine.js"), "utf8");
+const publicEngineSource = fs.readFileSync(path.join(__dirname, "../public/trading-engine.js"), "utf8");
+const exportBoundary = "  root.TradingEngine=";
+const rootBoundary = rootEngineSource.indexOf(exportBoundary);
+const publicBoundary = publicEngineSource.indexOf(exportBoundary);
+assert.ok(rootBoundary >= 0 && publicBoundary >= 0,
+  "both engine entry points must expose the canonical TradingEngine export");
+assert.equal(rootEngineSource.slice(0, rootBoundary), publicEngineSource.slice(0, publicBoundary),
+  "pure indicator, signal and backtest implementation must stay identical across entry points");
+assert.ok(rootEngineSource.includes("Live scalping layer"),
+  "root entry point retains its explicit live WebSocket runtime layer");
+assert.ok(publicEngineSource.includes("Rahasampo mobile chart fallback"),
+  "public entry point retains its explicit mobile chart fallback");
 assert.equal(typeof deployed.fastReaction, "function",
   "deployed engine must include the tested fast reaction scorer");
 assert.equal(typeof deployed.resolveLongExit, "function",
