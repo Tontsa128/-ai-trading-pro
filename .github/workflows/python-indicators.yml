@@ -1,0 +1,36 @@
+name: Python indicator regression tests
+
+on:
+  push:
+    branches: [main, "fix/**"]
+    paths:
+      - "app.py"
+      - "radar_indicators.py"
+      - "tests/test_radar_indicators.py"
+      - ".github/workflows/python-indicators.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app.py"
+      - "radar_indicators.py"
+      - "tests/test_radar_indicators.py"
+      - ".github/workflows/python-indicators.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  indicator-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+      - name: Install indicator test dependencies
+        run: python -m pip install --upgrade pip pandas numpy
+      - name: Run causal indicator tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
