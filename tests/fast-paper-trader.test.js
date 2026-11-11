@@ -4,7 +4,7 @@ const fs=require("node:fs");
 const source=fs.readFileSync("scripts/fast-paper-trader.js","utf8");
 assert.doesNotMatch(source,/addTrade\(s,\s*q\.price,\s*0,\s*now,\s*"restFallback"\)/,"REST quote samples must never be converted into zero-volume trade candles");
 assert.equal((source.match(/addTrade\(/g)||[]).length,2,"only definition and genuine WebSocket trade handler use addTrade");
-assert.match(source,/Only genuine Binance public trade WebSocket events may create live 5\/15-second bars/);
+assert.match(source,/Only genuine, fresh Binance public trade WebSocket events may create live 5\/15-second bars/);
 assert.match(source,/marketAgeMs:\s*Number\.isFinite\(s\?\.lastTradeAt\)/,"market age uses last real trade time");
 assert.match(source,/quoteAgeMs:\s*Number\.isFinite\(s\?\.lastQuoteAt\)/,"quote age stays separate");
 assert.match(source,/let endpointIndex = 0;/);
