@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from radar_indicators import add_indicators, signal_context_is_valid, validate_ohlcv
 
 
 # ============================================================
@@ -175,9 +176,17 @@ def get_klines(symbol_code, interval_code, limit_count):
                 continue
 
             raw = r.json()
-            rows = []
+            if not isinstance(raw, list):
+                raise ValueError("Binance returned an invalid kline payload.")
 
+            now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
+            rows = []
             for k in raw:
+                if not isinstance(k, list) or len(k) < 7:
+                    raise ValueError("Binance returned a malformed kline.")
+                # Binance kline field 6 is close time. Never score an open candle.
+                if int(k[6]) >= now_ms:
+                    continue
                 rows.append({
                     "Date": pd.to_datetime(k[0], unit="ms", utc=True).tz_convert(APP_TZ),
                     "Open": float(k[1]),
@@ -187,7 +196,11 @@ def get_klines(symbol_code, interval_code, limit_count):
                     "Volume": float(k[5]),
                 })
 
-            return pd.DataFrame(rows).set_index("Date")
+            if not rows:
+                raise ValueError("Binance returned no fully closed candles.")
+
+            frame = pd.DataFrame(rows).set_index("Date")
+            return validate_ohlcv(frame, interval=interval_code)
 
         except Exception as e:
             last_error = str(e)
@@ -204,7 +217,7 @@ def load_data():
             df = pd.concat([st.session_state.df, latest])
             df = df[~df.index.duplicated(keep="last")]
             df = df.sort_index().tail(max(candles + 230, 420))
-            st.session_state.df = df
+            st.session_state.df = validate_ohlcv(df, interval=tf)
 
         st.session_state.last_error = ""
         return st.session_state.df.copy(), "Binance live OHLC"
@@ -217,50 +230,8 @@ def load_data():
 
 
 # ============================================================
-# INDICATORS
+# INDICATORS (causal calculations; see radar_indicators.py)
 # ============================================================
-
-def rsi(close, period=14):
-    delta = close.diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
-    rs = avg_gain / avg_loss.replace(0, np.nan)
-    return (100 - (100 / (1 + rs))).fillna(50).clip(0, 100)
-
-
-def add_indicators(df):
-    df = df.copy()
-
-    df["EMA9"] = df["Close"].ewm(span=9, adjust=False).mean()
-    df["EMA21"] = df["Close"].ewm(span=21, adjust=False).mean()
-    df["EMA50"] = df["Close"].ewm(span=50, adjust=False).mean()
-    df["EMA100"] = df["Close"].ewm(span=100, adjust=False).mean()
-
-    df["RSI"] = rsi(df["Close"])
-
-    ema12 = df["Close"].ewm(span=12, adjust=False).mean()
-    ema26 = df["Close"].ewm(span=26, adjust=False).mean()
-    df["MACD"] = ema12 - ema26
-    df["MACD_SIGNAL"] = df["MACD"].ewm(span=9, adjust=False).mean()
-    df["MACD_HIST"] = df["MACD"] - df["MACD_SIGNAL"]
-
-    tr = pd.concat([
-        df["High"] - df["Low"],
-        (df["High"] - df["Close"].shift()).abs(),
-        (df["Low"] - df["Close"].shift()).abs(),
-    ], axis=1).max(axis=1)
-
-    df["ATR"] = tr.rolling(14, min_periods=5).mean().bfill()
-    df["VOL_MA"] = df["Volume"].rolling(20, min_periods=5).mean().bfill()
-
-    typical = (df["High"] + df["Low"] + df["Close"]) / 3
-    volume_sum = df["Volume"].replace(0, np.nan).cumsum()
-    df["VWAP"] = ((typical * df["Volume"]).cumsum() / volume_sum).ffill().bfill()
-
-    return df
-
 
 @st.cache_data(ttl=20, show_spinner=False)
 def higher_tf_bias(symbol_code):
@@ -269,7 +240,12 @@ def higher_tf_bias(symbol_code):
     for htf in ["5m", "15m", "1h", "4h"]:
         try:
             d = add_indicators(get_klines(symbol_code, htf, 180))
-            last = d.iloc[-2]
+            if len(d) < 101:
+                raise ValueError("Not enough closed candles for higher-timeframe indicators.")
+            last = d.iloc[-1]
+
+            if not np.isfinite([last.EMA50, last.EMA100, last.Close]).all():
+                raise ValueError("Higher-timeframe indicators are not ready.")
 
             if last.Close > last.EMA50 > last.EMA100:
                 result[htf] = "NOUSU"
@@ -680,14 +656,26 @@ def save_learning_result(result, ai):
 # ============================================================
 
 def ai_engine(df):
+    # get_klines() filters out the still-open Binance candle. Therefore the
+    # newest row is a completed observation and belongs in the analysis set.
+    df = validate_ohlcv(df, interval=tf)
+    if len(df) < 220:
+        raise ValueError("Not enough validated closed candles for signal analysis.")
     live = df.iloc[-1]
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
+    required_indicators = (
+        live.EMA9, live.EMA21, live.EMA50, live.EMA100, live.RSI,
+        live.MACD, live.MACD_SIGNAL, live.MACD_HIST, live.ATR, live.VOL_MA, live.VWAP,
+    )
+    if not np.isfinite(required_indicators).all() or live.ATR <= 0 or live.VOL_MA <= 0:
+        raise ValueError("Latest closed candle does not have a complete, valid indicator set.")
 
     price = float(live.Close)
     score = 0
     notes = []
 
     bias, details = higher_tf_bias(symbol)
+    signal_context_valid = signal_context_is_valid(bias, details)
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -801,7 +789,14 @@ def ai_engine(df):
 
     final = int(max(-100, min(100, score)))
 
-    if alert == "NOPEA OSTA":
+    if not signal_context_valid:
+        final = 0
+        level = "ODOTA"
+        if set(details) != {"5m", "15m", "1h", "4h"} or any(value == "?" for value in details.values()):
+            notes.append("Signaali estetty: vähintään yhden korkeamman aikavälin markkinadata tai indikaattorit eivät ole kelvollisia.")
+        else:
+            notes.append("Markkinasuunta on epäselvä. Päätös pidetään ODOTA-tilassa.")
+    elif alert == "NOPEA OSTA":
         level = "⚡ NOPEA OSTA"
         final = max(final, 58)
     elif alert == "NOPEA MYY":
@@ -822,7 +817,7 @@ def ai_engine(df):
     else:
         level = "ODOTA"
 
-    if no_trade and abs(final) < 18:
+    if signal_context_valid and no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
     confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
@@ -993,8 +988,14 @@ def run_app():
         if st.session_state.last_error:
             st.caption(f"Datayhteyden virhe: {st.session_state.last_error}")
         st.stop()
-    df = add_indicators(raw)
-    ai = ai_engine(df)
+    try:
+        df = add_indicators(raw)
+        ai = ai_engine(df)
+    except Exception as e:
+        st.title("💰 Rahasampo Radar V26 PRO")
+        st.error("Markkinadata tai indikaattorit eivät läpäisseet validointia. Signaalia ei muodosteta.")
+        st.caption(f"Validointivirhe: {e}")
+        st.stop()
     remember(ai)
 
     st.title("💰 Rahasampo Radar V26 PRO")
