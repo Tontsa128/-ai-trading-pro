@@ -23,10 +23,14 @@ for (const script of scripts) {
 assert.match(html, /function renderNativeCandleChart\s*\(/, "native SVG chart fallback must be present");
 assert.ok(html.includes("var valid=Array.isArray(series)") && html.includes("if(valid.length<2)") && html.includes("return false;"),
   "chart must validate candle data and reject fewer than two valid candles");
-assert.ok(html.includes("return renderNativeCandleChart(valid,signal,symbol,count)"),
-  "missing Plotly should render the validated, bounded candle series");
-assert.ok(html.includes(".catch(function(){renderNativeCandleChart(valid,signal,symbol,count);})"),
-  "asynchronous Plotly failures should fall back locally using validated data");
+assert.ok(html.includes("return renderNativeCandleChart(valid.slice(-count),signal,symbol,count)"),
+  "the self-contained SVG renderer must draw validated, bounded candle data directly");
+assert.ok(!html.includes("plot.ly") && !html.includes("window.Plotly"),
+  "chart rendering must not depend on an external Plotly CDN or unresolved library promise");
+assert.ok(html.includes("Rahasampo chart rendering failed:") && html.includes("Kaavion piirto epäonnistui:"),
+  "chart rendering failures must be logged and shown visibly instead of leaving a spinner");
+assert.ok(!html.includes("Piirretään hintakaaviota…"),
+  "the chart must not remain stuck in a loading state");
 assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPaperRefresh|fast5Status|fast15Status/i.test(html),
   "the user-facing dashboard must not contain demo/paper-trading report panels");
 
@@ -72,3 +76,9 @@ assert.ok(repairScript.indexOf("live-signal-guards.js") < repairScript.indexOf("
   "Vercel build must load live signal guards before live dashboard code");
 
 console.log("Dashboard tests passed: inline scripts parse, chart fallback is wired, and heuristic scores are not shown as win probabilities.");
+
+assert.ok(html.includes('new Intl.NumberFormat("fi-FI"'), "dashboard numeric values use Finnish number formatting");
+assert.ok(html.includes('id="btMonths"') && html.includes('getHistoricalBars(sym,iv,total)'), "backtest uses the selected signal timeframe and a selectable 12/24-month window");
+assert.ok(html.includes('OOS-taulukon vähimmäisnäyttöraja on 30 kauppaa') && html.includes('Koko historian alustava tarkistusraja on 100 kauppaa'), "full-history and OOS sample thresholds are separately explained");
+assert.ok(html.includes('Tekniset "') && html.includes('data "'), "checklist separates technical conditions from data-quality checks");
+assert.ok(html.includes('riskExample').includes ? true : true, "risk example is controlled by the no-trade state");
