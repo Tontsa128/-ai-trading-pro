@@ -11,7 +11,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 from radar_indicators import add_indicators, validate_ohlcv
-from radar_indicators import add_indicators, rsi
 
 
 # ============================================================
@@ -218,7 +217,7 @@ def load_data():
             df = pd.concat([st.session_state.df, latest])
             df = df[~df.index.duplicated(keep="last")]
             df = df.sort_index().tail(max(candles + 230, 420))
-            st.session_state.df = df
+            st.session_state.df = validate_ohlcv(df, interval=tf)
 
         st.session_state.last_error = ""
         return st.session_state.df.copy(), "Binance live OHLC"
@@ -664,6 +663,12 @@ def ai_engine(df):
         raise ValueError("Not enough validated closed candles for signal analysis.")
     live = df.iloc[-1]
     closed = df.copy()
+    required_indicators = (
+        live.EMA9, live.EMA21, live.EMA50, live.EMA100, live.RSI,
+        live.MACD, live.MACD_SIGNAL, live.MACD_HIST, live.ATR, live.VOL_MA, live.VWAP,
+    )
+    if not np.isfinite(required_indicators).all() or live.ATR <= 0 or live.VOL_MA <= 0:
+        raise ValueError("Latest closed candle does not have a complete, valid indicator set.")
 
     price = float(live.Close)
     score = 0
@@ -809,7 +814,7 @@ def ai_engine(df):
     else:
         level = "ODOTA"
 
-    if no_trade and abs(final) < 18:
+    if higher_timeframes_valid and no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
     confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
@@ -980,8 +985,14 @@ def run_app():
         if st.session_state.last_error:
             st.caption(f"Datayhteyden virhe: {st.session_state.last_error}")
         st.stop()
-    df = add_indicators(raw)
-    ai = ai_engine(df)
+    try:
+        df = add_indicators(raw)
+        ai = ai_engine(df)
+    except Exception as e:
+        st.title("💰 Rahasampo Radar V26 PRO")
+        st.error("Markkinadata tai indikaattorit eivät läpäisseet validointia. Signaalia ei muodosteta.")
+        st.caption(f"Validointivirhe: {e}")
+        st.stop()
     remember(ai)
 
     st.title("💰 Rahasampo Radar V26 PRO")
