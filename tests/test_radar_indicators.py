@@ -180,7 +180,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
     def test_adx_below_approved_threshold_blocks_buy(self):
         bar = dict(self.bull, adx=17.99)
         decision, _ = evaluate_signal_gates(
-            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 300, 90.0, 112.0
         )
         self.assertEqual(decision, "WAIT")
 
