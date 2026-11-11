@@ -901,11 +901,11 @@ def ai_engine(df):
 
     if decision in ("BUY", "SELL") and np.isfinite(quote.get("price", np.nan)):
         price = float(quote["price"])
-    atr = max(float(live.ATR), price * 0.001)
+    atr = float(live.ATR)
 
     if "OSTA" in level:
-        stop = price - atr * 1.25
-        target = price + atr * 2.2
+        stop = price - atr * 1.5
+        target = price + atr * 2.5
         direction = "OSTA"
     else:
         # Spot-only: SELL is a reduce/avoid signal, never a synthetic short entry.
