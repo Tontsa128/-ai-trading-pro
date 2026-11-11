@@ -323,8 +323,9 @@ class JavaScriptIndicatorParityTests(unittest.TestCase):
             previous = close
         process = subprocess.run(
             ["node", str(probe)], input=json.dumps(bars), text=True,
-            capture_output=True, cwd=root, check=True,
+            capture_output=True, cwd=root, check=False,
         )
+        self.assertEqual(process.returncode, 0, process.stderr)
         javascript = json.loads(process.stdout)
         frame = pd.DataFrame({
             "Open": [bar["open"] for bar in bars], "High": [bar["high"] for bar in bars],
