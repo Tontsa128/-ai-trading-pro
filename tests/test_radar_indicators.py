@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from radar_indicators import add_indicators, rsi, validate_ohlcv
+from radar_indicators import add_indicators, rsi, signal_context_is_valid, validate_ohlcv
 
 
 def sample_ohlcv(rows=80):
@@ -106,6 +106,14 @@ class CausalIndicatorTests(unittest.TestCase):
     def test_valid_interval_sequence_is_accepted(self):
         result = validate_ohlcv(sample_ohlcv(), interval="1h")
         self.assertEqual(len(result), 80)
+
+    def test_signal_context_requires_a_clear_direction_and_all_timeframes(self):
+        complete = {"5m": "NOUSU", "15m": "NOUSU", "1h": "LASKU", "4h": "NOUSU"}
+        self.assertTrue(signal_context_is_valid("NOUSU", complete))
+        self.assertFalse(signal_context_is_valid("EPÄSELVÄ", complete))
+        self.assertFalse(signal_context_is_valid("NOUSU", {"1h": "NOUSU", "4h": "NOUSU"}))
+        invalid = {**complete, "4h": "?"}
+        self.assertFalse(signal_context_is_valid("NOUSU", invalid))
 
 
 if __name__ == "__main__":
