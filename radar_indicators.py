@@ -9,7 +9,7 @@ import pandas as pd
 
 OHLCV_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
 REQUIRED_HIGHER_TIMEFRAMES = {"4h", "1d"}
-DIRECTIONAL_BIASES = {"VAHVA NOUSU", "NOUSU", "VAHVA LASKU", "LASKU"}
+DIRECTIONAL_BIASES = {"NOUSU", "LASKU"}
 PERIOD = 14
 VOLUME_PERIOD = 20
 INTERVALS = {
@@ -61,7 +61,7 @@ def signal_context_is_valid(bias: str, details: dict[str, str]) -> bool:
     return (
         bias in DIRECTIONAL_BIASES
         and set(details) == REQUIRED_HIGHER_TIMEFRAMES
-        and all(value in ("NOUSU", "LASKU", "EPÄSELVÄ") for value in details.values())
+        and all(value == bias for value in details.values())
     )
 
 
