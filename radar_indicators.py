@@ -189,3 +189,59 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     cumulative_volume = result["Volume"].groupby(sessions).cumsum().replace(0, np.nan)
     result["VWAP"] = cumulative_value / cumulative_volume
     return result
+
+
+def evaluate_signal_gates(
+    bar: dict[str, float],
+    higher_timeframes: dict[str, str],
+    spread_pct: float,
+    history_count: int,
+    support: float,
+    resistance: float,
+) -> tuple[str, list[str]]:
+    """Conservative Python equivalent of the shared JavaScript BUY/SELL/WAIT gates."""
+    reasons: list[str] = []
+    required = ("close", "ema9", "ema21", "ema50", "ema200", "rsi", "macd_hist",
+                "atr", "atr_pct", "adx", "pdi", "mdi", "volume_ratio")
+    if history_count < 220 or any(not np.isfinite(bar.get(key, np.nan)) for key in required):
+        return "WAIT", ["Main timeframe history or indicators are incomplete."]
+    if bar["close"] <= 0 or bar["atr"] <= 0:
+        return "WAIT", ["Price or ATR is invalid."]
+    if not np.isfinite(spread_pct) or spread_pct < 0 or spread_pct > 0.15:
+        reasons.append("Bid/ask spread is missing, invalid or above 0.15%.")
+    if bar["atr_pct"] > 3:
+        reasons.append("ATR volatility exceeds 3%.")
+    if abs(bar["close"] - bar["ema21"]) > 1.6 * bar["atr"]:
+        reasons.append("Price is overextended from EMA21.")
+    if set(higher_timeframes) != {"4h", "1d"} or any(
+        value not in ("NOUSU", "LASKU") for value in higher_timeframes.values()
+    ):
+        reasons.append("Both 4h and 1d trend confirmations are required.")
+    prior = bar
+    long_core = (
+        bar["close"] > bar["ema200"] and bar["ema50"] > bar["ema200"]
+        and bar["ema9"] > bar["ema21"] and bar["macd_hist"] > 0
+        and 50 <= bar["rsi"] <= 68 and bar["adx"] >= 18
+        and bar["pdi"] > bar["mdi"] and bar["volume_ratio"] >= 0.5
+    )
+    short_core = (
+        bar["close"] < bar["ema200"] and bar["ema50"] < bar["ema200"]
+        and bar["ema9"] < bar["ema21"] and bar["macd_hist"] < 0
+        and 32 <= bar["rsi"] <= 50 and bar["adx"] >= 18
+        and bar["mdi"] > bar["pdi"] and bar["volume_ratio"] >= 0.5
+    )
+    # Support/resistance must be based on prior closed candles, excluding the signal candle.
+    long_room = np.isfinite(resistance) and (resistance - bar["close"]) / bar["atr"] >= 0.5
+    short_room = np.isfinite(support) and (bar["close"] - support) / bar["atr"] >= 0.5
+    common_ok = not reasons
+    if long_core and higher_timeframes == {"4h": "NOUSU", "1d": "NOUSU"} and common_ok and long_room:
+        return "BUY", []
+    if short_core and higher_timeframes == {"4h": "LASKU", "1d": "LASKU"} and common_ok and short_room:
+        return "SELL", []
+    if not long_core and not short_core:
+        reasons.append("Main timeframe trend, momentum, ADX, RSI or volume conditions are not aligned.")
+    if not long_room and not short_room:
+        reasons.append("There is not at least 0.5 ATR of room to the next support/resistance level.")
+    if higher_timeframes.get("4h") != higher_timeframes.get("1d"):
+        reasons.append("4h and 1d trend directions disagree.")
+    return "WAIT", reasons
