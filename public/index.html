@@ -176,7 +176,8 @@ function paintChecklist(sig){
 function renderRisk(sig){
  if(sig.direction==="WAIT"||(sig.direction==="BUY"&&!(sig.qty>0))){
   $("riskExample").style.display="none";
-  $("riskPlan").innerHTML='<div class="signal wait">Ei kauppaa</div><p>Vaaditut ehdot eivät täyty, joten ei ostoa, myyntiä eikä laskettua positiota.</p><p class="sub">Älä tulkitse ODOTA-tilaa piilotetuksi ostokehotukseksi. Riskilaskelma näytetään vain, kun signaali vahvistuu.</p>';return;
+  var noTradeReason=sig.direction==="WAIT"?"Vaaditut ehdot eivät täyty, joten kauppaa ei ehdoteta.":"Positiota ei voida mitoittaa annetuilla pääoma- ja riskiasetuksilla.";
+  $("riskPlan").innerHTML='<div class="signal wait">Ei kauppaa</div><p>'+noTradeReason+'</p><p class="sub">Riskilaskelma näytetään vain, kun signaali ja position koko ovat käyttökelpoisia.</p>';return;
  }
  $("riskExample").style.display="block";
  if(sig.direction==="SELL"){
