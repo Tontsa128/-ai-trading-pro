@@ -1,7 +1,8 @@
-"""Causal and validated technical indicators for the legacy Streamlit app.
+"""Causal OHLCV indicators aligned with the JavaScript TradingEngine.
 
-Warm-up values remain NaN. No indicator may read future rows or silently
-replace invalid market observations with zeroes or future-derived values.
+EMA uses the first finite observation as its seed. RSI, ATR, DI and ADX use
+Wilder smoothing with the same seed indices as trading-engine.js. Volume ratio
+uses the previous 20 closed bars. VWAP resets at each UTC session boundary.
 """
 import numpy as np
 import pandas as pd
@@ -9,30 +10,22 @@ import pandas as pd
 OHLCV_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
 REQUIRED_HIGHER_TIMEFRAMES = {"5m", "15m", "1h", "4h"}
 DIRECTIONAL_BIASES = {"VAHVA NOUSU", "NOUSU", "VAHVA LASKU", "LASKU"}
+PERIOD = 14
+VOLUME_PERIOD = 20
 INTERVALS = {
-    "1m": pd.Timedelta(minutes=1),
-    "3m": pd.Timedelta(minutes=3),
-    "5m": pd.Timedelta(minutes=5),
-    "15m": pd.Timedelta(minutes=15),
-    "1h": pd.Timedelta(hours=1),
-    "4h": pd.Timedelta(hours=4),
+    "1m": pd.Timedelta(minutes=1), "3m": pd.Timedelta(minutes=3),
+    "5m": pd.Timedelta(minutes=5), "15m": pd.Timedelta(minutes=15),
+    "1h": pd.Timedelta(hours=1), "4h": pd.Timedelta(hours=4),
     "1d": pd.Timedelta(days=1),
 }
 
 
 def validate_ohlcv(df: pd.DataFrame, interval: str | None = None) -> pd.DataFrame:
-    """Validate ordered, unique, finite and internally consistent OHLCV bars.
-
-    If an interval is supplied, missing or duplicated time slots fail closed.
-    The function returns a defensive copy and never repairs market data.
-    """
     if not isinstance(df, pd.DataFrame) or df.empty:
         raise ValueError("OHLCV-data is empty or is not a DataFrame.")
-
     missing = set(OHLCV_COLUMNS).difference(df.columns)
     if missing:
         raise ValueError(f"Missing OHLCV columns: {', '.join(sorted(missing))}")
-
     if not isinstance(df.index, pd.DatetimeIndex):
         raise ValueError("OHLCV index must be a DatetimeIndex.")
     if df.index.hasnans:
@@ -41,14 +34,9 @@ def validate_ohlcv(df: pd.DataFrame, interval: str | None = None) -> pd.DataFram
         raise ValueError("Duplicate OHLCV candle timestamps detected.")
     if not df.index.is_monotonic_increasing:
         raise ValueError("OHLCV candles are not ordered by timestamp.")
-
-    # Preserve derived indicator columns when callers validate an enriched frame.
-    # Only raw OHLCV fields are subject to the finite-value requirement; indicator
-    # warm-up NaNs are expected and must not be mistaken for invalid market data.
     result = df.copy()
     for column in OHLCV_COLUMNS:
         result[column] = pd.to_numeric(result[column], errors="raise")
-
     values = result.loc[:, list(OHLCV_COLUMNS)].to_numpy(dtype=float)
     if not np.isfinite(values).all():
         raise ValueError("OHLCV contains missing or non-finite values.")
@@ -60,19 +48,16 @@ def validate_ohlcv(df: pd.DataFrame, interval: str | None = None) -> pd.DataFram
     invalid_low = result["Low"] > result[["Open", "Close", "High"]].min(axis=1)
     if invalid_high.any() or invalid_low.any():
         raise ValueError("OHLC candle high/low is inconsistent with open/close.")
-
     if interval is not None:
         expected = INTERVALS.get(interval)
         if expected is None:
             raise ValueError(f"Unsupported candle interval: {interval}")
         if len(result) > 1 and not result.index.to_series().diff().iloc[1:].eq(expected).all():
             raise ValueError(f"OHLCV candle sequence contains a gap for interval {interval}.")
-
     return result
 
 
 def signal_context_is_valid(bias: str, details: dict[str, str]) -> bool:
-    """Allow directional signals only with complete higher-timeframe context."""
     return (
         bias in DIRECTIONAL_BIASES
         and set(details) == REQUIRED_HIGHER_TIMEFRAMES
@@ -80,67 +65,127 @@ def signal_context_is_valid(bias: str, details: dict[str, str]) -> bool:
     )
 
 
-def rsi(close: pd.Series, period: int = 14) -> pd.Series:
-    """Return exponentially smoothed RSI with mathematically correct edge cases."""
+def _wilder(values, period: int = PERIOD) -> np.ndarray:
+    array = np.asarray(values, dtype=float)
+    output = np.full(len(array), np.nan, dtype=float)
+    previous = None
+    seed = 0.0
+    for index, raw in enumerate(array):
+        value = raw if np.isfinite(raw) else 0.0
+        if index > 0 and index <= period:
+            seed += value
+        if index == period:
+            previous = seed / period
+            output[index] = previous
+        elif index > period and previous is not None:
+            previous = (previous * (period - 1) + value) / period
+            output[index] = previous
+    return output
+
+
+def rsi(close: pd.Series, period: int = PERIOD) -> pd.Series:
     if period < 1:
         raise ValueError("period must be >= 1")
     values = pd.to_numeric(close, errors="raise")
-    if not np.isfinite(values.dropna().to_numpy(dtype=float)).all():
+    raw = values.to_numpy(dtype=float)
+    if not np.isfinite(raw).all():
         raise ValueError("RSI input contains non-finite values.")
-
-    delta = values.diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.ewm(alpha=1 / period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1 / period, adjust=False).mean()
-
-    result = pd.Series(np.nan, index=values.index, dtype=float)
-    valid = avg_gain.notna() & avg_loss.notna()
-    flat = valid & avg_gain.eq(0) & avg_loss.eq(0)
-    gains_only = valid & avg_gain.gt(0) & avg_loss.eq(0)
-    losses_only = valid & avg_gain.eq(0) & avg_loss.gt(0)
-    regular = valid & avg_gain.gt(0) & avg_loss.gt(0)
-
-    result.loc[flat] = 50.0
-    result.loc[gains_only] = 100.0
-    result.loc[losses_only] = 0.0
-    relative_strength = avg_gain.loc[regular] / avg_loss.loc[regular]
-    result.loc[regular] = 100.0 - (100.0 / (1.0 + relative_strength))
-    return result.clip(0, 100)
+    delta = np.diff(raw, prepend=raw[0])
+    average_gain = _wilder(np.maximum(delta, 0.0), period)
+    average_loss = _wilder(np.maximum(-delta, 0.0), period)
+    output = np.full(len(raw), np.nan, dtype=float)
+    for index, (gain, loss) in enumerate(zip(average_gain, average_loss)):
+        if not np.isfinite(gain) or not np.isfinite(loss):
+            continue
+        if loss == 0:
+            output[index] = 50.0 if gain == 0 else 100.0
+        else:
+            output[index] = 100.0 - 100.0 / (1.0 + gain / loss)
+    return pd.Series(np.clip(output, 0.0, 100.0), index=values.index, dtype=float)
 
 
 def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
-    """Add causal EMA, RSI, MACD, ATR, volume average and cumulative VWAP."""
     result = validate_ohlcv(df)
+    close = result["Close"]
+    result["EMA9"] = close.ewm(span=9, adjust=False).mean()
+    result["EMA21"] = close.ewm(span=21, adjust=False).mean()
+    result["EMA50"] = close.ewm(span=50, adjust=False).mean()
+    result["EMA100"] = close.ewm(span=100, adjust=False).mean()  # Legacy UI only.
+    result["EMA200"] = close.ewm(span=200, adjust=False).mean()
 
-    result["EMA9"] = result["Close"].ewm(span=9, adjust=False).mean()
-    result["EMA21"] = result["Close"].ewm(span=21, adjust=False).mean()
-    result["EMA50"] = result["Close"].ewm(span=50, adjust=False).mean()
-    result["EMA100"] = result["Close"].ewm(span=100, adjust=False).mean()
-
-    result["RSI"] = rsi(result["Close"])
-
-    ema12 = result["Close"].ewm(span=12, adjust=False).mean()
-    ema26 = result["Close"].ewm(span=26, adjust=False).mean()
+    result["RSI"] = rsi(close)
+    ema12 = close.ewm(span=12, adjust=False).mean()
+    ema26 = close.ewm(span=26, adjust=False).mean()
     result["MACD"] = ema12 - ema26
     result["MACD_SIGNAL"] = result["MACD"].ewm(span=9, adjust=False).mean()
     result["MACD_HIST"] = result["MACD"] - result["MACD_SIGNAL"]
 
-    previous_close = result["Close"].shift(1)
-    true_range = pd.concat(
-        [
-            result["High"] - result["Low"],
-            (result["High"] - previous_close).abs(),
-            (result["Low"] - previous_close).abs(),
-        ],
-        axis=1,
-    ).max(axis=1)
-    result["ATR"] = true_range.rolling(14, min_periods=14).mean()
-    result["VOL_MA"] = result["Volume"].rolling(20, min_periods=20).mean()
+    previous_close = close.shift(1)
+    true_range = pd.concat([
+        result["High"] - result["Low"],
+        (result["High"] - previous_close).abs(),
+        (result["Low"] - previous_close).abs(),
+    ], axis=1).max(axis=1)
+    atr = _wilder(true_range.to_numpy(dtype=float), PERIOD)
+    result["ATR"] = pd.Series(atr, index=result.index)
+    result["ATR_PCT"] = result["ATR"] / close * 100.0
 
-    typical_price = (result["High"] + result["Low"] + result["Close"]) / 3
-    cumulative_volume = result["Volume"].cumsum().replace(0, np.nan)
-    cumulative_value = (typical_price * result["Volume"]).cumsum()
-    result["VWAP"] = (cumulative_value / cumulative_volume).ffill()
+    high = result["High"].to_numpy(dtype=float)
+    low = result["Low"].to_numpy(dtype=float)
+    plus_dm = np.zeros(len(result), dtype=float)
+    minus_dm = np.zeros(len(result), dtype=float)
+    for index in range(1, len(result)):
+        upward = high[index] - high[index - 1]
+        downward = low[index - 1] - low[index]
+        if upward > downward and upward > 0:
+            plus_dm[index] = upward
+        if downward > upward and downward > 0:
+            minus_dm[index] = downward
+    plus_average = _wilder(plus_dm, PERIOD)
+    minus_average = _wilder(minus_dm, PERIOD)
+    pdi = np.full(len(result), np.nan, dtype=float)
+    mdi = np.full(len(result), np.nan, dtype=float)
+    for index, (atr_value, plus_value, minus_value) in enumerate(zip(atr, plus_average, minus_average)):
+        if np.isfinite(atr_value) and atr_value > 0 and np.isfinite(plus_value):
+            pdi[index] = 100.0 * plus_value / atr_value
+        if np.isfinite(atr_value) and atr_value > 0 and np.isfinite(minus_value):
+            mdi[index] = 100.0 * minus_value / atr_value
+    dx = np.full(len(result), np.nan, dtype=float)
+    for index, (plus_value, minus_value) in enumerate(zip(pdi, mdi)):
+        total = plus_value + minus_value
+        if np.isfinite(plus_value) and np.isfinite(minus_value) and total > 0:
+            dx[index] = 100.0 * abs(plus_value - minus_value) / total
+    adx = np.full(len(result), np.nan, dtype=float)
+    dx_seed = 0.0
+    previous_adx = None
+    for index in range(PERIOD, len(result)):
+        dx_value = dx[index] if np.isfinite(dx[index]) else 0.0
+        if index < 2 * PERIOD - 1:
+            dx_seed += dx_value
+        elif index == 2 * PERIOD - 1:
+            previous_adx = (dx_seed + dx_value) / PERIOD
+            adx[index] = previous_adx
+        elif previous_adx is not None:
+            previous_adx = (previous_adx * (PERIOD - 1) + dx_value) / PERIOD
+            adx[index] = previous_adx
+    result["PDI"] = pdi
+    result["MDI"] = mdi
+    result["ADX"] = adx
 
+    result["VOL_MA"] = result["Volume"].shift(1).rolling(VOLUME_PERIOD, min_periods=VOLUME_PERIOD).mean()
+    volume_ratio = np.full(len(result), np.nan, dtype=float)
+    volume_average = result["VOL_MA"].to_numpy(dtype=float)
+    np.divide(
+        result["Volume"].to_numpy(dtype=float), volume_average,
+        out=volume_ratio,
+        where=np.isfinite(volume_average) & (volume_average > 0),
+    )
+    result["VOLUME_RATIO"] = volume_ratio
+
+    utc_index = result.index.tz_localize("UTC") if result.index.tz is None else result.index.tz_convert("UTC")
+    sessions = pd.Series(utc_index.floor("D"), index=result.index)
+    typical_price = (result["High"] + result["Low"] + close) / 3.0
+    cumulative_value = (typical_price * result["Volume"]).groupby(sessions).cumsum()
+    cumulative_volume = result["Volume"].groupby(sessions).cumsum().replace(0, np.nan)
+    result["VWAP"] = cumulative_value / cumulative_volume
     return result
