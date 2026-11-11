@@ -1,22 +1,22 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-11-11T18:18:17.235Z",
+  "cycleStartedAt": "2026-11-11T18:21:40.568Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 74499.95,
-      "change24hPct": 1.668,
-      "spreadPct": 0.000013422826912195083,
+      "price": 74513.58,
+      "change24hPct": 1.839,
+      "spreadPct": 0.000013420371593664847,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
@@ -51,16 +51,16 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2091.14,
-      "change24hPct": 2.973,
-      "spreadPct": 0.0004782069153606411,
+      "price": 2091.35,
+      "change24hPct": 3.153,
+      "spreadPct": 0.0004781611833419895,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
@@ -94,16 +94,16 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 85.3,
-      "change24hPct": 3.394,
-      "spreadPct": 0.011722642283576713,
+      "price": 85.29,
+      "change24hPct": 3.507,
+      "spreadPct": 0.011724016648092977,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
@@ -138,16 +138,16 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 688.2,
-      "change24hPct": 2.052,
-      "spreadPct": 0.0014530765262739346,
+      "price": 688.04,
+      "change24hPct": 2.169,
+      "spreadPct": 0.0014534144338574208,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
@@ -182,16 +182,16 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.0675,
-      "change24hPct": 0.898,
-      "spreadPct": 0.009368120286663449,
+      "price": 1.0662,
+      "change24hPct": 0.899,
+      "spreadPct": 0.009379543216244337,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
@@ -226,7 +226,7 @@
     {
       "symbol": "DOGEUSDT",
       "price": 0.06908,
-      "change24hPct": 3.228,
+      "change24hPct": 3.351,
       "spreadPct": 0.014477017734341112,
       "timeframe": "1h",
       "confirmations": [
@@ -234,7 +234,7 @@
         "1d"
       ],
       "lastClosedCandleAt": "2026-11-11T17:59:59.999Z",
-      "newClosedCandles": 1,
+      "newClosedCandles": 0,
       "signal": "WAIT",
       "trendBias": "neutral",
       "higherBias": [
