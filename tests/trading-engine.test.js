@@ -72,6 +72,16 @@ assert.ok(Number.isFinite(full[400].ema200), "EMA 200 is computed");
 assert.ok(Number.isFinite(full[400].atr) && full[400].atr > 0, "ATR is positive");
 assert.ok(full[400].rsi >= 0 && full[400].rsi <= 100, "RSI stays within [0,100]");
 assert.ok(Number.isFinite(full[400].adx), "ADX is finite after warm-up");
+const vwapFixture = E.enrich([
+  {time:Date.UTC(2026,0,1,23,0),open:100,high:110,low:90,close:100,volume:10},
+  {time:Date.UTC(2026,0,1,23,5),open:100,high:120,low:100,close:110,volume:10},
+  {time:Date.UTC(2026,0,2,0,0),open:200,high:220,low:200,close:210,volume:10}
+]);
+assert.deepEqual(vwapFixture.map(x => x.vwap), [100, 105, 210],
+  "VWAP is cumulative within the UTC session and resets at midnight");
+assert.equal(E.enrich([
+  {time:Date.UTC(2026,0,2,0,0),open:10,high:10,low:10,close:10,volume:0}
+])[0].vwap, null, "zero-volume session VWAP remains unavailable");
 assert.throws(() => E.analyzeSeries(full.slice(0, 100)), /vähintään 220/, "short history fails closed");
 
 const changedFuture = E.enrich(makeBars(520, 301));
