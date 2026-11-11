@@ -1,0 +1,18 @@
+"use strict";
+const assert=require("node:assert/strict");
+const fs=require("node:fs");
+const source=fs.readFileSync("scripts/fast-paper-trader.js","utf8");
+assert.doesNotMatch(source,/addTrade\(s,\s*q\.price,\s*0,\s*now,\s*"restFallback"\)/,"REST quote samples must never be converted into zero-volume trade candles");
+assert.equal((source.match(/addTrade\(/g)||[]).length,2,"only definition and genuine WebSocket trade handler use addTrade");
+assert.match(source,/Only genuine Binance public trade WebSocket events may create live 5\/15-second bars/);
+assert.match(source,/marketAgeMs:\s*Number\.isFinite\(s\?\.lastTradeAt\)/,"market age uses last real trade time");
+assert.match(source,/quoteAgeMs:\s*Number\.isFinite\(s\?\.lastQuoteAt\)/,"quote age stays separate");
+assert.match(source,/let endpointIndex = 0;/);
+assert.match(source,/WEBSOCKET_BASES\[endpointIndex % WEBSOCKET_BASES\.length\]/,"reconnect endpoint rotates");
+assert.match(source,/websocketTradeMessages:\s*tradeMessages/,"report distinguishes trade messages");
+assert.match(source,/WebSocket handshake timed out/,"a stalled connecting handshake is failed closed");
+assert.match(source,/WebSocket market-data stream was silent for over 15 seconds/,"an open but silent market stream triggers reconnect");
+assert.match(source,/websocketIdleTimeouts:\s*socketIdleTimeouts/,"report exposes idle stream recovery counts");
+assert.match(source,/websocketHandshakeTimeouts:\s*socketHandshakeTimeouts/,"report exposes handshake timeout counts");
+assert.ok((source.match(/if \(socket !== currentSocket\) return;/g)||[]).length>=4,"callbacks from replaced sockets cannot clear the active socket timeout or alter the current feed");
+console.log("Fast paper trader tests passed.");
