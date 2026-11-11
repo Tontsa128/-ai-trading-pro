@@ -280,6 +280,16 @@ class StreamlitIntegrationSafetyTests(unittest.TestCase):
         self.assertIn("evaluate_signal_gates(", app_source)
         self.assertIn('for htf in ["4h", "1d"]:', app_source)
 
+    def test_streamlit_exposes_approved_spot_risk_controls_and_displays_costs(self):
+        app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+        self.assertIn("[0.25, 0.50, 0.75, 1.00]", app_source)
+        self.assertIn("[10, 25, 50]", app_source)
+        self.assertIn("fee_pct", app_source)
+        self.assertIn("slippage_pct", app_source)
+        self.assertIn('ai["risk_plan"]', app_source)
+        self.assertIn("estimated_loss_usdt", app_source)
+        self.assertIn("estimated_gain_usdt", app_source)
+
     def test_streamlit_does_not_show_synthetic_confidence_or_short_targets(self):
         app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
         self.assertNotIn("confidence", app_source.lower())
