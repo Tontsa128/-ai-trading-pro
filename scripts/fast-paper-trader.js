@@ -192,7 +192,6 @@ function onClosedBar(s, bar) {
   const prevSlow = ema(priorCloses, 21);
   const momentum = (closes[closes.length - 1] / closes[closes.length - 4] - 1) * 100;
   const spreadPct = s.bid > 0 && s.ask >= s.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null;
-  const quoteFresh = isFreshQuote(s.lastQuoteAt, Date.now(), MAX_QUOTE_AGE_MS);
   const p = state.positions[s.symbol];
   if (p) {
     p.lastPrice = bar.close;
