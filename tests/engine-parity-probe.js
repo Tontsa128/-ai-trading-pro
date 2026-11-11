@@ -1,5 +1,7 @@
 "use strict";
 const fs = require("node:fs");
+// The browser engine binds its root argument to window; expose the Node global for this test probe.
+global.window = globalThis;
 require("../trading-engine.js");
 const engine = globalThis.TradingEngine;
 if (!engine || typeof engine.enrich !== "function") throw new Error("TradingEngine.enrich is unavailable");
