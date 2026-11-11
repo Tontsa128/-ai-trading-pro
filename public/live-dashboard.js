@@ -267,7 +267,7 @@
     });
     var sig = state.decision, gateReason = currentGateReason();
     if (sig && !gateReason && sig.direction !== "WAIT") {
-      var sc = sig.direction === "BUY" ? '#28d7a0' : '#ff647c', txt = sig.direction === "BUY" ? "OSTA · SPOT" : "MYY / KEVENNÄ", yy2 = y(state.tradePrice || state.live && state.live.close);
+      var sc = sig.direction === "BUY" ? '#28d7a0' : '#ff647c', txt = sig.direction === "BUY" ? "OSTA · SPOT" : "MYY / KEVENNÄ", yy2 = y(state.tradePrice || (state.live && state.live.close) || sig.entry);
       out.push('<line x1="' + l + '" y1="' + yy2.toFixed(1) + '" x2="' + (w - r) + '" y2="' + yy2.toFixed(1) + '" stroke="' + sc + '" stroke-width="2" stroke-dasharray="7 4"/>');
       out.push('<rect x="' + (w - r - 100) + '" y="' + Math.max(t, yy2 - 18).toFixed(1) + '" width="96" height="22" rx="8" fill="' + sc + '"/><text x="' + (w - r - 52) + '" y="' + Math.max(t + 15, yy2 - 3).toFixed(1) + '" text-anchor="middle" fill="#07111f" font-size="11" font-weight="900">' + txt + ' ' + points + '/100p</text>');
     }
