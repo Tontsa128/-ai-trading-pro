@@ -16,8 +16,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
   var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
-  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
-  var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
+  var num = function (v, d) { return window.RahasampoFormat.number(v, d); };
+  var price = function (v) { return window.RahasampoFormat.price(v); };
 
   function injectUi() {
     var chart = $("chart");
@@ -91,7 +91,10 @@
 
   async function getBars(tf, requestedSymbol) {
     var symbol = requestedSymbol || state.symbol;
-    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store" });
+    var controller = new AbortController(), timeout = setTimeout(function () { controller.abort(); }, 10000), r;
+    try { r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store", signal: controller.signal }); }
+    catch (error) { throw new Error(error && error.name === "AbortError" ? "Kynttilädatan haku aikakatkaistiin 10 sekunnissa." : "Kynttilädatan haku epäonnistui: " + (error.message || "verkkovirhe")); }
+    finally { clearTimeout(timeout); }
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
@@ -288,12 +291,13 @@
     var gateReason = currentGateReason();
     var sig = $("signal"), summary = $("summary"), passed = $("passed");
     var checklist = $("checklist"), timeframes = $("timeframes"), levels = $("levels");
-    var riskPlan = $("riskPlan"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx");
+    var riskPlan = $("riskPlan"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx"), riskExample = $("riskExampleNote");
 
     if (!decision || !decision.main || !decision.main.bar) {
       if (sig) { sig.textContent = "ODOTA"; sig.className = "signal wait"; }
       if (summary) summary.textContent = "Uutta kaupankäyntipäätöstä ei ole laskettu: " + (state.decisionError || "markkinadata puuttuu.");
       if (passed) passed.textContent = "Ehdot —";
+      if (riskExample) riskExample.hidden = true;
       if (checklist) checklist.textContent = "Tarkistuslista ei ole voimassa ilman tuoretta, täydellistä markkina-analyysiä.";
       if (timeframes) timeframes.textContent = "Aikavälivahvistusta ei ole saatavilla.";
       if (levels) levels.textContent = "Tukia, vastuksia tai indikaattoreita ei näytetä ilman vahvistettua dataa.";
@@ -312,7 +316,12 @@
       }
       if (summary) summary.textContent = gateReason ? "SIGNAALI ESTETTY: " + gateReason :
         decision.reason + (decision.blockingReasons && decision.blockingReasons.length ? " Estävät ehdot: " + decision.blockingReasons.join(" · ") : "");
-      if (passed) passed.textContent = decision.passed + " / " + decision.total + " ehtoa täyttyy";
+      var dataItems = (decision.checklist || []).filter(function (x) { return x.group === "Data OK"; });
+      var technicalItems = (decision.checklist || []).filter(function (x) { return x.group === "Trendi" || x.group === "Ajoitus"; });
+      var dataPassed = dataItems.filter(function (x) { return x.ok; }).length;
+      var technicalPassed = technicalItems.filter(function (x) { return x.ok; }).length;
+      if (passed) passed.textContent = "Data " + dataPassed + "/" + dataItems.length + " · Tekniset " + technicalPassed + "/" + technicalItems.length + " · Yhteensä " + decision.passed + "/" + decision.total;
+      if (riskExample) riskExample.hidden = direction === "WAIT";
       if (rsi) rsi.textContent = num(bar.rsi, 1);
       if (adx) adx.textContent = num(bar.adx, 1);
       if (timestamp) timestamp.textContent = "Viimeisin suljettu kynttilä " + new Date(bar.closeTime).toLocaleString("fi-FI");
@@ -322,8 +331,8 @@
       }).join("");
       if (timeframes) {
         var rows = [{name:state.interval + " (valittu)",bias:decision.main.checks.bias}];
-        ["1h","4h","1d"].forEach(function (tf, i) {
-          if (tf !== state.interval && decision.higher && decision.higher[i]) rows.push({name:tf,bias:decision.higher[i].checks.bias});
+        [["4h",1],["1d",2]].forEach(function (item) {
+          if (item[0] !== state.interval && decision.higher && decision.higher[item[1]]) rows.push({name:item[0],bias:decision.higher[item[1]].checks.bias});
         });
         timeframes.innerHTML = rows.map(function (item) {
           var label = item.bias === "bull" ? "NOUSU" : item.bias === "bear" ? "LASKU" : "EPÄSELVÄ";
@@ -336,13 +345,13 @@
         '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>' + price(decision.main.resistance) + '</strong></div>' +
         '<div class="kv"><span>ATR (14)</span><strong>' + price(bar.atr) + '</strong></div>' +
         '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>' + num(bar.volumeRatio, 2) + "×</strong></div>" +
-        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + Math.max(0, Math.round(decision.priceAgeMs / 1000)) + " s</strong></div>";
+        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + num(decision.priceAgeMs / 1000, 1) + " s</strong></div>";
       if (riskPlan) {
         if (gateReason || direction === "WAIT") {
           riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(gateReason || "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.") + '</p><p class="sub">Positiota ei ehdoteta ODOTA-tilassa.</p>';
         } else if (direction === "BUY") {
           riskPlan.innerHTML = '<div class="signal buy">OSTA · SPOT</div>' +
-            '<div class="kv"><span>Entry (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
+            '<div class="kv"><span>Sisääntulo (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
             '<div class="kv"><span>Stop-loss (arvio)</span><strong>' + price(decision.stop) + '</strong></div>' +
             '<div class="kv"><span>Tavoite (arvio)</span><strong>' + price(decision.target) + '</strong></div>' +
             '<div class="kv"><span>Arvioitu määrä</span><strong>' + num(decision.qty, 6) + '</strong></div>' +
