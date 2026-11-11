@@ -350,7 +350,7 @@
         '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>' + price(decision.main.resistance) + '</strong></div>' +
         '<div class="kv"><span>ATR (14)</span><strong>' + price(bar.atr) + '</strong></div>' +
         '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>' + num(bar.volumeRatio, 2) + "×</strong></div>" +
-        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + Math.max(0, Math.round(decision.priceAgeMs / 1000)) + " s</strong></div>";
+        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + num(Math.max(0, decision.priceAgeMs / 1000), 1) + " s</strong></div>";
       if (riskPlan) {
         if (gateReason || direction === "WAIT") {
           riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(gateReason || "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.") + '</p><p class="sub">Positiota ei ehdoteta ODOTA-tilassa.</p>';
