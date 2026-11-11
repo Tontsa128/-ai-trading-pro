@@ -249,7 +249,7 @@ async function runHistoricalBacktest(){
   $("btCompareRows").innerHTML='<tr><td colspan="9">Testiä ei voitu laskea.</td></tr>';
  }finally{button.disabled=false;}
 }
-function renderNativeCandleChart(series,signal,symbol,chartCount){
+function renderNativeCandleChart(series,signal,symbol,chartCount,renderError){
  var width=960,height=360,left=18,right=78,top=36,bottom=34;
  var limit=Math.max(2,Math.min(1000,Number(chartCount)||120));
  var d=(Array.isArray(series)?series:[]).slice(-limit).filter(function(b){
@@ -308,7 +308,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  var lx=left;
  overlays.forEach(function(o){out.push('<line x1="',lx,'" y1="',height-1,'" x2="',lx+12,'" y2="',height-1,'" stroke="',o[1],'" stroke-width="2"/>');lx+=20;});
  out.push('</g></svg>');
- $("chart").innerHTML=out.join("");
+ $("chart").innerHTML=(renderError?'<div class="status error">Kaavion piirto-ongelma: '+esc(renderError)+'. Näytetään SVG-varakaavio.</div>':"")+out.join("");
  return true;
 }
 function renderChart(series,signal,symbol,chartCount){
@@ -335,19 +335,26 @@ function renderChart(series,signal,symbol,chartCount){
   shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.stop,y1:signal.stop,line:{color:"#ff647c",dash:"dash"}});
   shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.target,y1:signal.target,line:{color:"#28d7a0",dash:"dash"}});
  }
+ var settled=false,fallbackTimer=setTimeout(function(){
+  if(settled)return;settled=true;
+  renderNativeCandleChart(valid,signal,symbol,count,"Plotly-piirto ei valmistunut 5 sekunnissa.");
+ },5000);
  try{
   var chartResult=window.Plotly.react("chart",traces,{paper_bgcolor:"#101d30",plot_bgcolor:"#101d30",font:{color:"#dce9fa"},margin:{l:55,r:18,t:12,b:45},
    xaxis:{gridcolor:"#263750",rangeslider:{visible:false}},yaxis:{gridcolor:"#263750",side:"right"},legend:{orientation:"h",y:1.1},autosize:true,shapes:shapes},
    {responsive:true,displaylogo:false,scrollZoom:true});
-  if(chartResult&&typeof chartResult.then==="function"){
-   chartResult.then(function(){
-    var node=$("chart");
-    if(!node||!node.querySelector(".main-svg"))renderNativeCandleChart(valid,signal,symbol,count);
-   }).catch(function(){renderNativeCandleChart(valid,signal,symbol,count);});
-  }
+  Promise.resolve(chartResult).then(function(){
+   if(settled)return;settled=true;clearTimeout(fallbackTimer);
+   var node=$("chart");
+   if(!node||!node.querySelector(".main-svg"))renderNativeCandleChart(valid,signal,symbol,count,"Plotly ei luonut kaavion SVG-elementtiä.");
+  }).catch(function(error){
+   if(settled)return;settled=true;clearTimeout(fallbackTimer);
+   renderNativeCandleChart(valid,signal,symbol,count,error&&error.message?error.message:"Plotly-piirto epäonnistui.");
+  });
   return true;
  }catch(e){
-  return renderNativeCandleChart(valid,signal,symbol,count);
+  settled=true;clearTimeout(fallbackTimer);
+  return renderNativeCandleChart(valid,signal,symbol,count,e&&e.message?e.message:"Plotly-piirto epäonnistui.");
  }
 }
 async function load(){
