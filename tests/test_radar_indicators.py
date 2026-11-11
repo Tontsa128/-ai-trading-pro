@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from radar_indicators import add_indicators, rsi, signal_context_is_valid, validate_ohlcv
+from radar_indicators import add_indicators, evaluate_signal_gates, rsi, signal_context_is_valid, validate_ohlcv
 
 
 def sample_ohlcv(rows=80):
@@ -132,6 +132,89 @@ class CausalIndicatorTests(unittest.TestCase):
         self.assertFalse(signal_context_is_valid("EPÄSELVÄ", complete))
         self.assertFalse(signal_context_is_valid("NOUSU", {"1h": "NOUSU", "4h": "NOUSU"}))
         self.assertFalse(signal_context_is_valid("NOUSU", {**complete, "4h": "?"}))
+
+
+class ConservativeSignalGateTests(unittest.TestCase):
+    def setUp(self):
+        self.bull = {
+            "close": 110.0, "ema9": 109.0, "ema21": 108.0, "ema50": 105.0,
+            "ema200": 100.0, "rsi": 60.0, "macd_hist": 0.4, "atr": 2.0,
+            "atr_pct": 1.8, "adx": 25.0, "pdi": 30.0, "mdi": 15.0,
+            "volume_ratio": 0.8,
+        }
+
+    def test_buy_requires_all_main_and_higher_timeframe_gates(self):
+        decision, reasons = evaluate_signal_gates(
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+        )
+        self.assertEqual(decision, "BUY")
+        self.assertEqual(reasons, [])
+
+    def test_sell_is_only_a_directional_spot_signal(self):
+        bear = {
+            "close": 90.0, "ema9": 91.0, "ema21": 93.0, "ema50": 95.0,
+            "ema200": 100.0, "rsi": 40.0, "macd_hist": -0.4, "atr": 2.0,
+            "atr_pct": 2.0, "adx": 24.0, "pdi": 12.0, "mdi": 28.0,
+            "volume_ratio": 0.9,
+        }
+        decision, reasons = evaluate_signal_gates(
+            bear, {"4h": "LASKU", "1d": "LASKU"}, 0.08, 300, 88.0, 110.0
+        )
+        self.assertEqual(decision, "SELL")
+        self.assertEqual(reasons, [])
+
+    def test_missing_or_wide_spread_blocks_signal(self):
+        for spread in (np.nan, -0.01, 0.15001):
+            decision, _ = evaluate_signal_gates(
+                self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, spread, 300, 90.0, 112.0
+            )
+            self.assertEqual(decision, "WAIT")
+
+    def test_volume_below_approved_half_average_blocks_buy(self):
+        bar = dict(self.bull, volume_ratio=0.499)
+        decision, _ = evaluate_signal_gates(
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+        )
+        self.assertEqual(decision, "WAIT")
+
+    def test_adx_below_approved_threshold_blocks_buy(self):
+        bar = dict(self.bull, adx=17.99)
+        decision, _ = evaluate_signal_gates(
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+        )
+        self.assertEqual(decision, "WAIT")
+
+    def test_disagreeing_or_missing_higher_timeframes_block_signal(self):
+        for higher in (
+            {"4h": "NOUSU", "1d": "LASKU"},
+            {"4h": "NOUSU"},
+            {"4h": "NOUSU", "1d": "?"},
+        ):
+            decision, _ = evaluate_signal_gates(self.bull, higher, 0.08, 300, 90.0, 112.0)
+            self.assertEqual(decision, "WAIT")
+
+    def test_missing_history_and_overextension_block_signal(self):
+        decision, _ = evaluate_signal_gates(
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 219, 90.0, 112.0
+        )
+        self.assertEqual(decision, "WAIT")
+        bar = dict(self.bull, close=120.0)
+        decision, _ = evaluate_signal_gates(
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+        )
+        self.assertEqual(decision, "WAIT")
+
+    def test_insufficient_room_to_resistance_blocks_buy(self):
+        decision, _ = evaluate_signal_gates(
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 110.5
+        )
+        self.assertEqual(decision, "WAIT")
+
+    def test_signal_context_requires_exactly_four_hour_and_daily_confirmation(self):
+        self.assertTrue(signal_context_is_valid("NOUSU", {"4h": "NOUSU", "1d": "NOUSU"}))
+        self.assertFalse(signal_context_is_valid("EPÄSELVÄ", {"4h": "NOUSU", "1d": "NOUSU"}))
+        self.assertFalse(signal_context_is_valid("NOUSU", {"4h": "NOUSU", "1d": "LASKU"}))
+        self.assertFalse(signal_context_is_valid("NOUSU", {"5m": "NOUSU", "15m": "NOUSU", "1h": "NOUSU", "4h": "NOUSU"}))
 
 
 class JavaScriptIndicatorParityTests(unittest.TestCase):
