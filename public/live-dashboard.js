@@ -234,6 +234,7 @@
   function renderLiveChart() {
     var target = $("chart");
     if (!target) return;
+    try {
     var sourceBars = Array.isArray(state.chartBars) ? state.chartBars : [];
     if (sourceBars.length < 2) {
       target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
@@ -277,6 +278,9 @@
     [0, Math.floor((d.length - 1) / 2), d.length - 1].forEach(function (k) { var dt = new Date(d[k].time), lab = dt.toLocaleString('fi-FI', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); out.push('<text x="' + x(k).toFixed(1) + '" y="' + (h - 12) + '" text-anchor="middle" fill="#a8bdd7" font-size="11">' + esc(lab) + '</text>'); });
     out.push('</svg>');
     target.innerHTML = out.join('');
+    } catch (error) {
+      target.innerHTML = '<div class="status error">Kaavion piirto epäonnistui: ' + esc(error && error.message ? error.message : "tuntematon virhe") + '</div>';
+    }
   }
 
   function updateMainMetrics() {
