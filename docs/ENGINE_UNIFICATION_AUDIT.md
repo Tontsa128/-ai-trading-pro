@@ -41,5 +41,7 @@ The Streamlit application now applies the same core BUY/SELL/WAIT gates as the b
 - Missing history, indicators or quote data returns WAIT. No score or pattern override can bypass these gates.
 - The legacy synthetic confidence percentage was removed. The displayed score is explicitly a diagnostic score, not a probability.
 - BUY risk levels now use the same 1.5 ATR stop and 2.5 ATR target distances as the JavaScript engine. SELL has no short-style stop/target; it is a spot-only reduce-existing-holding / avoid-new-purchase indication.
+- Added a BUY-only USDT risk calculator with the approved 0.25/0.50/0.75/1.00% risk and 10/25/50% exposure choices. Fees, slippage and half-spread are included on entry and exit; SELL never invents a quantity without the user's holdings.
+- Position quantity is an estimate only; Binance lot-size and minimum-notional filters are not yet applied, and no order is submitted.
 
 The Python weighted score and descriptive pattern explanations remain diagnostic and are not mathematically identical to the JavaScript checklist. Full parity still requires shared decision fixtures comparing Python and JavaScript on the same OHLCV, higher-timeframe and bid/ask inputs. WAIT remains the safe outcome whenever any required gate is not satisfied. No exchange orders are introduced.
