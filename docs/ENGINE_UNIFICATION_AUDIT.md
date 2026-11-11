@@ -30,13 +30,16 @@ Python retains EMA100 temporarily because the legacy `ai_engine()` still reads i
 
 `tests/test_radar_indicators.py` includes prefix-invariance, warm-up, edge-case and data-integrity tests. The base-branch CI workflow installs Python dependencies and runs these tests for dependent pull requests as well. Its cross-language test generates one OHLCV sequence, sends the same bars to the JavaScript engine through `tests/engine-parity-probe.js`, and compares every shared indicator row-by-row.
 
-## Remaining work: signal-engine parity
+## Python signal-gate alignment: implemented, awaiting CI verification
 
-The Python Streamlit signal layer is still separate from the JavaScript `evaluateSignal()` decision contract. The remaining differences include:
+The Streamlit application now applies the same core BUY/SELL/WAIT gates as the browser engine before it can display a directional signal:
 
-- Python currently uses a weighted pattern/indicator score; JavaScript uses explicit BUY/SELL/WAIT gates.
-- Python higher-timeframe context currently uses 5m/15m/1h/4h; JavaScript requires 4h and 1d confirmation with 1h context.
-- Python's current live quote/spread handling is not yet the same as the JavaScript decision API.
-- The Streamlit UI still has legacy confidence/score presentation that must not be mistaken for a calibrated probability.
+- EMA 9/21/50/200 trend alignment, MACD histogram direction, RSI bands, ADX >= 18, DI direction and volume ratio >= 0.50.
+- Both 4h and 1d trend confirmations must agree.
+- Binance public Spot bookTicker bid/ask is fetched directly; missing, invalid or >0.15% spread blocks a signal.
+- ATR volatility >3%, price extension >1.6 ATR from EMA21, or less than 0.5 ATR room to prior 30-candle support/resistance blocks a signal.
+- Missing history, indicators or quote data returns WAIT. No score or pattern override can bypass these gates.
+- The legacy synthetic confidence percentage was removed. The displayed score is explicitly a diagnostic score, not a probability.
+- SELL no longer creates a short-style stop/target; it is a spot-only reduce-existing-holding / avoid-new-purchase indication.
 
-Do not claim full engine unification until the Python signal evaluator has been ported and compared on identical OHLCV, higher-timeframe and bid/ask fixtures. Keep WAIT as the safe outcome when data or context is missing. No real exchange orders are introduced.
+The Python weighted score and descriptive pattern explanations remain diagnostic and are not mathematically identical to the JavaScript checklist. Full parity still requires shared decision fixtures comparing Python and JavaScript on the same OHLCV, higher-timeframe and bid/ask inputs. WAIT remains the safe outcome whenever any required gate is not satisfied. No exchange orders are introduced.
