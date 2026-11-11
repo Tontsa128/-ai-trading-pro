@@ -7,6 +7,7 @@ on:
       - "app.py"
       - "radar_indicators.py"
       - "tests/test_radar_indicators.py"
+      - "tests/engine-parity-probe.js"
       - ".github/workflows/python-indicators.yml"
   pull_request:
     branches: [main]
