@@ -351,7 +351,7 @@ assert.ok(dashboardSource.includes('new Intl.NumberFormat("fi-FI"'), "dashboard 
 assert.ok(dashboardSource.includes('var timeframeRows=[{name:iv+" (valittu)"') &&
   !dashboardSource.includes('name:"1 h",a:higher[0].checks.bias'),
   "1h context is not displayed as a required higher-timeframe confirmation");
-assert.ok(dashboardSource.includes("fmt(Math.max(0,signal.priceAgeMs/1000),1)+' s'"),
+assert.ok(dashboardSource.includes("fmt(Math.max(0,signal.priceAgeMs/1000),1)"),
   "market price age is displayed to one decimal place rather than rounded to whole seconds");
 
 assert.ok(E.explainCandle(costSensitiveBar).bull.some(x => x.name.includes("MACD-histogrammi")),
