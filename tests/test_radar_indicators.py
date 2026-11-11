@@ -145,7 +145,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
 
     def test_buy_requires_all_main_and_higher_timeframe_gates(self):
         decision, reasons = evaluate_signal_gates(
-            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 300, 90.0, 112.0
         )
         self.assertEqual(decision, "BUY")
         self.assertEqual(reasons, [])
@@ -158,7 +158,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
             "volume_ratio": 0.9,
         }
         decision, reasons = evaluate_signal_gates(
-            bear, {"4h": "LASKU", "1d": "LASKU"}, 0.08, 300, 88.0, 110.0
+            bear, {"4h": "LASKU", "1d": "LASKU"}, 0.08, 90.0, 1000.0, 300, 88.0, 110.0
         )
         self.assertEqual(decision, "SELL")
         self.assertEqual(reasons, [])
@@ -166,7 +166,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
     def test_missing_or_wide_spread_blocks_signal(self):
         for spread in (np.nan, -0.01, 0.15001):
             decision, _ = evaluate_signal_gates(
-                self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, spread, 300, 90.0, 112.0
+                self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, spread, 110.0, 1000.0, 300, 90.0, 112.0
             )
             self.assertEqual(decision, "WAIT")
 
@@ -195,7 +195,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
 
     def test_missing_history_and_overextension_block_signal(self):
         decision, _ = evaluate_signal_gates(
-            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 219, 90.0, 112.0
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 219, 90.0, 112.0
         )
         self.assertEqual(decision, "WAIT")
         bar = dict(self.bull, close=120.0)
@@ -206,9 +206,26 @@ class ConservativeSignalGateTests(unittest.TestCase):
 
     def test_insufficient_room_to_resistance_blocks_buy(self):
         decision, _ = evaluate_signal_gates(
-            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 110.5
+            self.bull, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 300, 90.0, 110.5
         )
         self.assertEqual(decision, "WAIT")
+
+    def test_stale_or_future_binance_trade_blocks_signal(self):
+        for age in (30_001, -1, np.nan):
+            decision, _ = evaluate_signal_gates(
+                self.bull, {"4h": "NOUSU", "1d": "NOUSU"},
+                0.08, 110.0, age, 300, 90.0, 112.0,
+            )
+            self.assertEqual(decision, "WAIT")
+
+    def test_exact_approved_spread_volume_adx_and_trade_age_boundaries_pass(self):
+        bar = dict(self.bull, volume_ratio=0.5, adx=18.0)
+        decision, reasons = evaluate_signal_gates(
+            bar, {"4h": "NOUSU", "1d": "NOUSU"},
+            0.15, 110.0, 30_000, 300, 90.0, 112.0,
+        )
+        self.assertEqual(decision, "BUY")
+        self.assertEqual(reasons, [])
 
     def test_signal_context_requires_exactly_four_hour_and_daily_confirmation(self):
         self.assertTrue(signal_context_is_valid("NOUSU", {"4h": "NOUSU", "1d": "NOUSU"}))
