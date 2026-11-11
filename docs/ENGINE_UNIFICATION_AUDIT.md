@@ -40,6 +40,6 @@ The Streamlit application now applies the same core BUY/SELL/WAIT gates as the b
 - ATR volatility >3%, price extension >1.6 ATR from EMA21, or less than 0.5 ATR room to prior 30-candle support/resistance blocks a signal.
 - Missing history, indicators or quote data returns WAIT. No score or pattern override can bypass these gates.
 - The legacy synthetic confidence percentage was removed. The displayed score is explicitly a diagnostic score, not a probability.
-- SELL no longer creates a short-style stop/target; it is a spot-only reduce-existing-holding / avoid-new-purchase indication.
+- BUY risk levels now use the same 1.5 ATR stop and 2.5 ATR target distances as the JavaScript engine. SELL has no short-style stop/target; it is a spot-only reduce-existing-holding / avoid-new-purchase indication.
 
 The Python weighted score and descriptive pattern explanations remain diagnostic and are not mathematically identical to the JavaScript checklist. Full parity still requires shared decision fixtures comparing Python and JavaScript on the same OHLCV, higher-timeframe and bid/ask inputs. WAIT remains the safe outcome whenever any required gate is not satisfied. No exchange orders are introduced.
