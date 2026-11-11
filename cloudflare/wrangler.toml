@@ -1,4 +1,5 @@
 # Workers Builds runs from this directory; static assets remain in the repository root.
+# The Worker is JavaScript-only; Python app dependencies are not needed for this build.
 name = "ai-trading-pro"
 main = "./worker.mjs"
 compatibility_date = "2026-11-11"
