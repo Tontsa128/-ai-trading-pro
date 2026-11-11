@@ -84,11 +84,34 @@ const signal = E.makeSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.01}, opts);
 assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known enum");
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
+assert.equal(signal.total,14,"the checklist keeps four data checks and ten technical checks");
 assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
 assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
 assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
+
+const costSensitiveBar = {...analysed.bar, close:100, ema200:90, ema50:95, ema9:99, ema21:98,
+  macdHist:0.2, rsi:55, adx:25, pdi:30, mdi:10, atr:0.05, atrPct:0.05, volumeRatio:1};
+const costSensitiveMain = {...analysed, bar:costSensitiveBar, checks:E.explainCandle(costSensitiveBar),
+  longCore:true, overextended:false, highVolatility:false, support:90, resistance:101, high:full};
+const costSensitiveSignal = E.evaluateSignal(costSensitiveMain,
+  [{...analysed,checks:{...analysed.checks,bias:"bull"}},
+   {...analysed,checks:{...analysed.checks,bias:"bull"}}],
+  {price:100,closeTime:Date.now(),bid:99.99,ask:100.01},opts);
+const costGate = costSensitiveSignal.checklist.find(x => x.name.startsWith("Ostolle tilaa vastukseen"));
+assert.equal(costSensitiveSignal.targetCoversCosts,false,"a target that cannot cover round-trip friction by 1.5x must be blocked");
+assert.equal(costGate.ok,false,"the combined entry-space and cost gate must fail when the target does not cover costs");
+assert.ok(costGate.detail.includes("kuluehto ei täyty"),"the combined checklist row must explain the failed cost condition");
+assert.equal(costSensitiveSignal.direction,"WAIT","the cost gate must prevent a marginal BUY");
+const emaDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("Hinta EMA 200:n"));
+assert.ok(emaDescription.detail.includes("Kynttilän päätöshinta") && emaDescription.detail.includes("yläpuolella") && emaDescription.detail.includes("ehto täyttyy"),
+  "EMA explanation must derive direction from the numeric comparison and state the matching result");
+const rsiDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("RSI 50–68"));
+const adxDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("ADX vähintään 18"));
+assert.ok(rsiDescription.detail.includes("RSI 55,0") && adxDescription.detail.includes("ADX 25,0"),
+  "RSI and ADX checklist rows must show their measured values");
+
 const spreadGate = signal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
 assert.ok(spreadGate, "spread gate is visible in the checklist");
 assert.equal(spreadGate.ok, true, "spread below 0.15% must pass");
@@ -197,6 +220,15 @@ assert.ok(E.estimatePerSideFriction(0.10, 0.05, 0.10) >
 
 
 assert.equal(alignedBt.startIndex, 220, "full-history backtest preserves the default warm-up period");
+
+const frictionBacktest = E.backtest(full, {...opts, higherSeries:[full, full], assumedSpreadPct:0.10});
+assert.equal(frictionBacktest.roundTripFrictionPct, 0.4,
+  "backtest round-trip friction must include fee, slippage and the full assumed spread");
+assert.equal(frictionBacktest.assumedSpreadPct, 0.10,
+  "backtest exposes its assumed spread so the displayed cost model can be audited");
+assert.ok(frictionBacktest.trades.every(t => Number.isFinite(t.costs) && t.costs >= 0),
+  "each backtest trade records the exact modeled entry/exit costs");
+
 const holdoutStart = 400;
 const holdoutBt = E.backtest(full, {...opts, higherSeries: [full, full], startIndex: holdoutStart});
 assert.equal(holdoutBt.startIndex, holdoutStart, "backtest supports an explicit holdout start index");
@@ -317,3 +349,17 @@ assert.ok(liveDashboardSource.includes('Promise.all(allTimeframes.map') &&
   liveDashboardSource.includes('bar.closeTime <= scalpSnapshot') &&
   liveDashboardSource.includes('TradingEngine.evaluateSignal(main, higher'),
   "live technical cards align one snapshot while the primary decision uses the canonical selected-interval engine");
+
+assert.ok(dashboardSource.includes('new Intl.NumberFormat("fi-FI"'), "dashboard uses the Finnish locale for numeric display");
+assert.ok(dashboardSource.includes('var timeframeRows=[{name:iv+" (valittu)"') &&
+  !dashboardSource.includes('name:"1 h",a:higher[0].checks.bias'),
+  "1h context is not displayed as a required higher-timeframe confirmation");
+assert.ok(dashboardSource.includes("fmt(Math.max(0,signal.priceAgeMs/1000),1)"),
+  "market price age is displayed to one decimal place rather than rounded to whole seconds");
+
+assert.ok(E.explainCandle(costSensitiveBar).bull.some(x => x.name.includes("MACD-histogrammi")),
+  "MACD diagnostic gate remains present after display precision changes");
+assert.ok((awaitableEngineSource => awaitableEngineSource.includes('signedFixedFi(b.macdHist, 2)'))(liveEngineSource),
+  "MACD histogram is rendered to two decimals in signal explanations");
+assert.ok(liveEngineSource.includes('1 h (taustatieto): ') || liveEngineSource.includes('4 h: '),
+  "the diagnostic text distinguishes contextual 1h data from the required 4h/1d confirmations");
