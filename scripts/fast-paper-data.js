@@ -6,7 +6,7 @@ function validOneSecondKline(k, nowMs) {
   const open = Number(k[1]), high = Number(k[2]), low = Number(k[3]);
   const close = Number(k[4]), volume = Number(k[5]);
   if (!Number.isSafeInteger(time) || time < 0 || time % 1000 !== 0 ||
-      !Number.isFinite(closeTime) || closeTime <= time || closeTime >= nowMs ||
+      !Number.isFinite(closeTime) || closeTime !== time + 999 || closeTime >= nowMs ||
       ![open, high, low, close, volume].every(Number.isFinite) ||
       Math.min(open, high, low, close) <= 0 || volume < 0 ||
       high < Math.max(open, close, low) || low > Math.min(open, close, high)) return null;
@@ -61,7 +61,7 @@ function trailingContiguousBars(bars, barMs) {
   if (!Array.isArray(bars) || !Number.isFinite(barMs) || barMs <= 0) return [];
   const closed = bars.filter(bar =>
     bar && Number.isFinite(bar.time) && Number.isFinite(bar.closeTime) &&
-    bar.closeTime === bar.time + barMs - 1
+    bar.time % barMs === 0 && bar.closeTime === bar.time + barMs - 1
   );
   for (let i = 1; i < closed.length; i++) {
     if (closed[i].time <= closed[i - 1].time) return [];
