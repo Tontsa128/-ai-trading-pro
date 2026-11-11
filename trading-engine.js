@@ -138,8 +138,8 @@
     if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") {
       var emaDistanceAtr = Number.isFinite(b.atr) && b.atr > 0 ? Math.abs(b.close-b.ema21)/b.atr : NaN;
       return (x.ok ? "Hinta ei ole liian kaukana" : "Hinta on liian kaukana") + " EMA 21:stä: " +
-        fixedFi(Math.abs(b.close-b.ema21), 2) + " hinnan yksikköä (" + fixedFi(emaDistanceAtr, 2) +
-        " ATR; sallittu enintään 1.60 ATR); " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+        fixedFi(Math.abs(b.close-b.ema21), 2) + " USDT (" + fixedFi(emaDistanceAtr, 2) +
+        " ATR; sallittu enintään 1,60 ATR); " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) {
       return "ATR-volatiliteetti " + fixedFi(b.atrPct, 2) + " %; raja enintään 3.00 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
