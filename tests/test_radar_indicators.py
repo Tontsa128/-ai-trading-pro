@@ -247,7 +247,9 @@ class StreamlitIntegrationSafetyTests(unittest.TestCase):
         app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
         self.assertNotIn("confidence", app_source.lower())
         self.assertNotIn("Varmuus", app_source)
-        self.assertNotIn('target = price - atr * 2.2', app_source)
+        self.assertNotIn("target = price - atr * 2.2", app_source)
+        self.assertIn("stop = price - atr * 1.5", app_source)
+        self.assertIn("target = price + atr * 2.5", app_source)
         self.assertIn("Spot-only", app_source)
 
 
