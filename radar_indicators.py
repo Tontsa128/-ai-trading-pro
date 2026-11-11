@@ -217,7 +217,6 @@ def evaluate_signal_gates(
         value not in ("NOUSU", "LASKU") for value in higher_timeframes.values()
     ):
         reasons.append("Both 4h and 1d trend confirmations are required.")
-    prior = bar
     long_core = (
         bar["close"] > bar["ema200"] and bar["ema50"] > bar["ema200"]
         and bar["ema9"] > bar["ema21"] and bar["macd_hist"] > 0
