@@ -6,7 +6,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from radar_indicators import add_indicators, evaluate_signal_gates, rsi, signal_context_is_valid, validate_ohlcv
+from radar_indicators import add_indicators, calculate_spot_position, evaluate_signal_gates, rsi, signal_context_is_valid, validate_ohlcv
 
 
 def sample_ohlcv(rows=80):
@@ -232,6 +232,43 @@ class ConservativeSignalGateTests(unittest.TestCase):
         self.assertFalse(signal_context_is_valid("EPÄSELVÄ", {"4h": "NOUSU", "1d": "NOUSU"}))
         self.assertFalse(signal_context_is_valid("NOUSU", {"4h": "NOUSU", "1d": "LASKU"}))
         self.assertFalse(signal_context_is_valid("NOUSU", {"5m": "NOUSU", "15m": "NOUSU", "1h": "NOUSU", "4h": "NOUSU"}))
+
+
+class SpotPositionSizingTests(unittest.TestCase):
+    def test_buy_position_respects_risk_budget_and_two_sided_costs(self):
+        plan = calculate_spot_position(
+            "BUY", 100.0, 98.0, 105.0, 10_000.0, 0.5, 25.0,
+            0.10, 0.05, 0.10,
+        )
+        self.assertGreater(plan["quantity"], 0)
+        self.assertLessEqual(plan["notional_usdt"], 2_500.0)
+        self.assertAlmostEqual(plan["risk_budget_usdt"], 50.0)
+        self.assertAlmostEqual(plan["estimated_loss_usdt"], 50.0, places=8)
+        self.assertAlmostEqual(plan["per_side_friction_pct"], 0.20, places=12)
+
+    def test_exposure_limit_caps_position_below_risk_budget(self):
+        plan = calculate_spot_position(
+            "BUY", 100.0, 98.0, 105.0, 10_000.0, 1.0, 10.0,
+            0.10, 0.05, 0.10,
+        )
+        self.assertAlmostEqual(plan["notional_usdt"], 1_000.0, places=8)
+        self.assertLess(plan["estimated_loss_usdt"], plan["risk_budget_usdt"])
+
+    def test_sell_never_creates_a_short_position(self):
+        plan = calculate_spot_position(
+            "SELL", 100.0, 102.0, 95.0, 10_000.0, 0.5, 25.0,
+            0.10, 0.05, 0.10,
+        )
+        self.assertEqual(plan["quantity"], 0.0)
+        self.assertEqual(plan["notional_usdt"], 0.0)
+
+    def test_invalid_spread_or_risk_inputs_fail_closed(self):
+        for spread, risk in ((0.15001, 0.5), (0.1, 1.01), (np.nan, 0.5)):
+            plan = calculate_spot_position(
+                "BUY", 100.0, 98.0, 105.0, 10_000.0, risk, 25.0,
+                0.10, 0.05, spread,
+            )
+            self.assertEqual(plan["quantity"], 0.0)
 
 
 class StreamlitIntegrationSafetyTests(unittest.TestCase):
