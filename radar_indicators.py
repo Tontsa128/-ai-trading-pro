@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 
 OHLCV_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
-REQUIRED_HIGHER_TIMEFRAMES = {"5m", "15m", "1h", "4h"}
+REQUIRED_HIGHER_TIMEFRAMES = {"4h", "1d"}
 DIRECTIONAL_BIASES = {"VAHVA NOUSU", "NOUSU", "VAHVA LASKU", "LASKU"}
 PERIOD = 14
 VOLUME_PERIOD = 20
