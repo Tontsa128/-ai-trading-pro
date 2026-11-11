@@ -234,6 +234,23 @@ class ConservativeSignalGateTests(unittest.TestCase):
         self.assertFalse(signal_context_is_valid("NOUSU", {"5m": "NOUSU", "15m": "NOUSU", "1h": "NOUSU", "4h": "NOUSU"}))
 
 
+class StreamlitIntegrationSafetyTests(unittest.TestCase):
+    def test_streamlit_requires_real_fresh_binance_book_and_trade_data(self):
+        app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+        self.assertIn("/api/v3/ticker/bookTicker", app_source)
+        self.assertIn("/api/v3/aggTrades", app_source)
+        self.assertIn('quote["age_ms"]', app_source)
+        self.assertIn("evaluate_signal_gates(", app_source)
+        self.assertIn('for htf in ["4h", "1d"]:', app_source)
+
+    def test_streamlit_does_not_show_synthetic_confidence_or_short_targets(self):
+        app_source = (Path(__file__).resolve().parents[1] / "app.py").read_text(encoding="utf-8")
+        self.assertNotIn("confidence", app_source.lower())
+        self.assertNotIn("Varmuus", app_source)
+        self.assertNotIn('target = price - atr * 2.2', app_source)
+        self.assertIn("Spot-only", app_source)
+
+
 class JavaScriptIndicatorParityTests(unittest.TestCase):
     def test_same_ohlcv_produces_same_indicators_as_javascript(self):
         root = Path(__file__).resolve().parents[1]
