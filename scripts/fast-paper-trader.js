@@ -108,13 +108,13 @@ async function json(url, timeoutMs = 8000) {
 function bucket(ts) { return Math.floor(ts / barMs) * barMs; }
 function addTrade(s, price, qty, ts, feed = "websocket") {
   if (!(price > 0) || !(qty >= 0) || !Number.isFinite(ts)) return;
+  const time = bucket(ts);
+  let b = s.bars[s.bars.length - 1];
+  if (b && time < b.time) return; // Ignore late/out-of-order events after reconnect.
   if (feed === "websocket") {
     s.lastTradeAt = Date.now();
     s.lastTradeExchangeTime = ts;
   }
-  const time = bucket(ts);
-  let b = s.bars[s.bars.length - 1];
-  if (b && time < b.time) return; // Ignore late/out-of-order events after reconnect.
   if (!b || b.time !== time) {
     if (b && time > b.time && b.closeTime === undefined) {
       const contiguous = time - b.time === barMs;
