@@ -195,6 +195,8 @@ def evaluate_signal_gates(
     bar: dict[str, float],
     higher_timeframes: dict[str, str],
     spread_pct: float,
+    market_price: float,
+    market_age_ms: float,
     history_count: int,
     support: float,
     resistance: float,
@@ -209,6 +211,10 @@ def evaluate_signal_gates(
         return "WAIT", ["Price or ATR is invalid."]
     if not np.isfinite(spread_pct) or spread_pct < 0 or spread_pct > 0.15:
         reasons.append("Bid/ask spread is missing, invalid or above 0.15%.")
+    if not np.isfinite(market_age_ms) or market_age_ms < 0 or market_age_ms > 30_000:
+        reasons.append("Latest Binance trade is missing, from the future or older than 30 seconds.")
+    if not np.isfinite(market_price) or market_price <= 0:
+        reasons.append("Latest Binance trade price is missing or invalid.")
     if bar["atr_pct"] > 3:
         reasons.append("ATR volatility exceeds 3%.")
     if abs(bar["close"] - bar["ema21"]) > 1.6 * bar["atr"]:
@@ -230,8 +236,8 @@ def evaluate_signal_gates(
         and bar["mdi"] > bar["pdi"] and bar["volume_ratio"] >= 0.5
     )
     # Support/resistance must be based on prior closed candles, excluding the signal candle.
-    long_room = np.isfinite(resistance) and (resistance - bar["close"]) / bar["atr"] >= 0.5
-    short_room = np.isfinite(support) and (bar["close"] - support) / bar["atr"] >= 0.5
+    long_room = np.isfinite(resistance) and (resistance - market_price) / bar["atr"] >= 0.5
+    short_room = np.isfinite(support) and (market_price - support) / bar["atr"] >= 0.5
     common_ok = not reasons
     if long_core and higher_timeframes == {"4h": "NOUSU", "1d": "NOUSU"} and common_ok and long_room:
         return "BUY", []
