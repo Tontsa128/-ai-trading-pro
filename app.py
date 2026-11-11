@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from radar_indicators import add_indicators, evaluate_signal_gates, signal_context_is_valid, validate_ohlcv
+from radar_indicators import add_indicators, calculate_spot_position, evaluate_signal_gates, signal_context_is_valid, validate_ohlcv
 
 
 # ============================================================
@@ -121,6 +121,14 @@ live_on = st.sidebar.toggle("Live päällä", True)
 
 st.sidebar.divider()
 learning_on = st.sidebar.toggle("Oppiminen päällä", True)
+
+st.sidebar.divider()
+st.sidebar.subheader("Riskilaskuri — USDT Spot")
+risk_capital = st.sidebar.number_input("Tilin arvo (USDT)", min_value=0.0, value=10000.0, step=100.0)
+risk_pct = st.sidebar.selectbox("Riski / kauppa", [0.25, 0.50, 0.75, 1.00], index=1, format_func=lambda value: f"{value:.2f}%")
+max_exposure_pct = st.sidebar.selectbox("Pääoman käyttö", [10, 25, 50], index=1, format_func=lambda value: f"{value}%")
+fee_pct = st.sidebar.number_input("Kaupankäyntikulu / puoli (%)", min_value=0.0, value=0.10, step=0.01)
+slippage_pct = st.sidebar.number_input("Lipsuma / puoli (%)", min_value=0.0, value=0.05, step=0.01)
 
 if st.sidebar.button("🔄 Resetoi data"):
     st.session_state.df = None
@@ -917,6 +925,11 @@ def ai_engine(df):
     if stop is not None and target is not None:
         rr = abs(target - price) / abs(price - stop)
 
+    risk_plan = calculate_spot_position(
+        decision, price, stop, target, risk_capital, risk_pct,
+        max_exposure_pct, fee_pct, slippage_pct, quote["spread_pct"],
+    )
+
     return {
         "level": level,
         "score": final,
@@ -935,6 +948,7 @@ def ai_engine(df):
         "triangle": triangle_name,
         "triangle_lines": triangle_lines,
         "power": power_name,
+        "risk_plan": risk_plan,
     }
 
 
@@ -1104,6 +1118,17 @@ def run_app():
             st.write(f"RR: **1:{ai['rr']:.2f}**")
         else:
             st.write("Ei vielä selkeää entryä. MYY tarkoittaa omistuksen vähentämistä tai uuden oston välttämistä, ei shorttausta.")
+        plan = ai["risk_plan"]
+        if plan["quantity"] > 0:
+            st.write(f"Määrä: **{plan['quantity']:.8f}**")
+            st.write(f"Position arvo: **{plan['notional_usdt']:,.2f} USDT**")
+            st.write(f"Riskibudjetti: **{plan['risk_budget_usdt']:,.2f} USDT**")
+            st.write(f"Arvioitu tappio kuluineen: **{plan['estimated_loss_usdt']:,.2f} USDT**")
+            st.write(f"Arvioitu nettotavoite: **{plan['estimated_gain_usdt']:,.2f} USDT**")
+        elif ai["direction"] == "MYY":
+            st.write("Spot-myyntiin ei lasketa määrää ilman käyttäjän omistussaldoa.")
+        else:
+            st.write("Positiokokoa ei ehdoteta ennen vahvistettua BUY-signaalia.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with b:
