@@ -4,6 +4,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl } = require("./market-feed");
+const { aggregateOneSecondKlines, trailingContiguousBars } = require("./fast-paper-data");
 
 const SYMBOLS = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT"];
 const INTERVAL_SECONDS = Number(process.env.FAST_INTERVAL_SECONDS || 5);
@@ -166,18 +167,8 @@ function closePosition(s, reason, marketPrice, time) {
   events.push(trade);
   delete state.positions[s.symbol];
 }
-function trailingContiguousBars(bars) {
-  const closed = bars.filter(x => x.closeTime !== undefined);
-  if (!closed.length) return [];
-  let start = closed.length - 1;
-  for (let i = closed.length - 1; i > 0; i--) {
-    if (closed[i].time - closed[i - 1].time !== barMs) break;
-    start = i - 1;
-  }
-  return closed.slice(start);
-}
 function onClosedBar(s, bar) {
-  const closedBars = trailingContiguousBars(s.bars);
+  const closedBars = trailingContiguousBars(s.bars, barMs);
   const closes = closedBars.map(x => x.close);
   if (closes.length < 30) return;
   const now = Date.now();
@@ -378,23 +369,7 @@ async function pollQuotes() {
 }
 async function seed(s) {
   const rows = await json("/api/v3/klines?symbol=" + s.symbol + "&interval=1s&limit=1000");
-  if (!Array.isArray(rows)) throw new Error("Invalid 1-second kline response");
-  const grouped = new Map();
-  for (const k of rows) {
-    const ts = Number(k[0]), time = bucket(ts), closeTime = Number(k[6]);
-    if (!Number.isFinite(ts) || closeTime >= Date.now() || time + barMs > Date.now()) continue;
-    const open = Number(k[1]), high = Number(k[2]), low = Number(k[3]), close = Number(k[4]), volume = Number(k[5]);
-    if (![open, high, low, close, volume].every(Number.isFinite) || Math.min(open, high, low, close) <= 0 || volume < 0 || high < Math.max(open, close, low) || low > Math.min(open, close, high)) continue;
-    const b = grouped.get(time);
-    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1, seconds: new Set([ts]) });
-    else { b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume; b.seconds.add(ts); }
-  }
-  // Build seed bars only when every 1-second constituent is present exactly once.
-  s.bars = Array.from(grouped.values())
-    .filter(b => b.seconds.size === INTERVAL_SECONDS)
-    .map(({ seconds, ...bar }) => bar)
-    .sort((a, b) => a.time - b.time)
-    .slice(-400);
+  s.bars = aggregateOneSecondKlines(rows, INTERVAL_SECONDS, Date.now()).slice(-400);
   if (s.bars.length) s.lastPrice = s.bars[s.bars.length - 1].close;
 }
 function equity() {
@@ -487,7 +462,7 @@ async function main() {
   for (const s of symbols.values()) {
     try { await seed(s); } catch (e) { errors.push({ symbol: s.symbol, error: String(e.message || e) }); }
   }
-  if (![...symbols.values()].some(s => trailingContiguousBars(s.bars).length >= 30)) {
+  if (![...symbols.values()].some(s => trailingContiguousBars(s.bars, barMs).length >= 30)) {
     throw new Error("Insufficient contiguous historical trade data to warm up the 5/15-second indicators.");
   }
   connect();
