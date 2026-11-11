@@ -395,7 +395,7 @@ $("backtestRun").addEventListener("click",runHistoricalBacktest);
 ["symbol","interval","chartCount","capital","riskPct","exposurePct","feePct","slippagePct"].forEach(function(id){$(id).addEventListener("change",function(){if(id==="symbol"||id==="interval"||id==="capital"||id==="riskPct"||id==="exposurePct"||id==="feePct"||id==="slippagePct")load();});});
 $("refresh").addEventListener("change",function(){setTimer();});
 window.addEventListener("resize",function(){if(window.Plotly)Plotly.Plots.resize($("chart"));});
-setTimer();load();runHistoricalBacktest();
+setTimer();load();
 })();
 </script>
 </body></html>
