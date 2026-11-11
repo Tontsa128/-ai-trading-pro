@@ -370,7 +370,7 @@ async function load(){
    '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
    '<div class="kv"><span>ATR (14)</span><strong>'+fmtPrice(latest.atr)+'</strong></div>'+
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
-   '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
+   '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Number(fmt(Math.max(0,signal.priceAgeMs/1000),1).replace(/ /g,""))+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
