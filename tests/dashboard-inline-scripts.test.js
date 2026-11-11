@@ -45,7 +45,7 @@ assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
   "heuristic scores must never be rendered as percentages or win probabilities");
 
 const liveGuards = fs.readFileSync("public/live-signal-guards.js", "utf8");
-assert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
+assert.ok(liveDashboard.includes("refreshRestFallback") && liveDashboard.includes("setInterval(refreshRestFallback, 2000)") && liveDashboard.includes("state.tradeSource = \"REST\"") && liveDashboard.includes("state.bookSource = \"REST\""),\n  "live dashboard must automatically fall back to fresh Binance REST quotes when WebSocket data is stale");\nassert.ok(liveDashboard.includes("state.chartLive = enriched[enriched.length - 1]") && liveDashboard.includes("closeTime >= Date.now()"),\n  "REST fallback must update the current chart candle only from a validated, still-open Binance candle");\nassert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
   "live dashboard must gate signals on recent trade and order-book data");
 assert.ok(liveDashboard.includes("window.LiveSignalGuards.apply") &&
   liveDashboard.includes("SIGNAALI ESTETTY"),
