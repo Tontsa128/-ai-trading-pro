@@ -9,6 +9,8 @@ on:
       - ".github/workflows/fast-paper-trading-15s.yml"
       - "scripts/fast-paper-trader.js"
       - "scripts/market-feed.js"
+      - "scripts/fast-paper-data.js"
+      - "tests/fast-paper-data.test.js"
       - "scripts/persist-paper-data.sh"
       - "tests/fast-paper-trader.test.js"
       - "tests/market-feed.test.js"
