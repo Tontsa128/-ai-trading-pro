@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from radar_indicators import add_indicators, validate_ohlcv
+from radar_indicators import add_indicators, signal_context_is_valid, validate_ohlcv
 
 
 # ============================================================
@@ -675,7 +675,7 @@ def ai_engine(df):
     notes = []
 
     bias, details = higher_tf_bias(symbol)
-    higher_timeframes_valid = all(value in ("NOUSU", "LASKU", "EPÄSELVÄ") for value in details.values())
+    signal_context_valid = signal_context_is_valid(bias, details)
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -789,10 +789,13 @@ def ai_engine(df):
 
     final = int(max(-100, min(100, score)))
 
-    if not higher_timeframes_valid:
+    if not signal_context_valid:
         final = 0
         level = "ODOTA"
-        notes.append("Signaali estetty: vähintään yhden korkeamman aikavälin markkinadata tai indikaattorit eivät ole kelvollisia.")
+        if set(details) != {"5m", "15m", "1h", "4h"} or any(value == "?" for value in details.values()):
+            notes.append("Signaali estetty: vähintään yhden korkeamman aikavälin markkinadata tai indikaattorit eivät ole kelvollisia.")
+        else:
+            notes.append("Markkinasuunta on epäselvä. Päätös pidetään ODOTA-tilassa.")
     elif alert == "NOPEA OSTA":
         level = "⚡ NOPEA OSTA"
         final = max(final, 58)
@@ -814,7 +817,7 @@ def ai_engine(df):
     else:
         level = "ODOTA"
 
-    if higher_timeframes_valid and no_trade and abs(final) < 18:
+    if signal_context_valid and no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
     confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
