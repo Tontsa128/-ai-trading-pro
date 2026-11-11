@@ -344,7 +344,7 @@
     var candles=[], socket=null, reconnectTimer=null, lastTrade=0, bid=NaN, ask=NaN, lastPrice=NaN, generation=0;
     var allowed={"1m":true,"3m":true,"5m":true,"15m":true,"1h":true,"4h":true,"1d":true};
     var api="https://data-api.binance.vision";
-    function fmt(v,d){return Number.isFinite(v)?Number(v).toLocaleString("en-US",{minimumFractionDigits:d||2,maximumFractionDigits:d||2}):"—";}
+    function fmt(v,d){return root.RahasampoFormat?root.RahasampoFormat.number(v,d||2):Number.isFinite(v)?Number(v).toLocaleString("fi-FI",{minimumFractionDigits:d||2,maximumFractionDigits:d||2}):"—";}
     function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
     function setStatus(text,ok){if(!statusEl)return;statusEl.className="status "+(ok?"ok":"");statusEl.textContent=text;}
     function intervalMs(iv){return ({"1m":60000,"3m":180000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000}[iv]||60000);}
