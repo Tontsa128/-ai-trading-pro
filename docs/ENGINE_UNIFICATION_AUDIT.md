@@ -28,7 +28,7 @@ Python retains EMA100 temporarily because the legacy `ai_engine()` still reads i
 
 ## Validation
 
-`tests/test_radar_indicators.py` includes prefix-invariance, warm-up, edge-case and data-integrity tests. Its cross-language test generates one OHLCV sequence, sends the same bars to the JavaScript engine through `tests/engine-parity-probe.js`, and compares every shared indicator row-by-row.
+`tests/test_radar_indicators.py` includes prefix-invariance, warm-up, edge-case and data-integrity tests. The base-branch CI workflow installs Python dependencies and runs these tests for dependent pull requests as well. Its cross-language test generates one OHLCV sequence, sends the same bars to the JavaScript engine through `tests/engine-parity-probe.js`, and compares every shared indicator row-by-row.
 
 ## Remaining work: signal-engine parity
 
