@@ -268,7 +268,7 @@ def higher_tf_bias(symbol_code):
 
     for htf in ["4h", "1d"]:
         try:
-            d = add_indicators(get_klines(symbol_code, htf, 180))
+            d = add_indicators(get_klines(symbol_code, htf, 260))
             if len(d) < 220:
                 raise ValueError("Not enough closed candles for higher-timeframe indicators.")
             last = d.iloc[-1]
@@ -883,14 +883,11 @@ def ai_engine(df):
         stop = price - atr * 1.25
         target = price + atr * 2.2
         direction = "OSTA"
-    elif "MYY" in level:
-        stop = price + atr * 1.25
-        target = price - atr * 2.2
-        direction = "MYY"
     else:
+        # Spot-only: SELL is a reduce/avoid signal, never a synthetic short entry.
         stop = None
         target = None
-        direction = "ODOTA"
+        direction = "MYY" if "MYY" in level else "ODOTA"
 
     rr = None
     if stop is not None and target is not None:
@@ -923,6 +920,7 @@ def ai_engine(df):
 
 def signal_box(ai):
     level = ai["level"]
+    score = ai["score"]
 
     if "OSTA" in level and "TARKKAILU" not in level:
         cls = "buy"
@@ -938,7 +936,7 @@ def signal_box(ai):
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>Pisteet {ai[score]:+d} / 100</div>',
+        f'<div class="signal {cls}">{level}<br>Pisteet {score:+d} / 100</div>',
         unsafe_allow_html=True,
     )
 
@@ -1081,7 +1079,7 @@ def run_app():
             st.write(f"Target: **{ai['target']:,.4f}**")
             st.write(f"RR: **1:{ai['rr']:.2f}**")
         else:
-            st.write("Ei vielä selkeää entryä.")
+            st.write("Ei vielä selkeää entryä. MYY tarkoittaa omistuksen vähentämistä tai uuden oston välttämistä, ei shorttausta.")
         st.markdown("</div>", unsafe_allow_html=True)
 
     with b:
