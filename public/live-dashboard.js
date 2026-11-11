@@ -16,7 +16,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
   var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
-  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
+  var num = function (v, d) { var x = n(v); return x === null ? "—" : new Intl.NumberFormat("fi-FI", { minimumFractionDigits: d, maximumFractionDigits: d }).format(x).replace(/^-/, "−"); };
   var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
 
   function injectUi() {
@@ -231,6 +231,7 @@
   function renderLiveChart() {
     var target = $("chart");
     if (!target) return;
+    try {
     var sourceBars = Array.isArray(state.chartBars) ? state.chartBars : [];
     if (sourceBars.length < 2) {
       target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
@@ -247,7 +248,7 @@
     var w = 1100, h = 430, l = 18, r = 86, t = 34, btm = 38, pw = w - l - r, ph = h - t - btm, step = pw / d.length, cw = Math.max(2, Math.min(11, step * 0.66));
     function x(k) { return l + step * (k + 0.5); }
     function y(v) { return t + (hi - v) / (hi - lo) * ph; }
-    var out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:auto;display:block;background:#101d30;border-radius:10px" role="img" aria-label="' + esc(state.symbol) + ' reaaliaikainen kynttiläkaavio">', '<rect width="100%" height="100%" fill="#101d30"/>'];
+    var out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + w + ' ' + h + '" style="width:100%;height:100%;min-height:360px;display:block;background:#101d30;border-radius:10px" preserveAspectRatio="none" role="img" aria-label="' + esc(state.symbol) + ' reaaliaikainen kynttiläkaavio">', '<rect width="100%" height="100%" fill="#101d30"/>'];
     for (var g = 0; g <= 6; g++) {
       var gy = t + ph * g / 6, pv = hi - (hi - lo) * g / 6;
       out.push('<line x1="' + l + '" y1="' + gy.toFixed(1) + '" x2="' + (w - r) + '" y2="' + gy.toFixed(1) + '" stroke="#263750"/>');
@@ -274,6 +275,12 @@
     [0, Math.floor((d.length - 1) / 2), d.length - 1].forEach(function (k) { var dt = new Date(d[k].time), lab = dt.toLocaleString('fi-FI', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); out.push('<text x="' + x(k).toFixed(1) + '" y="' + (h - 12) + '" text-anchor="middle" fill="#a8bdd7" font-size="11">' + esc(lab) + '</text>'); });
     out.push('</svg>');
     target.innerHTML = out.join('');
+    } catch (error) {
+      console.error("Rahasampo live chart rendering failed:", error);
+      target.innerHTML = '<div class="status error">Kaavion piirto epäonnistui: ' + esc(error && error.message ? error.message : String(error)) + '</div>';
+      var meta = $("liveMeta");
+      if (meta) meta.textContent = "Kaavion piirto epäonnistui. Tarkista selaimen konsolivirheet.";
+    }
   }
 
   function updateMainMetrics() {
@@ -288,12 +295,13 @@
     var gateReason = currentGateReason();
     var sig = $("signal"), summary = $("summary"), passed = $("passed");
     var checklist = $("checklist"), timeframes = $("timeframes"), levels = $("levels");
-    var riskPlan = $("riskPlan"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx");
+    var riskPlan = $("riskPlan"), riskExample = $("riskExample"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx");
 
     if (!decision || !decision.main || !decision.main.bar) {
       if (sig) { sig.textContent = "ODOTA"; sig.className = "signal wait"; }
       if (summary) summary.textContent = "Uutta kaupankäyntipäätöstä ei ole laskettu: " + (state.decisionError || "markkinadata puuttuu.");
-      if (passed) passed.textContent = "Ehdot —";
+      if (passed) passed.textContent = "Tekniset ehdot — · data —";
+      if (riskExample) riskExample.style.display = "none";
       if (checklist) checklist.textContent = "Tarkistuslista ei ole voimassa ilman tuoretta, täydellistä markkina-analyysiä.";
       if (timeframes) timeframes.textContent = "Aikavälivahvistusta ei ole saatavilla.";
       if (levels) levels.textContent = "Tukia, vastuksia tai indikaattoreita ei näytetä ilman vahvistettua dataa.";
@@ -312,7 +320,12 @@
       }
       if (summary) summary.textContent = gateReason ? "SIGNAALI ESTETTY: " + gateReason :
         decision.reason + (decision.blockingReasons && decision.blockingReasons.length ? " Estävät ehdot: " + decision.blockingReasons.join(" · ") : "");
-      if (passed) passed.textContent = decision.passed + " / " + decision.total + " ehtoa täyttyy";
+      if (passed) {
+        var dataChecks = (decision.checklist || []).filter(function (x) { return x.group === "Data OK"; });
+        var technicalChecks = (decision.checklist || []).filter(function (x) { return x.group !== "Data OK"; });
+        passed.textContent = "Tekniset " + technicalChecks.filter(function (x) { return x.ok; }).length + " / " + technicalChecks.length + " · data " + dataChecks.filter(function (x) { return x.ok; }).length + " / " + dataChecks.length;
+      }
+      if (riskExample) riskExample.style.display = gateReason || direction === "WAIT" ? "none" : "block";
       if (rsi) rsi.textContent = num(bar.rsi, 1);
       if (adx) adx.textContent = num(bar.adx, 1);
       if (timestamp) timestamp.textContent = "Viimeisin suljettu kynttilä " + new Date(bar.closeTime).toLocaleString("fi-FI");
@@ -322,9 +335,10 @@
       }).join("");
       if (timeframes) {
         var rows = [{name:state.interval + " (valittu)",bias:decision.main.checks.bias}];
-        ["1h","4h","1d"].forEach(function (tf, i) {
-          if (tf !== state.interval && decision.higher && decision.higher[i]) rows.push({name:tf,bias:decision.higher[i].checks.bias});
-        });
+        var confirm4h = decision.higher && decision.higher[1];
+        var confirm1d = decision.higher && decision.higher[2];
+        if (state.interval !== "4h" && confirm4h) rows.push({name:"4 h (vahvistus)",bias:confirm4h.checks.bias});
+        if (state.interval !== "1d" && confirm1d) rows.push({name:"1 d (vahvistus)",bias:confirm1d.checks.bias});
         timeframes.innerHTML = rows.map(function (item) {
           var label = item.bias === "bull" ? "NOUSU" : item.bias === "bear" ? "LASKU" : "EPÄSELVÄ";
           var cls = item.bias === "bull" ? "good" : item.bias === "bear" ? "bad" : "neutral";
@@ -342,7 +356,7 @@
           riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(gateReason || "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.") + '</p><p class="sub">Positiota ei ehdoteta ODOTA-tilassa.</p>';
         } else if (direction === "BUY") {
           riskPlan.innerHTML = '<div class="signal buy">OSTA · SPOT</div>' +
-            '<div class="kv"><span>Entry (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
+            '<div class="kv"><span>Avaushinta (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
             '<div class="kv"><span>Stop-loss (arvio)</span><strong>' + price(decision.stop) + '</strong></div>' +
             '<div class="kv"><span>Tavoite (arvio)</span><strong>' + price(decision.target) + '</strong></div>' +
             '<div class="kv"><span>Arvioitu määrä</span><strong>' + num(decision.qty, 6) + '</strong></div>' +
