@@ -89,6 +89,26 @@ assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
 assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
+
+const costSensitiveBar = {...analysed.bar, close:100, ema200:90, ema50:95, ema9:99, ema21:98,
+  macdHist:0.2, rsi:55, adx:25, pdi:30, mdi:10, atr:0.05, atrPct:0.05, volumeRatio:1};
+const costSensitiveMain = {...analysed, bar:costSensitiveBar, checks:E.explainCandle(costSensitiveBar),
+  longCore:true, overextended:false, highVolatility:false, support:90, resistance:101, high:full};
+const costSensitiveSignal = E.evaluateSignal(costSensitiveMain,
+  [{...analysed,checks:{...analysed.checks,bias:"bull"}},
+   {...analysed,checks:{...analysed.checks,bias:"bull"}}],
+  {price:100,closeTime:Date.now(),bid:99.99,ask:100.01},opts);
+const costGate = costSensitiveSignal.checklist.find(x => x.name.startsWith("Oston tavoiteliike"));
+assert.equal(costGate.ok,false,"a target that cannot cover round-trip friction by 1.5x must be blocked");
+assert.equal(costSensitiveSignal.direction,"WAIT","the cost gate must prevent a marginal BUY");
+const emaDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("Hinta EMA 200:n"));
+assert.ok(emaDescription.detail.includes("Kynttilän päätöshinta") && emaDescription.detail.includes("yläpuolella") && emaDescription.detail.includes("ehto täyttyy"),
+  "EMA explanation must derive direction from the numeric comparison and state the matching result");
+const rsiDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("RSI 50–68"));
+const adxDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("ADX vähintään 18"));
+assert.ok(rsiDescription.detail.includes("RSI 55,0") && adxDescription.detail.includes("ADX 25,0"),
+  "RSI and ADX checklist rows must show their measured values");
+
 const spreadGate = signal.checklist.find(x => x.name.startsWith("Osto/myyntihajonta"));
 assert.ok(spreadGate, "spread gate is visible in the checklist");
 assert.equal(spreadGate.ok, true, "spread below 0.15% must pass");
