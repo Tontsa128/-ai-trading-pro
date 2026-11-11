@@ -14,6 +14,7 @@ assert.match(source,/const tradeFresh = isFreshQuote\(s\.lastTradeAt/,"entries r
 assert.match(source,/const quoteFresh = isFreshQuote\(s\.lastQuoteAt/,"entries require a fresh quote");
 assert.match(source,/const contiguous = time - b\.time === barMs/,"missing short-horizon candles are not bridged");
 assert.match(source,/trailingContiguousBars\(s\.bars\)/,"indicators use only the trailing contiguous candle sequence");
+assert.match(source,/b\.seconds\.size === INTERVAL_SECONDS/,"seed bars require every one-second constituent candle");
 assert.ok(source.indexOf("s.lastTradeAt = Date.now();") < source.indexOf("onClosedBar(s, b)"),"rejected out-of-order events cannot refresh trade freshness");
 assert.match(source,/WebSocket handshake timed out/,"a stalled connecting handshake is failed closed");
 assert.match(source,/WebSocket market-data stream was silent for over 15 seconds/,"an open but silent market stream triggers reconnect");
