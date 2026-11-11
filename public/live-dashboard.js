@@ -3,7 +3,7 @@
   "use strict";
 
   var state = {
-    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m",
+    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m", higherIntervals: ["1h", "4h", "1d"],
     bars: [], chartBars: [], chartLive: null, live: null, bid: null, ask: null, tradePrice: null,
     lastTradeAt: 0, lastBookAt: 0, lastScores: {}, trades: 0, reconnects: 0, wsEndpoint: 0,
     tradeSource: "NONE", bookSource: "NONE", chartSource: "REST", lastRestCandleAt: 0, decision: null, decisionError: "Odotetaan ensimmäistä täyttä markkina-analyysiä.",
@@ -102,7 +102,7 @@
 
   function intervalMilliseconds(interval) {
     var units = { "1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000,
-      "1h": 3600000, "4h": 14400000, "1d": 86400000 };
+      "1h": 3600000, "4h": 14400000, "1d": 86400000, "3d": 259200000, "1w": 604800000 };
     return units[interval] || 0;
   }
 
@@ -335,9 +335,10 @@
       }).join("");
       if (timeframes) {
         var rows = [{name:state.interval + " (valittu)",bias:decision.main.checks.bias}];
-        [["4h",1],["1d",2]].forEach(function (item) {
-          if (item[0] !== state.interval && decision.higher && decision.higher[item[1]]) rows.push({name:item[0],bias:decision.higher[item[1]].checks.bias});
-        });
+        var higherRows = state.higherIntervals || ["1h","4h","1d"], firstRequired = decision.higher && decision.higher.length >= 3 ? 1 : 0;
+        for (var hi = firstRequired; hi < higherRows.length; hi++) {
+          if (higherRows[hi] !== state.interval && decision.higher && decision.higher[hi]) rows.push({name:higherRows[hi],bias:decision.higher[hi].checks.bias});
+        }
         timeframes.innerHTML = rows.map(function (item) {
           var label = item.bias === "bull" ? "NOUSU" : item.bias === "bear" ? "LASKU" : "EPÄSELVÄ";
           var cls = item.bias === "bull" ? "good" : item.bias === "bear" ? "bad" : "neutral";
@@ -404,7 +405,9 @@
   async function refreshScalpScores() {
     var symbol = state.symbol, selectedInterval = state.interval;
     var scalpTimeframes = ["1m", "3m", "5m", "15m"];
-    var allTimeframes = Array.from(new Set(scalpTimeframes.concat([selectedInterval, "1h", "4h", "1d"])));
+    var higherIntervals = selectedInterval === "1h" ? ["4h", "1d"] : selectedInterval === "4h" ? ["1d", "3d"] : selectedInterval === "1d" ? ["3d", "1w"] : ["1h", "4h", "1d"];
+    state.higherIntervals = higherIntervals;
+    var allTimeframes = Array.from(new Set(scalpTimeframes.concat([selectedInterval], higherIntervals)));
     var fetched = await Promise.all(allTimeframes.map(async function (tf) {
       try { return { tf: tf, bars: await getBars(tf, symbol), error: null }; }
       catch (error) { return { tf: tf, bars: null, error: error }; }
@@ -436,7 +439,7 @@
       }
       var mainCloseTime = mainItem.bars[mainItem.bars.length - 1].closeTime;
       var mainBars = mainItem.bars.filter(function (bar) { return bar.closeTime <= mainCloseTime; });
-      var higher = ["1h", "4h", "1d"].map(function (tf) {
+      var higher = higherIntervals.map(function (tf) {
         var item = byTimeframe[tf];
         if (!item || !item.bars) throw new Error(tf + "-vahvistusdata puuttuu.");
         var aligned = item.bars.filter(function (bar) { return bar.closeTime <= mainCloseTime; });
@@ -460,7 +463,8 @@
         riskPct: n($("riskPct") && $("riskPct").value) || 0.5,
         maxExposurePct: n($("exposurePct") && $("exposurePct").value) || 25,
         feePct: Math.max(0, n($("feePct") && $("feePct").value) || 0),
-        slippagePct: Math.max(0, n($("slippagePct") && $("slippagePct").value) || 0)
+        slippagePct: Math.max(0, n($("slippagePct") && $("slippagePct").value) || 0),
+        higherLabels: higherIntervals
       };
       var main = TradingEngine.analyzeSeries(mainBars);
       state.decision = TradingEngine.evaluateSignal(main, higher, {
