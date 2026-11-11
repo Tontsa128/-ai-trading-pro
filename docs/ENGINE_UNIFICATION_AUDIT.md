@@ -11,7 +11,7 @@ The pure indicator and decision-engine source is guarded by `tests/engine-core-s
 
 ## Indicator formula contract
 
-The Python `radar_indicators.py` implementation is being aligned to the JavaScript `TradingEngine.enrich()` contract:
+The Python `radar_indicators.py` implementation now follows the JavaScript `TradingEngine.enrich()` indicator contract:
 
 | Indicator | Canonical definition |
 |---|---|
