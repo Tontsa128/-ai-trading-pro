@@ -174,7 +174,7 @@ function paintChecklist(sig){
  $("passed").textContent="Tekniset "+technicalChecks.filter(function(x){return x.ok;}).length+" / "+technicalChecks.length+" · data "+dataChecks.filter(function(x){return x.ok;}).length+" / "+dataChecks.length;
 }
 function renderRisk(sig){
- if(sig.direction==="WAIT"){
+ if(sig.direction==="WAIT"||(sig.direction==="BUY"&&!(sig.qty>0))){
   $("riskExample").style.display="none";
   $("riskPlan").innerHTML='<div class="signal wait">Ei kauppaa</div><p>Vaaditut ehdot eivät täyty, joten ei ostoa, myyntiä eikä laskettua positiota.</p><p class="sub">Älä tulkitse ODOTA-tilaa piilotetuksi ostokehotukseksi. Riskilaskelma näytetään vain, kun signaali vahvistuu.</p>';return;
  }
