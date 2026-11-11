@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from radar_indicators import add_indicators
+from radar_indicators import add_indicators, rsi, validate_ohlcv
 
 
 def sample_ohlcv(rows=80):
@@ -53,11 +53,59 @@ class CausalIndicatorTests(unittest.TestCase):
         self.assertTrue(np.isfinite(result["VWAP"].iloc[3]))
         self.assertTrue(result["VWAP"].iloc[3:].notna().all())
 
+    def test_all_zero_volume_keeps_vwap_unavailable(self):
+        source = sample_ohlcv(30)
+        source["Volume"] = 0
+        self.assertTrue(add_indicators(source)["VWAP"].isna().all())
+
     def test_warmup_is_the_only_expected_rolling_gap(self):
         result = add_indicators(sample_ohlcv())
         self.assertTrue(result["ATR"].iloc[13:].notna().all())
         self.assertTrue(result["VOL_MA"].iloc[19:].notna().all())
         self.assertTrue(result["VWAP"].notna().all())
+
+    def test_rsi_flat_market_is_fifty_after_initial_delta(self):
+        result = rsi(pd.Series([100.0] * 20))
+        self.assertTrue(result.iloc[1:].eq(50.0).all())
+        self.assertTrue(np.isnan(result.iloc[0]))
+
+    def test_rsi_uninterrupted_rise_is_one_hundred(self):
+        result = rsi(pd.Series(np.arange(1.0, 21.0)))
+        self.assertTrue(result.iloc[1:].eq(100.0).all())
+
+    def test_rsi_uninterrupted_fall_is_zero(self):
+        result = rsi(pd.Series(np.arange(20.0, 0.0, -1.0)))
+        self.assertTrue(result.iloc[1:].eq(0.0).all())
+
+    def test_invalid_ohlcv_is_rejected_not_repaired(self):
+        source = sample_ohlcv()
+        source.iloc[10, source.columns.get_loc("Close")] = np.nan
+        with self.assertRaisesRegex(ValueError, "non-finite"):
+            validate_ohlcv(source)
+
+        source = sample_ohlcv()
+        source.iloc[10, source.columns.get_loc("High")] = 1
+        with self.assertRaisesRegex(ValueError, "high/low"):
+            validate_ohlcv(source)
+
+    def test_duplicate_and_unordered_timestamps_are_rejected(self):
+        source = sample_ohlcv()
+        duplicate = pd.concat([source.iloc[:10], source.iloc[[9]], source.iloc[10:]])
+        with self.assertRaisesRegex(ValueError, "Duplicate"):
+            validate_ohlcv(duplicate)
+
+        with self.assertRaisesRegex(ValueError, "ordered"):
+            validate_ohlcv(source.iloc[::-1])
+
+    def test_missing_interval_candle_is_rejected(self):
+        source = sample_ohlcv()
+        source = source.drop(source.index[10])
+        with self.assertRaisesRegex(ValueError, "gap"):
+            validate_ohlcv(source, interval="1h")
+
+    def test_valid_interval_sequence_is_accepted(self):
+        result = validate_ohlcv(sample_ohlcv(), interval="1h")
+        self.assertEqual(len(result), 80)
 
 
 if __name__ == "__main__":
