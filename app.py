@@ -209,32 +209,51 @@ def get_klines(symbol_code, interval_code, limit_count):
 
 
 
-def get_book_ticker(symbol_code):
-    """Fetch a public Binance Spot bid/ask snapshot; never guess missing quotes."""
-    urls = [
-        "https://api.binance.com/api/v3/ticker/bookTicker",
-        "https://data-api.binance.vision/api/v3/ticker/bookTicker",
-    ]
-    last_error = "Binance book ticker unavailable."
-    for url in urls:
+def get_market_snapshot(symbol_code):
+    """Fetch public Binance Spot bid/ask and last aggregate trade; reject stale quotes."""
+    base_urls = ["https://api.binance.com", "https://data-api.binance.vision"]
+    last_error = "Binance live market snapshot unavailable."
+    for base_url in base_urls:
         try:
-            response = requests.get(
-                url, params={"symbol": symbol_code}, timeout=4,
-                headers={"User-Agent": "Rahasampo-Radar/1.0"},
+            headers = {"User-Agent": "Rahasampo-Radar/1.0"}
+            book_response = requests.get(
+                base_url + "/api/v3/ticker/bookTicker",
+                params={"symbol": symbol_code}, timeout=4, headers=headers,
             )
-            response.raise_for_status()
-            payload = response.json()
-            if not isinstance(payload, dict) or payload.get("symbol") != symbol_code:
+            book_response.raise_for_status()
+            book = book_response.json()
+            if not isinstance(book, dict) or book.get("symbol") != symbol_code:
                 raise ValueError("Invalid Binance book ticker payload.")
-            bid = float(payload["bidPrice"])
-            ask = float(payload["askPrice"])
+            bid = float(book["bidPrice"])
+            ask = float(book["askPrice"])
             if not np.isfinite([bid, ask]).all() or bid <= 0 or ask < bid:
                 raise ValueError("Invalid Binance bid/ask prices.")
+
+            trade_response = requests.get(
+                base_url + "/api/v3/aggTrades",
+                params={"symbol": symbol_code, "limit": 1}, timeout=4, headers=headers,
+            )
+            trade_response.raise_for_status()
+            trades = trade_response.json()
+            if not isinstance(trades, list) or not trades:
+                raise ValueError("Binance returned no recent aggregate trade.")
+            trade = trades[-1]
+            trade_price = float(trade["p"])
+            trade_time = int(trade["T"])
+            age_ms = int(time.time() * 1000) - trade_time
+            if not np.isfinite(trade_price) or trade_price <= 0:
+                raise ValueError("Invalid Binance aggregate trade price.")
             spread_pct = (ask - bid) / ((ask + bid) / 2) * 100
-            return {"bid": bid, "ask": ask, "spread_pct": spread_pct}
+            return {
+                "bid": bid, "ask": ask, "spread_pct": spread_pct,
+                "price": trade_price, "age_ms": age_ms,
+            }
         except Exception as error:
             last_error = str(error)
-    return {"bid": np.nan, "ask": np.nan, "spread_pct": np.nan, "error": last_error}
+    return {
+        "bid": np.nan, "ask": np.nan, "spread_pct": np.nan,
+        "price": np.nan, "age_ms": np.nan, "error": last_error,
+    }
 
 
 def load_data():
@@ -844,7 +863,7 @@ def ai_engine(df):
 
 
     # Hard BUY/SELL gates match the browser strategy; the score is diagnostic only.
-    quote = get_book_ticker(symbol)
+    quote = get_market_snapshot(symbol)
     prior_levels = closed.iloc[-31:-1]
     prior_support = float(prior_levels["Low"].min()) if len(prior_levels) == 30 else np.nan
     prior_resistance = float(prior_levels["High"].max()) if len(prior_levels) == 30 else np.nan
@@ -857,7 +876,7 @@ def ai_engine(df):
         "volume_ratio": float(live.VOLUME_RATIO),
     }
     decision, gate_reasons = evaluate_signal_gates(
-        last_bar, details, quote["spread_pct"], len(closed), prior_support, prior_resistance
+        last_bar, details, quote["spread_pct"], quote["price"], quote["age_ms"], len(closed), prior_support, prior_resistance
     )
     if no_trade:
         decision = "WAIT"
@@ -877,6 +896,8 @@ def ai_engine(df):
     else:
         notes.append(f"Binance bid/ask spread: {quote['spread_pct']:.4f}%")
 
+    if decision in ("BUY", "SELL") and np.isfinite(quote.get("price", np.nan)):
+        price = float(quote["price"])
     atr = max(float(live.ATR), price * 0.001)
 
     if "OSTA" in level:
