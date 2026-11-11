@@ -318,10 +318,13 @@ def higher_tf_bias(symbol_code):
 # ============================================================
 
 def support_resistance(df):
-    d = df.tail(120)
+    # Match the browser engine: prior 30 fully closed candles, excluding the signal candle.
+    d = df.iloc[-31:-1].tail(30)
+    if len(d) != 30:
+        raise ValueError("Not enough prior closed candles for support/resistance.")
     return (
-        float(d["Low"].quantile(0.08)),
-        float(d["High"].quantile(0.92)),
+        float(d["Low"].min()),
+        float(d["High"].max()),
         float(d["Close"].median()),
     )
 
