@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from radar_indicators import add_indicators, signal_context_is_valid, validate_ohlcv
+from radar_indicators import add_indicators, evaluate_signal_gates, signal_context_is_valid, validate_ohlcv
 
 
 # ============================================================
@@ -113,7 +113,7 @@ candles = st.sidebar.slider("Kynttilöitä", 80, 300, 170, 10)
 st.sidebar.divider()
 
 show_fast = st.sidebar.checkbox("EMA9 / EMA21", True)
-show_slow = st.sidebar.checkbox("EMA50 / EMA100", True)
+show_slow = st.sidebar.checkbox("EMA50 / EMA200", True)
 show_vwap = st.sidebar.checkbox("VWAP", False)
 show_levels = st.sidebar.checkbox("Support / Resistance", True)
 show_patterns = st.sidebar.checkbox("Pattern-merkinnät", True)
@@ -208,6 +208,35 @@ def get_klines(symbol_code, interval_code, limit_count):
     raise RuntimeError(last_error)
 
 
+
+def get_book_ticker(symbol_code):
+    """Fetch a public Binance Spot bid/ask snapshot; never guess missing quotes."""
+    urls = [
+        "https://api.binance.com/api/v3/ticker/bookTicker",
+        "https://data-api.binance.vision/api/v3/ticker/bookTicker",
+    ]
+    last_error = "Binance book ticker unavailable."
+    for url in urls:
+        try:
+            response = requests.get(
+                url, params={"symbol": symbol_code}, timeout=4,
+                headers={"User-Agent": "Rahasampo-Radar/1.0"},
+            )
+            response.raise_for_status()
+            payload = response.json()
+            if not isinstance(payload, dict) or payload.get("symbol") != symbol_code:
+                raise ValueError("Invalid Binance book ticker payload.")
+            bid = float(payload["bidPrice"])
+            ask = float(payload["askPrice"])
+            if not np.isfinite([bid, ask]).all() or bid <= 0 or ask < bid:
+                raise ValueError("Invalid Binance bid/ask prices.")
+            spread_pct = (ask - bid) / ((ask + bid) / 2) * 100
+            return {"bid": bid, "ask": ask, "spread_pct": spread_pct}
+        except Exception as error:
+            last_error = str(error)
+    return {"bid": np.nan, "ask": np.nan, "spread_pct": np.nan, "error": last_error}
+
+
 def load_data():
     try:
         if st.session_state.df is None:
@@ -237,19 +266,19 @@ def load_data():
 def higher_tf_bias(symbol_code):
     result = {}
 
-    for htf in ["5m", "15m", "1h", "4h"]:
+    for htf in ["4h", "1d"]:
         try:
             d = add_indicators(get_klines(symbol_code, htf, 180))
-            if len(d) < 101:
+            if len(d) < 220:
                 raise ValueError("Not enough closed candles for higher-timeframe indicators.")
             last = d.iloc[-1]
 
-            if not np.isfinite([last.EMA50, last.EMA100, last.Close]).all():
+            if not np.isfinite([last.EMA50, last.EMA200, last.Close]).all():
                 raise ValueError("Higher-timeframe indicators are not ready.")
 
-            if last.Close > last.EMA50 > last.EMA100:
+            if last.Close > last.EMA200 and last.EMA50 > last.EMA200:
                 result[htf] = "NOUSU"
-            elif last.Close < last.EMA50 < last.EMA100:
+            elif last.Close < last.EMA200 and last.EMA50 < last.EMA200:
                 result[htf] = "LASKU"
             else:
                 result[htf] = "EPÄSELVÄ"
@@ -257,19 +286,12 @@ def higher_tf_bias(symbol_code):
         except Exception:
             result[htf] = "?"
 
-    bull = sum(v == "NOUSU" for v in result.values())
-    bear = sum(v == "LASKU" for v in result.values())
-
-    if bull >= 3:
-        return "VAHVA NOUSU", result
-    if bear >= 3:
-        return "VAHVA LASKU", result
-    if bull >= 2:
+    if result.get("4h") == result.get("1d") == "NOUSU":
         return "NOUSU", result
-    if bear >= 2:
+    if result.get("4h") == result.get("1d") == "LASKU":
         return "LASKU", result
-
     return "EPÄSELVÄ", result
+
 
 
 # ============================================================
@@ -289,7 +311,7 @@ def range_filter(df):
     d = df.tail(50)
     price = float(df.Close.iloc[-1])
     range_pct = (d.High.max() - d.Low.min()) / price
-    ema_gap = abs(df.EMA50.iloc[-1] - df.EMA100.iloc[-1]) / price
+    ema_gap = abs(df.EMA50.iloc[-1] - df.EMA200.iloc[-1]) / price
     return range_pct < 0.0026 and ema_gap < 0.0013
 
 
@@ -664,7 +686,7 @@ def ai_engine(df):
     live = df.iloc[-1]
     closed = df.copy()
     required_indicators = (
-        live.EMA9, live.EMA21, live.EMA50, live.EMA100, live.RSI,
+        live.EMA9, live.EMA21, live.EMA50, live.EMA200, live.RSI,
         live.MACD, live.MACD_SIGNAL, live.MACD_HIST, live.ATR, live.VOL_MA, live.VWAP,
     )
     if not np.isfinite(required_indicators).all() or live.ATR <= 0 or live.VOL_MA <= 0:
@@ -713,13 +735,13 @@ def ai_engine(df):
         score -= 7
         notes.append("Hinta EMA50 alapuolella")
 
-    if price > live.EMA100:
+    if price > live.EMA200:
         score += 7
-        notes.append("Hinta EMA100 yläpuolella")
+        notes.append("Hinta EMA200 yläpuolella")
 
-    if price < live.EMA100:
+    if price < live.EMA200:
         score -= 7
-        notes.append("Hinta EMA100 alapuolella")
+        notes.append("Hinta EMA200 alapuolella")
 
     if price > live.VWAP:
         score += 4
@@ -820,7 +842,40 @@ def ai_engine(df):
     if signal_context_valid and no_trade and abs(final) < 18:
         level = "EI TREIDIÄ"
 
-    confidence = int(min(95, max(45, 50 + abs(final) * 0.45)))
+
+    # Hard BUY/SELL gates match the browser strategy; the score is diagnostic only.
+    quote = get_book_ticker(symbol)
+    prior_levels = closed.iloc[-31:-1]
+    prior_support = float(prior_levels["Low"].min()) if len(prior_levels) == 30 else np.nan
+    prior_resistance = float(prior_levels["High"].max()) if len(prior_levels) == 30 else np.nan
+    last_bar = {
+        "close": float(live.Close), "ema9": float(live.EMA9), "ema21": float(live.EMA21),
+        "ema50": float(live.EMA50), "ema200": float(live.EMA200), "rsi": float(live.RSI),
+        "macd_hist": float(live.MACD_HIST), "atr": float(live.ATR),
+        "atr_pct": float(live.ATR_PCT), "adx": float(live.ADX),
+        "pdi": float(live.PDI), "mdi": float(live.MDI),
+        "volume_ratio": float(live.VOLUME_RATIO),
+    }
+    decision, gate_reasons = evaluate_signal_gates(
+        last_bar, details, quote["spread_pct"], len(closed), prior_support, prior_resistance
+    )
+    if no_trade:
+        decision = "WAIT"
+        gate_reasons.append("Sivuttaismarkkinan range-suodatin estää uuden signaalin.")
+    if decision == "BUY":
+        level = "OSTA"
+        final = max(final, 38)
+    elif decision == "SELL":
+        level = "MYY"
+        final = min(final, -38)
+    else:
+        level = "ODOTA"
+        final = 0
+        notes.extend(gate_reasons or ["Kaikki BUY/SELL-ehdot eivät täyty."])
+    if quote.get("error"):
+        notes.append("Binance book ticker: " + quote["error"])
+    else:
+        notes.append(f"Binance bid/ask spread: {quote['spread_pct']:.4f}%")
 
     atr = max(float(live.ATR), price * 0.001)
 
@@ -844,7 +899,6 @@ def ai_engine(df):
     return {
         "level": level,
         "score": final,
-        "confidence": confidence,
         "price": price,
         "support": support,
         "resistance": resistance,
@@ -869,7 +923,6 @@ def ai_engine(df):
 
 def signal_box(ai):
     level = ai["level"]
-    conf = ai["confidence"]
 
     if "OSTA" in level and "TARKKAILU" not in level:
         cls = "buy"
@@ -885,7 +938,7 @@ def signal_box(ai):
         cls = "wait"
 
     st.markdown(
-        f'<div class="signal {cls}">{level}<br>{conf}%</div>',
+        f'<div class="signal {cls}">{level}<br>Pisteet {ai[score]:+d} / 100</div>',
         unsafe_allow_html=True,
     )
 
@@ -915,7 +968,7 @@ def draw_chart(df, ai):
 
     if show_slow:
         fig.add_trace(go.Scatter(x=d.index, y=d.EMA50, name="EMA50", mode="lines", line=dict(color="#facc15", width=2.3)))
-        fig.add_trace(go.Scatter(x=d.index, y=d.EMA100, name="EMA100", mode="lines", line=dict(color="#c084fc", width=2.3)))
+        fig.add_trace(go.Scatter(x=d.index, y=d.EMA200, name="EMA200", mode="lines", line=dict(color="#c084fc", width=2.3)))
 
     if show_vwap:
         fig.add_trace(go.Scatter(x=d.index, y=d.VWAP, name="VWAP", mode="lines", line=dict(color="#22d3ee", width=2)))
@@ -968,7 +1021,6 @@ def remember(ai):
         "Signaali": ai["level"],
         "Hinta": round(ai["price"], 4),
         "Score": ai["score"],
-        "Varmuus": ai["confidence"],
         "Pattern": ai["triangle"],
         "Structure": ai["structure"],
     }
