@@ -11,7 +11,7 @@
 *{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#132642 0,#07111f 55%);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;color:#edf5ff}
 main{max-width:1450px;margin:auto;padding:20px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;flex-wrap:wrap}.brand{font-size:clamp(22px,4vw,32px);font-weight:850;letter-spacing:-.7px}.sub,.muted{color:var(--muted)}.tag,.pill{display:inline-block;border:1px solid #35506d;border-radius:999px;padding:5px 10px;font-size:12px;color:#b8cbe2}.pill{border:0;background:#20334b;padding:3px 8px}
 .controls,.metrics,.grid,.risk-controls{display:grid;gap:12px}.controls{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));margin:20px 0 12px}.risk-controls{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin-top:12px}.panel,.metric{background:linear-gradient(150deg,#122239,#0c1728);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}.metric small{display:block;color:var(--muted);margin-bottom:5px}.metric strong{font-size:clamp(19px,3vw,27px);overflow-wrap:anywhere}.metrics{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:12px 0}.grid{grid-template-columns:minmax(0,2fr) minmax(290px,1fr);margin-top:12px}.signal{font-size:clamp(25px,4vw,40px);font-weight:900;letter-spacing:-1px}.signal.buy{color:var(--green)}.signal.sell{color:var(--red)}.signal.wait{color:var(--gold)}
-select,input,button{width:100%;padding:11px 12px;border:1px solid #38506b;border-radius:10px;background:#0b1728;color:#edf5ff;font:inherit}button{cursor:pointer;background:#173c5b;font-weight:700}button:hover{filter:brightness(1.2)}button:disabled{opacity:.6;cursor:wait}label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}#chart{height:520px;width:100%}
+select,input,button{width:100%;padding:11px 12px;border:1px solid #38506b;border-radius:10px;background:#0b1728;color:#edf5ff;font:inherit}button{cursor:pointer;background:#173c5b;font-weight:700}button:hover{filter:brightness(1.2)}button:disabled{opacity:.6;cursor:wait}label{display:block;color:var(--muted);font-size:12px;margin-bottom:7px}#chart{height:520px;min-height:360px;width:100%;overflow:hidden}
 .status{padding:10px 12px;border-radius:10px;background:#172b42;color:#c8d9ee;margin:12px 0}.status.error{color:#ffb4bd;background:#381c2a}.status.ok{color:#91f4d3;background:#10352f}
 ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);padding:18px 2px}.section-title{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.divider{height:1px;background:var(--line);margin:14px 0}.kv{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #203048}.kv span:first-child{color:var(--muted)}.good{color:var(--green)}.bad{color:var(--red)}.neutral{color:var(--gold)}.check{display:flex;gap:9px;align-items:flex-start;padding:7px 0;border-bottom:1px solid #203048}.check-mark{font-weight:900;min-width:18px}.check-mark.yes{color:var(--green)}.check-mark.no{color:var(--red)}.table-wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}th,td{text-align:right;padding:9px;border-bottom:1px solid var(--line)}th:first-child,td:first-child{text-align:left}.disclaimer{border:1px solid #735d2f;background:#211c12;border-radius:12px;padding:13px;margin:12px 0;color:#f3dfaa;font-size:13px}
 @media(max-width:850px){main{padding:12px}.grid{grid-template-columns:1fr}#chart{height:390px}.panel{padding:12px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.metric:last-child{grid-column:1/-1}}
@@ -71,11 +71,11 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  <section class="panel">
   <h3 style="margin-top:0">Riskilaskelma — vain kun signaali vahvistuu</h3>
   <div id="riskPlan" class="sub">ODOTA-signaalissa positiota ei ehdoteta.</div>
-  <p class="sub" style="font-size:12px">Esimerkki käyttää ATR-pohjaista stop-lossia, annettuja kulu- ja lipsuma-arvioita sekä tavoitetta. Todellinen täyttöhinta voi poiketa. Stop-loss ei takaa tappion rajaamista.</p>
+  <p id="riskExampleNote" class="sub" style="font-size:12px" hidden>Esimerkkilaskelma käyttää ATR-pohjaista stop-lossia, annettuja kulu- ja lipsuma-arvioita sekä tavoitetta. Todellinen täyttöhinta voi poiketa. Stop-loss ei takaa tappion rajaamista.</p>
  </section>
 </div>
 <section class="panel" style="margin-top:12px">
- <div class="section-title"><div><h3 style="margin:0">Historiallinen strategiakoe (ei todiste kannattavuudesta)</h3><div class="sub">1 h · enintään 2 500 sulkeutunutta kynttilää / pari · useita pareja · kulut ja lipsuma mukana</div></div><button id="backtestRun" style="width:auto">Aja historiatesti</button></div>
+ <div class="section-title"><div><h3 style="margin:0">Historiallinen strategiakoe (ei todiste kannattavuudesta)</h3><div class="sub" id="backtestScope">Valittu aikaväli · historiallinen aineisto sivutetaan Binance API:sta · kulut, lipsuma ja spread huomioidaan</div></div><button id="backtestRun" style="width:auto">Aja historiatesti</button></div>
  <div class="metrics">
   <div class="metric"><small>Kauppoja kokeessa</small><strong id="btTrades">—</strong></div>
   <div class="metric"><small>Voittavien osuus</small><strong id="btWin">—</strong></div>
@@ -84,21 +84,22 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="metric"><small>Suurin lasku huipusta</small><strong id="btDd">—</strong></div>
   <div class="metric"><small>Voitto/tappio-suhde</small><strong id="btPf">—</strong></div>
  </div>
- <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää 1 h dataa ja samaa evaluateSignal()-päätöspolkua kuin live-signaali sekä 4 h / 1 d -vahvistuksia. Historiallinen spread on arvio, ei toteutunut order book -data.</div>
- <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja (koko historia)</th><th>OOS-kauppoja</th><th>OOS voitto-%</th><th>OOS nettotulos</th><th>OOS max. lasku</th><th>OOS PF</th><th>OOS-arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="9">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Entry</th><th>Exit</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
+ <div id="btWarning" class="status">Historiatestiä ei ole vielä ajettu. Käynnistä testi; liian pieni kauppamäärä merkitään epäluotettavaksi.</div><div id="backtestNote" class="sub">Testi käyttää valittua aikaväliä ja samaa kaupankäyntilogiikkaa kuin live-analyysi. Historiallinen spread on arvio, ei toteutunut order book -data.</div>
+ <div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Pari</th><th>Kynttilöitä</th><th>Kauppoja (koko historia)</th><th>OOS-kauppoja</th><th>OOS voitto-%</th><th>OOS nettotulos</th><th>OOS max. lasku</th><th>OOS PF</th><th>OOS-arvio</th></tr></thead><tbody id="btCompareRows"><tr><td colspan="9">Historiatestiä ei ole vielä ajettu.</td></tr></tbody></table></div><div class="table-wrap" style="margin-top:12px"><table><thead><tr><th>Avattu (UTC)</th><th>Suljettu (UTC)</th><th>Sisääntulo</th><th>Ulosmeno</th><th>Tulos</th><th>Miksi suljettiin</th></tr></thead><tbody id="btRows"><tr><td colspan="6">Ei vielä tuloksia.</td></tr></tbody></table></div>
 </section>
 <div class="disclaimer"><strong>Tärkeä riskirajaus.</strong> Mikään tekninen analyysi ei pysty takaamaan turvallista osto- tai myyntikäskyä. Tämä työkalu ei käytä oikeaa tekoälyennustetta, ei lähetä toimeksiantoja eikä shorttaa. <strong>MYY</strong> tarkoittaa spot-käytössä hallussa olevan omaisuuden vähentämistä tai uusien ostojen välttämistä, ei lainalla myymistä. Live-signaali pidätetään, jos data on vanhaa, spread suuri, trendi epäselvä tai vahvistukset puuttuvat.</div>
 <div class="foot">Markkinadata: Binance Spot API (julkinen). Hinnat USDT:nä. Kulut, verot, täyttöhinnat ja pörssin saatavuus vaikuttavat tulokseen. Historiallinen tulos ei ennusta tulevaa. Tämä ei ole sijoitusneuvo.</div>
 </main>
+<script src="./number-format.js"></script>
 <script src="./trading-engine.js"></script>
 <script>
 (function(){
 "use strict";
 var $=function(id){return document.getElementById(id);}, timer=null, busy=false, refreshToken=0;
 var periods=["1m","3m","5m","15m","1h","4h","1d","3d","1w"];
-function fmt(n,d){if(n===null||n===undefined||n===""||!Number.isFinite(Number(n)))return "—";return Number(n).toLocaleString("en-US",{minimumFractionDigits:d===undefined?2:d,maximumFractionDigits:d===undefined?2:d});}
-function fmtPrice(n){if(n===null||n===undefined||n==="")return "—";var v=Number(n);return fmt(v,v<0.01?6:v<1?5:2);}
-function money(n){return fmt(n,2)+" USDT";}
+function fmt(n,d){return window.RahasampoFormat.number(n,d===undefined?2:d);}
+function fmtPrice(n){return window.RahasampoFormat.price(n);}
+function money(n){return window.RahasampoFormat.money(n);}
 function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
 function status(msg,type){$("status").className="status "+(type||"");$("status").textContent=msg;}
 function options(){return {capital:Math.max(0,Number($("capital").value)||0),riskPct:Number($("riskPct").value),maxExposurePct:Number($("exposurePct").value),feePct:Math.max(0,Number($("feePct").value)||0),slippagePct:Math.max(0,Number($("slippagePct").value)||0)};}
@@ -170,9 +171,12 @@ function paintChecklist(sig){
  });
  var side=sig.direction==="BUY"?"OSTA":sig.direction==="SELL"?"MYY / KEVENNÄ":sig.checks.bias==="bear"?"Myyntiehdot: ei vahvistettu. Spot-käytössä myynti koskee vain omistamaasi BTC:tä.":sig.checks.bias==="bull"?"Ostoehdot: ei vahvistettu":(sig.checks.bearN>sig.checks.bullN?"Myyntiehdot: ei vahvistettu. Spot-käytössä myynti koskee vain omistamaasi BTC:tä.":"Ostoehdot: ei vahvistettu");
  $("checklist").innerHTML='<div class="sub">Arvioitava suunta: <strong>'+esc(side)+'</strong></div>'+list;
- $("passed").textContent=sig.passed+" / "+sig.total+" ehtoa täyttyy";
+ var dataItems=sig.checklist.filter(function(x){return x.group==="Data OK";}),technicalItems=sig.checklist.filter(function(x){return x.group==="Trendi"||x.group==="Ajoitus";});
+ var dataPassed=dataItems.filter(function(x){return x.ok;}).length,technicalPassed=technicalItems.filter(function(x){return x.ok;}).length;
+ $("passed").textContent="Data "+dataPassed+"/"+dataItems.length+" · Tekniset "+technicalPassed+"/"+technicalItems.length+" · Yhteensä "+sig.passed+"/"+sig.total;
 }
 function renderRisk(sig){
+ var riskExample=$("riskExampleNote");if(riskExample)riskExample.hidden=sig.direction==="WAIT";
  if(sig.direction==="WAIT"){
   $("riskPlan").innerHTML='<div class="signal wait">Ei kauppaa</div><p>Vaaditut ehdot eivät täyty, joten ei ostoa, myyntiä eikä laskettua positiota.</p><p class="sub">Älä tulkitse ODOTA-tilaa piilotetuksi ostokehotukseksi. Riskilaskelma näytetään vain, kun signaali vahvistuu.</p>';return;
  }
@@ -267,7 +271,7 @@ function renderNativeCandleChart(series,signal,symbol,chartCount){
  var plotW=width-left-right,plotH=height-top-bottom,step=plotW/d.length,candleW=Math.max(1.5,Math.min(10,step*0.68));
  function x(i){return left+step*(i+0.5);}
  function y(v){return top+(max-v)/(max-min)*plotH;}
- function num(v){return Number(v).toLocaleString("en-US",{maximumSignificantDigits:7});}
+ function num(v){return window.RahasampoFormat.number(v,2);}
  function escSvg(v){return String(v).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
  var out=['<svg xmlns="http://www.w3.org/2000/svg" role="img" aria-label="',escSvg(symbol),' kynttiläkaavio; ',d.length,' kynttilää" viewBox="0 0 ',width,' ',height,'" style="width:100%;height:auto;display:block;background:#101d30;border-radius:10px" preserveAspectRatio="xMidYMid meet">'];
  out.push('<rect width="100%" height="100%" fill="#101d30"/>');
@@ -376,7 +380,7 @@ async function load(){
   $("summary").textContent=signal.reason==="ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta."?"Kaikki 14 ehtoa eivät täyty, joten signaalia ei anneta.":signal.reason;
   $("snapshotTime").textContent=new Date(snapshotCloseTime).toLocaleTimeString("fi-FI");
   var timeframeRows=[{name:iv+" (valittu)",a:signal.main.checks.bias}];
-  if(iv!=="1h")timeframeRows.push({name:"1 h",a:higher[0].checks.bias});
+  if(iv!=="1h")timeframeRows.push({name:"1 h (taustatieto)",a:higher[0].checks.bias});
   timeframeRows.push({name:"4 h",a:higher[1].checks.bias},{name:"1 d",a:higher[2].checks.bias});
   $("timeframes").innerHTML=timeframeRows.map(function(t){
    var val=t.a==="bull"?"NOUSU":t.a==="bear"?"LASKU":"Ei vahvistusta";return '<div class="kv"><span>'+esc(t.name)+'</span><strong class="'+(t.a==="bull"?"good":t.a==="bear"?"bad":"neutral")+'">'+val+'</strong></div>';
@@ -385,7 +389,7 @@ async function load(){
    '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>'+fmtPrice(signal.main.resistance)+'</strong></div>'+
    '<div class="kv"><span>ATR (14)</span><strong>'+fmtPrice(latest.atr)+'</strong></div>'+
    '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>'+fmt(latest.volumeRatio,2)+'×</strong></div>'+
-   '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+Math.max(0,Math.round(signal.priceAgeMs/1000))+' s</strong></div>';
+   '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+fmt(signal.priceAgeMs/1000,1)+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
