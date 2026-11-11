@@ -6,7 +6,8 @@
     ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m",
     bars: [], chartBars: [], chartLive: null, live: null, bid: null, ask: null, tradePrice: null,
     lastTradeAt: 0, lastBookAt: 0, lastScores: {}, trades: 0, reconnects: 0, wsEndpoint: 0,
-    tickerChange: null, startedAt: Date.now()
+    tradeSource: "NONE", bookSource: "NONE", chartSource: "REST", lastRestCandleAt: 0,
+    restFallbackBusy: false, restError: null, tickerChange: null, startedAt: Date.now()
   };
   var WS_ENDPOINTS = [
     "wss://stream.binance.com:9443/stream?streams=",
@@ -96,6 +97,108 @@
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
+  }
+
+  function intervalMilliseconds(interval) {
+    var units = { "1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000,
+      "1h": 3600000, "4h": 14400000, "1d": 86400000 };
+    return units[interval] || 0;
+  }
+
+  async function fetchMarketJson(endpoint, symbol, interval) {
+    var query = "endpoint=" + encodeURIComponent(endpoint) + "&symbol=" + encodeURIComponent(symbol);
+    if (interval) query += "&interval=" + encodeURIComponent(interval) + "&limit=3";
+    var response = await fetch("/api/market?" + query, { cache: "no-store" });
+    if (!response.ok) throw new Error("Binance REST-varayhteys HTTP " + response.status);
+    return response.json();
+  }
+
+  // REST is a real-data fallback, not synthetic data. It only takes over when
+  // the corresponding WebSocket event stream has gone stale.
+  async function refreshRestFallback() {
+    if (state.restFallbackBusy) return;
+    var now = Date.now(), symbol = state.symbol, interval = state.interval;
+    var needTrade = !state.lastTradeAt || now - state.lastTradeAt > 2500;
+    var needBook = !state.lastBookAt || now - state.lastBookAt > 1500;
+    var needCandle = !state.lastRestCandleAt || now - state.lastRestCandleAt > 4000;
+    if (!needTrade && !needBook && !needCandle) return;
+    state.restFallbackBusy = true;
+    var tasks = [];
+
+    if (needTrade) {
+      tasks.push(fetchMarketJson("ticker24hr", symbol).then(function (data) {
+        if (symbol !== state.symbol) return;
+        var p = n(data && data.lastPrice), closeTime = n(data && data.closeTime), receivedAt = Date.now();
+        var age = closeTime === null ? Infinity : receivedAt - closeTime;
+        if (p === null || p <= 0 || !Number.isFinite(age) || age < -1000 || age > 5000) {
+          throw new Error("Binance REST-kauppahinta puuttuu tai on vanhentunut.");
+        }
+        if (!state.lastTradeAt || Date.now() - state.lastTradeAt > 2500) {
+          state.tradePrice = p;
+          state.lastTradeAt = receivedAt;
+          state.tradeSource = "REST";
+        }
+        state.restError = null;
+      }).catch(function (error) {
+        state.restError = error && error.message ? error.message : "REST-kauppahinnan haku epäonnistui.";
+      }));
+    }
+
+    if (needBook) {
+      tasks.push(fetchMarketJson("bookTicker", symbol).then(function (data) {
+        if (symbol !== state.symbol) return;
+        var bid = n(data && data.bidPrice), ask = n(data && data.askPrice);
+        if (bid === null || ask === null || bid <= 0 || ask < bid) {
+          throw new Error("Binance REST order book -tarjous puuttuu tai on virheellinen.");
+        }
+        if (!state.lastBookAt || Date.now() - state.lastBookAt > 1500) {
+          state.bid = bid;
+          state.ask = ask;
+          state.lastBookAt = Date.now();
+          state.bookSource = "REST";
+        }
+      }).catch(function (error) {
+        state.restError = error && error.message ? error.message : "REST order book -haku epäonnistui.";
+      }));
+    }
+
+    if (needCandle) {
+      tasks.push(fetchMarketJson("klines", symbol, interval).then(function (rows) {
+        if (symbol !== state.symbol || interval !== state.interval) return;
+        state.lastRestCandleAt = Date.now();
+        var ms = intervalMilliseconds(interval);
+        if (!Array.isArray(rows) || !ms || !rows.length) return;
+        var k = rows[rows.length - 1];
+        if (!Array.isArray(k) || k.length < 7) return;
+        var live = {
+          time: n(k[0]), open: n(k[1]), high: n(k[2]), low: n(k[3]),
+          close: n(k[4]), volume: n(k[5]), closeTime: n(k[6])
+        };
+        var valid = [live.time, live.open, live.high, live.low, live.close, live.volume, live.closeTime].every(Number.isFinite) &&
+          live.time % ms === 0 && live.closeTime === live.time + ms - 1 && live.closeTime >= Date.now() &&
+          Math.min(live.open, live.high, live.low, live.close) > 0 && live.volume >= 0 &&
+          live.high >= Math.max(live.open, live.close, live.low) &&
+          live.low <= Math.min(live.open, live.close, live.high);
+        var lastClosed = state.chartBars[state.chartBars.length - 1];
+        if (!valid || !lastClosed || lastClosed.time + ms !== live.time) return;
+        var enriched = TradingEngine.enrich(state.chartBars.concat([live]));
+        state.chartLive = enriched[enriched.length - 1];
+        state.chartSource = "REST";
+        renderLiveChart();
+      }).catch(function (error) {
+        state.restError = error && error.message ? error.message : "REST-kynttilähaun varayhteys epäonnistui.";
+      }));
+    }
+
+    try {
+      await Promise.all(tasks);
+      if (symbol === state.symbol) {
+        updateUi(state.lastScores || {});
+        renderLiveChart();
+      }
+    } finally {
+      state.restFallbackBusy = false;
+    }
   }
 
   function mergeLive(base, live) {
@@ -204,10 +307,10 @@
     $("liveScalpCards").innerHTML = ["1m", "3m", "5m", "15m"].map(function (tf) { return cardHtml(tf, displayScores[tf]); }).join("");
     var age = state.lastTradeAt ? Math.max(0, (Date.now() - state.lastTradeAt) / 1000) : Infinity;
     var gateReason = currentGateReason();
-    $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? "● LIVE" : "YHTEYS HILJAINEN";
+    $("liveState").textContent = gateReason ? "SIGNAALI ESTETTY" : age < 3 ? (state.tradeSource === "WEBSOCKET" ? "● LIVE · WS" : "● LIVE · REST-varayhteys") : "YHTEYS HILJAINEN";
     $("liveState").className = "pill " + (!gateReason && age < 3 ? "good" : "bad");
     var validBook = Number.isFinite(state.bid) && Number.isFinite(state.ask) && state.bid > 0 && state.ask >= state.bid;
-    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
+    $("liveMeta").textContent = "Hinta " + price(state.tradePrice || state.live && state.live.close) + " USDT · bid " + price(state.bid) + " · ask " + price(state.ask) + " · spread " + (validBook ? num((state.ask - state.bid) / ((state.ask + state.bid) / 2) * 100, 4) + "%" : "—") + " · kynttiläsnapshot " + (Number.isFinite(state.snapshotCloseTime) ? new Date(state.snapshotCloseTime).toLocaleTimeString("fi-FI") : "odottaa dataa") + " · hinta " + state.tradeSource + " · order book " + state.bookSource + " · kauppatapahtumia " + state.trades + " · WS-uudelleenyhdistämisiä " + state.reconnects + (state.restError ? " · REST-varoitus: " + state.restError : "") + (gateReason ? " · SIGNAALIT ESTETTY: " + gateReason : " · dataportti OK");
     updateMainMetrics(displayScores);
   }
 
@@ -274,12 +377,12 @@
       if (state.ws !== socket) return;
       try {
         var wrap = JSON.parse(ev.data), d = wrap.data || wrap;
-        if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.trades++; }
+        if (d.e === "trade") { state.tradePrice = n(d.p); state.lastTradeAt = Date.now(); state.tradeSource = "WEBSOCKET"; state.trades++; }
         // Binance bookTicker stream payloads may omit the event-type field; identify them by bid/ask fields too.
         if (d.e === "bookTicker" || (d.s === state.symbol && d.b != null && d.a != null && d.B != null && d.A != null && d.p == null)) {
           var bid = n(d.b), ask = n(d.a);
           if (bid !== null && ask !== null && bid > 0 && ask >= bid) {
-            state.bid = bid; state.ask = ask; state.lastBookAt = Date.now();
+            state.bid = bid; state.ask = ask; state.lastBookAt = Date.now(); state.bookSource = "WEBSOCKET";
           }
         }
         if (d.e === "kline") { var k = d.k; var candle = { time: n(k.t), closeTime: n(k.T), open: n(k.o), high: n(k.h), low: n(k.l), close: n(k.c), volume: n(k.v) }; if (k.i === "1m") state.live = candle; if (k.i === state.interval) state.chartLive = candle; }
@@ -326,6 +429,8 @@
     await refreshTicker();
     await refreshScalpScores();
     startWs();
+    refreshRestFallback();
+    setInterval(refreshRestFallback, 2000);
     setInterval(refreshScalpScores, 10000);
     setInterval(refreshTicker, 10000);
     setInterval(loadChartBars, 30000);
