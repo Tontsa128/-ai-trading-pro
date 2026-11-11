@@ -250,3 +250,58 @@ def evaluate_signal_gates(
     if higher_timeframes.get("4h") != higher_timeframes.get("1d"):
         reasons.append("4h and 1d trend directions disagree.")
     return "WAIT", reasons
+
+
+def calculate_spot_position(
+    direction: str,
+    entry: float,
+    stop: float | None,
+    target: float | None,
+    capital_usdt: float,
+    risk_pct: float,
+    max_exposure_pct: float,
+    fee_pct: float,
+    slippage_pct: float,
+    spread_pct: float,
+) -> dict[str, float]:
+    """Calculate a BUY-only spot size with entry and exit friction included."""
+    empty = {
+        "quantity": 0.0, "notional_usdt": 0.0, "risk_budget_usdt": 0.0,
+        "estimated_loss_usdt": 0.0, "estimated_gain_usdt": 0.0,
+        "per_side_friction_pct": np.nan,
+    }
+    if direction != "BUY" or stop is None or target is None:
+        return empty
+    values = (entry, stop, target, capital_usdt, risk_pct, max_exposure_pct,
+              fee_pct, slippage_pct, spread_pct)
+    if not np.isfinite(values).all():
+        return empty
+    if (entry <= 0 or stop <= 0 or target <= entry or stop >= entry or
+            capital_usdt <= 0 or risk_pct <= 0 or risk_pct > 1 or
+            max_exposure_pct <= 0 or max_exposure_pct > 100 or
+            fee_pct < 0 or slippage_pct < 0 or spread_pct < 0 or spread_pct > 0.15):
+        return empty
+    friction = fee_pct / 100.0 + slippage_pct / 100.0 + spread_pct / 200.0
+    risk_budget = capital_usdt * risk_pct / 100.0
+    stop_distance = entry - stop
+    target_distance = target - entry
+    cost_per_unit = stop_distance + (entry + stop) * friction
+    if not np.isfinite(cost_per_unit) or cost_per_unit <= 0:
+        return empty
+    quantity = min(
+        risk_budget / cost_per_unit,
+        (capital_usdt * (max_exposure_pct / 100.0)) / entry,
+    )
+    if not np.isfinite(quantity) or quantity <= 0:
+        return empty
+    notional = quantity * entry
+    estimated_loss = quantity * cost_per_unit
+    estimated_gain = quantity * (target_distance - (entry + target) * friction)
+    return {
+        "quantity": float(quantity),
+        "notional_usdt": float(notional),
+        "risk_budget_usdt": float(risk_budget),
+        "estimated_loss_usdt": float(estimated_loss),
+        "estimated_gain_usdt": float(estimated_gain),
+        "per_side_friction_pct": float(friction * 100.0),
+    }
