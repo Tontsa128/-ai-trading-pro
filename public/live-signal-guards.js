@@ -9,14 +9,14 @@
   function gateReason(state, nowMs) {
     var now = Number.isFinite(nowMs) ? nowMs : Date.now();
     if (!state || !Number.isFinite(state.tradePrice) || state.tradePrice <= 0) {
-      return "Viimeisin WebSocket-kauppahinta puuttuu";
+      return "Viimeisin Binance-kauppahinta puuttuu";
     }
     if (!Number.isFinite(state.lastTradeAt) || state.lastTradeAt <= 0) {
-      return "Odotetaan ensimmäistä WebSocket-kauppatapahtumaa";
+      return "Odotetaan ensimmäistä Binance-kauppahintaa";
     }
     var tradeAge = now - state.lastTradeAt;
     if (!Number.isFinite(tradeAge) || tradeAge < 0 || tradeAge > MAX_TRADE_AGE_MS) {
-      return "WebSocket-kauppahinta vanhentunut";
+      return "Binance-kauppahinta vanhentunut";
     }
     if (!Number.isFinite(state.bid) || !Number.isFinite(state.ask) ||
         state.bid <= 0 || state.ask <= 0 || state.ask < state.bid) {
