@@ -88,7 +88,7 @@
   function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "Ei vahvistusta"; }
   function fixed(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla"; }
   function signedFixed(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla"; }
-  function fixedFi(value, digits) { return Number.isFinite(value) ? value.toLocaleString("fi-FI", {minimumFractionDigits:digits,maximumFractionDigits:digits}) : "ei saatavilla"; }
+  function fixedFi(value, digits) { if (!Number.isFinite(value)) return "ei saatavilla"; return root.RahasampoFormat ? root.RahasampoFormat.number(value, digits) : value.toLocaleString("fi-FI", {minimumFractionDigits:digits,maximumFractionDigits:digits}); }
   function signedFixedFi(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + fixedFi(value, digits) : "ei saatavilla"; }
   // Percent inputs are expressed in percentage points; half the spread is charged per side.
   function estimatePerSideFriction(feePct, slippagePct, spreadPct) {
