@@ -1125,6 +1125,8 @@ def run_app():
             st.write(f"Riskibudjetti: **{plan['risk_budget_usdt']:,.2f} USDT**")
             st.write(f"Arvioitu tappio kuluineen: **{plan['estimated_loss_usdt']:,.2f} USDT**")
             st.write(f"Arvioitu nettotavoite: **{plan['estimated_gain_usdt']:,.2f} USDT**")
+            st.write(f"Arvioitu kitka / puoli: **{plan['per_side_friction_pct']:.4f}%**")
+            st.caption("Laskelma on arvio: määrä ei vielä huomioi Binance-symbolin lot size- tai min notional -rajoja eikä lähetä toimeksiantoa.")
         elif ai["direction"] == "MYY":
             st.write("Spot-myyntiin ei lasketa määrää ilman käyttäjän omistussaldoa.")
         else:
