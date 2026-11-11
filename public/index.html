@@ -193,7 +193,7 @@ function renderRisk(sig){
  }
  var d="OSTA (spot)";
  $("riskPlan").innerHTML='<div class="signal '+(sig.direction==="BUY"?"buy":"sell")+'">'+d+'</div>'+
- '<div class="kv"><span>Suunnittelun entry</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
+ '<div class="kv"><span>Suunnittelun avaushinta</span><strong>'+fmtPrice(sig.entry)+'</strong></div>'+
  '<div class="kv"><span>Stop-loss (arvio)</span><strong>'+fmtPrice(sig.stop)+'</strong></div>'+
  '<div class="kv"><span>Tavoite (arvio)</span><strong>'+fmtPrice(sig.target)+'</strong></div>'+
  '<div class="kv"><span>Määrä</span><strong>'+fmt(sig.qty,6)+'</strong></div>'+
