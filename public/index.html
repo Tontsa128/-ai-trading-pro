@@ -241,7 +241,7 @@ async function runHistoricalBacktest(){
  try{
   var higherTotals=higherIntervals.map(historyBarsForInterval);
   var data=await Promise.all([getHistoricalBars(selectedSymbol,selectedInterval,mainTotal)].concat(higherIntervals.map(function(tf,i){return getHistoricalBars(selectedSymbol,tf,higherTotals[i]);})));
-  var bars=data[0],higher=data.slice(1),settings=Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10});
+  var bars=data[0],higher=data.slice(1),settings=Object.assign({},options(),{higherSeries:higher,higherLabels:higherIntervals,assumedSpreadPct:0.10});
   var result=TradingEngine.backtest(bars,settings),splitIndex=Math.floor(bars.length*0.7);
   var outOfSample=TradingEngine.backtest(bars,Object.assign({},settings,{startIndex:splitIndex}));
   renderBacktest(result);
