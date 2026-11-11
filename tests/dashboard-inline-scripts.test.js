@@ -42,9 +42,11 @@ assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("My
   "bearish spot guidance must not imply short-selling or invent a sell quantity");
 assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
   "bearish technical points must be oriented to the displayed direction");
-assert.ok(liveDashboard.includes("Data " + "") && liveDashboard.includes("technicalItems") &&
-  liveDashboard.includes('["4h",1],["1d",2]') && liveDashboard.includes("riskExample.hidden = direction === \"WAIT\""),
-  "live UI must separate data checks from technical checks, show only required 4h/1d confirmations, and hide the risk example for WAIT");
+assert.ok(liveDashboard.includes("technicalItems") &&
+  liveDashboard.includes('selectedInterval === "1h" ? ["4h", "1d"]') &&
+  liveDashboard.includes('selectedInterval === "4h" ? ["1d", "3d"]') &&
+  liveDashboard.includes("riskExample.hidden = direction === \"WAIT\""),
+  "live UI must separate data checks from technical checks, use the correct higher intervals, and hide the risk example for WAIT");
 assert.ok(liveDashboard.includes("state.decisionError") && liveDashboard.includes("ODOTA"),
   "missing or invalid canonical analysis must fail closed as WAIT with an explicit reason");
 assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
