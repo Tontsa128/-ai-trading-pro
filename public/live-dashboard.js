@@ -323,7 +323,7 @@
       if (timeframes) {
         var rows = [{name:state.interval + " (valittu)",bias:decision.main.checks.bias}];
         ["1h","4h","1d"].forEach(function (tf, i) {
-          if (decision.higher && decision.higher[i]) rows.push({name:tf,bias:decision.higher[i].checks.bias});
+          if (tf !== state.interval && decision.higher && decision.higher[i]) rows.push({name:tf,bias:decision.higher[i].checks.bias});
         });
         timeframes.innerHTML = rows.map(function (item) {
           var label = item.bias === "bull" ? "NOUSU" : item.bias === "bear" ? "LASKU" : "EPÄSELVÄ";
