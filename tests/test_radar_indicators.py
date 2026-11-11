@@ -127,10 +127,10 @@ class CausalIndicatorTests(unittest.TestCase):
         self.assertTrue(result["ATR"].isna().all())
 
     def test_signal_context_requires_a_clear_direction_and_all_timeframes(self):
-        complete = {"5m": "NOUSU", "15m": "NOUSU", "1h": "LASKU", "4h": "NOUSU"}
+        complete = {"4h": "NOUSU", "1d": "NOUSU"}
         self.assertTrue(signal_context_is_valid("NOUSU", complete))
         self.assertFalse(signal_context_is_valid("EPÄSELVÄ", complete))
-        self.assertFalse(signal_context_is_valid("NOUSU", {"1h": "NOUSU", "4h": "NOUSU"}))
+        self.assertFalse(signal_context_is_valid("NOUSU", {"4h": "NOUSU"}))
         self.assertFalse(signal_context_is_valid("NOUSU", {**complete, "4h": "?"}))
 
 
