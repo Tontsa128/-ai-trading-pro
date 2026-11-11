@@ -42,11 +42,14 @@ def validate_ohlcv(df: pd.DataFrame, interval: str | None = None) -> pd.DataFram
     if not df.index.is_monotonic_increasing:
         raise ValueError("OHLCV candles are not ordered by timestamp.")
 
-    result = df.loc[:, list(OHLCV_COLUMNS)].copy()
+    # Preserve derived indicator columns when callers validate an enriched frame.
+    # Only raw OHLCV fields are subject to the finite-value requirement; indicator
+    # warm-up NaNs are expected and must not be mistaken for invalid market data.
+    result = df.copy()
     for column in OHLCV_COLUMNS:
         result[column] = pd.to_numeric(result[column], errors="raise")
 
-    values = result.to_numpy(dtype=float)
+    values = result.loc[:, list(OHLCV_COLUMNS)].to_numpy(dtype=float)
     if not np.isfinite(values).all():
         raise ValueError("OHLCV contains missing or non-finite values.")
     if (result[["Open", "High", "Low", "Close"]] <= 0).any().any():
