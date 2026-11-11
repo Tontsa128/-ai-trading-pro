@@ -44,7 +44,7 @@ jobs:
       FAST_INTERVAL_SECONDS: "15"
       FAST_SESSION_SECONDS: ${{ github.event.inputs.session_seconds || '210' }}
     steps:
-      - name: Checkout persistent 15-second paper portfolio
+      - name: Checkout source code from PR head or main
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.pull_request.head.sha || 'main' }}
