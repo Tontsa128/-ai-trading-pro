@@ -24,7 +24,7 @@ The Python `radar_indicators.py` implementation now follows the JavaScript `Trad
 | VWAP | Typical-price × volume cumulative VWAP, reset at each UTC day boundary |
 | Candle closure | Only closed candles enter indicator and signal calculations |
 
-Python retains EMA100 temporarily for the existing Streamlit display, but EMA200 is the shared trend-filter indicator. No approved spread, volume, ADX, risk, fee, slippage or allocation thresholds are changed by indicator parity.
+Python retains EMA100 temporarily because the legacy `ai_engine()` still reads it; EMA200 is the shared JavaScript trend-filter indicator. No approved spread, volume, ADX, risk, fee, slippage or allocation thresholds are changed by indicator parity.
 
 ## Validation
 
