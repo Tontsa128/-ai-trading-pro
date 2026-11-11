@@ -216,36 +216,42 @@ function renderBacktest(result){
  var rows=result.trades.slice(-10).reverse();
  $("btRows").innerHTML=rows.length?rows.map(function(t){return "<tr><td>"+new Date(t.entryTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+new Date(t.exitTime).toISOString().slice(0,16).replace("T"," ")+"</td><td>"+fmtPrice(t.entry)+"</td><td>"+fmtPrice(t.exit)+"</td><td class='"+(t.pnl>=0?"good":"bad")+"'>"+fmt(t.pnl,2)+"</td><td>"+esc(t.cause)+"</td></tr>";}).join(""):'<tr><td colspan="6">Kauppoja ei löytynyt. Tämä ei kerro strategian kannattavuudesta.</td></tr>';
 }
+function historyBarsForInterval(iv){
+ var days={"1m":30,"3m":90,"5m":365,"15m":730,"1h":730,"4h":730,"1d":730,"3d":1460,"1w":1825};
+ var ms={"1m":60000,"3m":180000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000,"3d":259200000,"1w":604800000};
+ if(!days[iv]||!ms[iv])throw new Error("Valitulle aikavälille ei ole historiatestin asetusta.");
+ return Math.ceil(days[iv]*86400000/ms[iv]);
+}
+function historyDaysForInterval(iv){
+ return {"1m":30,"3m":90,"5m":365,"15m":730,"1h":730,"4h":730,"1d":730,"3d":1460,"1w":1825}[iv]||365;
+}
+function higherIntervalsForBacktest(iv){
+ if(["1m","3m","5m","15m"].includes(iv))return ["1h","4h","1d"];
+ if(iv==="1h")return ["4h","1d"];
+ if(iv==="4h")return ["1d","3d"];
+ if(iv==="1d")return ["3d","1w"];
+ throw new Error("Valitun aikavälin ylemmät vahvistukset eivät ole vielä tuettuja historiatestissä.");
+}
 async function runHistoricalBacktest(){
  var button=$("backtestRun");button.disabled=true;
- $("btWarning").className="status";$("btWarning").textContent="Haetaan historiaa sivuttain 1 000 kynttilän erissä. Tämä voi kestää hetken…";
- $("btCompareRows").innerHTML='<tr><td colspan="9">Historiadataa haetaan…</td></tr>';
+ var selectedInterval=$("interval").value,selectedSymbol=$("symbol").value,higherIntervals=higherIntervalsForBacktest(selectedInterval),mainTotal=historyBarsForInterval(selectedInterval);
+ var scope=$("backtestScope");if(scope)scope.textContent="Haetaan "+selectedSymbol+" · "+selectedInterval+" · tavoitehistoria "+historyDaysForInterval(selectedInterval)+" päivää.";
+ $("btWarning").className="status";$("btWarning").textContent="Haetaan valitun aikavälin historiaa Binance API:sta 1 000 kynttilän sivuissa. Suuri 5 minuutin aineisto voi kestää useita kymmeniä sekunteja…";
+ $("btCompareRows").innerHTML='<tr><td colspan="9">Historiadataa haetaan valitulle parille ja aikavälille…</td></tr>';
  try{
-  var symbols=Array.from(new Set(["BTCUSDT","ETHUSDT","SOLUSDT",$("symbol").value]));
-  var results=await Promise.all(symbols.map(async function(sym){
-   var data=await Promise.all([getHistoricalBars(sym,"1h",2500),getHistoricalBars(sym,"4h",1000),getHistoricalBars(sym,"1d",500)]);
-   var bars=data[0],higher=data.slice(1);
-   var settings=Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10});
-   var result=TradingEngine.backtest(bars,settings);
-   var splitIndex=Math.floor(bars.length*0.7);
-   var outOfSample=TradingEngine.backtest(bars,Object.assign({},settings,{startIndex:splitIndex}));
-   return {symbol:sym,bars:bars,higher:higher,result:result,outOfSample:outOfSample,splitIndex:splitIndex};
-  }));
-  var selected=results.find(function(x){return x.symbol===$("symbol").value;})||results[0];
-  renderBacktest(selected.result);
-  var countSummary=results.map(function(x){return x.symbol+": "+x.result.count+" kauppaa";}).join(", ");
-  if(results.some(function(x){return x.result.count<100;})){
-   $("btWarning").className="status error";
-   $("btWarning").textContent="Varoitus: "+countSummary+". Alustava raja on 100 kauppaa, joten tuloksista ei voi tehdä johtopäätöksiä.";
-  }
-  $("btCompareRows").innerHTML=results.map(function(x){
-   var r=x.outOfSample,ok=r.count>=30;
-   return "<tr><td>"+esc(x.symbol)+"</td><td>"+x.bars.length+"</td><td>"+x.result.count+"</td><td>"+r.count+"</td><td>"+(ok?fmt(r.winRate,1)+"%":"—")+"</td><td>"+(ok?money(r.netPnl):"—")+"</td><td>"+(ok?fmt(r.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(ok?(Number.isFinite(r.profitFactor)?fmt(r.profitFactor,2):"∞"):"—")+"</td><td class='"+(ok?"good":"bad")+"'>"+(ok?"Suuntaa-antava OOS":"Liian vähän dataa (alle 30 kauppaa)")+"</td></tr>";
-  }).join("");
-  var splitTime=selected.bars[Math.min(selected.splitIndex,selected.bars.length-1)].time;
-  $("backtestNote").textContent="Valittu pari: "+selected.symbol+". Historia: "+new Date(selected.bars[0].time).toISOString().slice(0,10)+" – "+new Date(selected.bars[selected.bars.length-1].time).toISOString().slice(0,10)+". Yllä olevat yhteenvedon mittarit kattavat koko historian; vertailutaulukon OOS-mittarit kattavat viimeiset 30 %, alkaen "+new Date(splitTime).toISOString().slice(0,10)+". OOS-jakso alkaa tyhjällä virtuaalisalkulla. "+selected.result.note+" Kunkin 1 h päätöshetken kohdalla käytetään vain siihen mennessä sulkeutuneita 4 h / 1 d -kynttilöitä, jotta tulevaa tietoa ei vuoda päätökseen.";
+  var higherTotals=higherIntervals.map(historyBarsForInterval);
+  var data=await Promise.all([getHistoricalBars(selectedSymbol,selectedInterval,mainTotal)].concat(higherIntervals.map(function(tf,i){return getHistoricalBars(selectedSymbol,tf,higherTotals[i]);})));
+  var bars=data[0],higher=data.slice(1),settings=Object.assign({},options(),{higherSeries:higher,assumedSpreadPct:0.10});
+  var result=TradingEngine.backtest(bars,settings),splitIndex=Math.floor(bars.length*0.7);
+  var outOfSample=TradingEngine.backtest(bars,Object.assign({},settings,{startIndex:splitIndex}));
+  renderBacktest(result);
+  var scopeDays=Math.round((bars[bars.length-1].time-bars[0].time)/86400000);
+  if(scope)scope.textContent=selectedSymbol+" · "+selectedInterval+" · "+bars.length.toLocaleString("fi-FI")+" sulkeutunutta kynttilää · "+scopeDays+" päivän toteutunut historia.";
+  var splitTime=bars[Math.min(splitIndex,bars.length-1)].time,oos=outOfSample.count>=30;
+  $("btCompareRows").innerHTML="<tr><td>"+esc(selectedSymbol)+"</td><td>"+bars.length.toLocaleString("fi-FI")+"</td><td>"+result.count+"</td><td>"+outOfSample.count+"</td><td>"+(oos?fmt(outOfSample.winRate,1)+"%":"—")+"</td><td>"+(oos?money(outOfSample.netPnl):"—")+"</td><td>"+(oos?fmt(outOfSample.maxDrawdownPct,2)+"%":"—")+"</td><td>"+(oos?(Number.isFinite(outOfSample.profitFactor)?fmt(outOfSample.profitFactor,2):"∞"):"—")+"</td><td class='"+(oos?"good":"bad")+"'>"+(oos?"Alustava OOS (≥30 kauppaa)":"OOS-otos alle 30 kauppaa")+"</td></tr>";
+  $("backtestNote").textContent="Valittu pari: "+selectedSymbol+". Testattu aikaväli: "+selectedInterval+". Historia: "+new Date(bars[0].time).toISOString().slice(0,10)+" – "+new Date(bars[bars.length-1].time).toISOString().slice(0,10)+" ("+scopeDays+" päivää). Koko historian luvut ovat kuvailevia; viimeiset 30 % ovat erillinen OOS-testijakso, joka alkaa "+new Date(splitTime).toISOString().slice(0,10)+". OOS alkaa tyhjällä virtuaalisalkulla. Koko otoksen 100 kaupan raja ja OOS-jakson 30 kaupan raja ovat eri tarkistuksia. Kustannusmalli: 0,10 % kulu + 0,05 % lipsuma per suunta sekä 0,10 % arvioitu spread edestakaisin; yhteensä "+fmt(result.roundTripCostPct,2)+" %. "+result.note;
  }catch(e){
-  $("btWarning").className="status error";$("btWarning").textContent="Historiatesti epäonnistui: "+(e&&e.message?e.message:"tuntematon virhe")+". Yritä myöhemmin tai valitse toinen pari.";
+  $("btWarning").className="status error";$("btWarning").textContent="Historiatesti epäonnistui: "+(e&&e.message?e.message:"tuntematon virhe")+". Yritä uudelleen tai valitse toinen pari.";
   $("btCompareRows").innerHTML='<tr><td colspan="9">Testiä ei voitu laskea.</td></tr>';
  }finally{button.disabled=false;}
 }
