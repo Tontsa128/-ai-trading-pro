@@ -25,8 +25,13 @@ assert.ok(html.includes("var valid=Array.isArray(series)") && html.includes("if(
   "chart must validate candle data and reject fewer than two valid candles");
 assert.ok(html.includes("return renderNativeCandleChart(valid,signal,symbol,count)"),
   "missing Plotly should render the validated, bounded candle series");
-assert.ok(html.includes(".catch(function(){renderNativeCandleChart(valid,signal,symbol,count);})"),
-  "asynchronous Plotly failures should fall back locally using validated data");
+assert.ok(html.includes("fallbackTimer=setTimeout") && html.includes("Plotly-piirto ei valmistunut 5 sekunnissa"),
+  "a stalled Plotly promise must time out and render the local SVG fallback");
+assert.ok(html.includes("Kaavion piirto-ongelma: ") && html.includes("Plotly ei luonut kaavion SVG-elementtiä."),
+  "chart failures must be visible instead of leaving an indefinite loading message");
+const formatterSource = fs.readFileSync("public/number-format.js", "utf8");
+assert.ok(html.includes('src="./number-format.js"') && formatterSource.includes('Intl.NumberFormat("fi-FI"'),
+  "dashboard values must use the shared Finnish number formatter");
 assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPaperRefresh|fast5Status|fast15Status/i.test(html),
   "the user-facing dashboard must not contain demo/paper-trading report panels");
 
@@ -37,6 +42,11 @@ assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("My
   "bearish spot guidance must not imply short-selling or invent a sell quantity");
 assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
   "bearish technical points must be oriented to the displayed direction");
+assert.ok(liveDashboard.includes("technicalItems") &&
+  liveDashboard.includes('selectedInterval === "1h" ? ["4h", "1d"]') &&
+  liveDashboard.includes('selectedInterval === "4h" ? ["1d", "3d"]') &&
+  liveDashboard.includes("riskExample.hidden = direction === \"WAIT\""),
+  "live UI must separate data checks from technical checks, use the correct higher intervals, and hide the risk example for WAIT");
 assert.ok(liveDashboard.includes("state.decisionError") && liveDashboard.includes("ODOTA"),
   "missing or invalid canonical analysis must fail closed as WAIT with an explicit reason");
 assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&

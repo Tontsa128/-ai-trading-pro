@@ -3,7 +3,7 @@
   "use strict";
 
   var state = {
-    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m",
+    ws: null, wsTimer: null, symbol: "BTCUSDT", interval: "5m", higherIntervals: ["1h", "4h", "1d"],
     bars: [], chartBars: [], chartLive: null, live: null, bid: null, ask: null, tradePrice: null,
     lastTradeAt: 0, lastBookAt: 0, lastScores: {}, trades: 0, reconnects: 0, wsEndpoint: 0,
     tradeSource: "NONE", bookSource: "NONE", chartSource: "REST", lastRestCandleAt: 0, decision: null, decisionError: "Odotetaan ensimmäistä täyttä markkina-analyysiä.",
@@ -16,8 +16,8 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = function (s) { return String(s == null ? "" : s).replace(/[&<>\"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;" }[c]; }); };
   var n = function (v) { if (v == null || v === "") return null; var x = Number(v); return Number.isFinite(x) ? x : null; };
-  var num = function (v, d) { var x = n(v); return x === null ? "—" : x.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); };
-  var price = function (v) { var x = n(v); return x === null ? "—" : x < 1 ? num(x, 6) : num(x, 2); };
+  var num = function (v, d) { return window.RahasampoFormat.number(v, d); };
+  var price = function (v) { return window.RahasampoFormat.price(v); };
 
   function injectUi() {
     var chart = $("chart");
@@ -91,7 +91,10 @@
 
   async function getBars(tf, requestedSymbol) {
     var symbol = requestedSymbol || state.symbol;
-    var r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store" });
+    var controller = new AbortController(), timeout = setTimeout(function () { controller.abort(); }, 10000), r;
+    try { r = await fetch("/api/market?endpoint=klines&symbol=" + encodeURIComponent(symbol) + "&interval=" + encodeURIComponent(tf) + "&limit=500", { cache: "no-store", signal: controller.signal }); }
+    catch (error) { throw new Error(error && error.name === "AbortError" ? "Kynttilädatan haku aikakatkaistiin 10 sekunnissa." : "Kynttilädatan haku epäonnistui: " + (error.message || "verkkovirhe")); }
+    finally { clearTimeout(timeout); }
     if (!r.ok) throw new Error("Kynttilädatan haku HTTP " + r.status);
     var raw = await r.json();
     return TradingEngine.enrich(TradingEngine.parseKlines(raw, Date.now()));
@@ -99,7 +102,7 @@
 
   function intervalMilliseconds(interval) {
     var units = { "1m": 60000, "3m": 180000, "5m": 300000, "15m": 900000,
-      "1h": 3600000, "4h": 14400000, "1d": 86400000 };
+      "1h": 3600000, "4h": 14400000, "1d": 86400000, "3d": 259200000, "1w": 604800000 };
     return units[interval] || 0;
   }
 
@@ -231,6 +234,7 @@
   function renderLiveChart() {
     var target = $("chart");
     if (!target) return;
+    try {
     var sourceBars = Array.isArray(state.chartBars) ? state.chartBars : [];
     if (sourceBars.length < 2) {
       target.innerHTML = '<div class="status error">Valitun aikavälin (' + esc(state.interval) + ') oikeaa kynttilädataa ei ole saatavilla. Kaavio ei korvaa puuttuvaa dataa toisella aikavälillä.</div>';
@@ -274,6 +278,9 @@
     [0, Math.floor((d.length - 1) / 2), d.length - 1].forEach(function (k) { var dt = new Date(d[k].time), lab = dt.toLocaleString('fi-FI', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }); out.push('<text x="' + x(k).toFixed(1) + '" y="' + (h - 12) + '" text-anchor="middle" fill="#a8bdd7" font-size="11">' + esc(lab) + '</text>'); });
     out.push('</svg>');
     target.innerHTML = out.join('');
+    } catch (error) {
+      target.innerHTML = '<div class="status error">Kaavion piirto epäonnistui: ' + esc(error && error.message ? error.message : "tuntematon virhe") + '</div>';
+    }
   }
 
   function updateMainMetrics() {
@@ -288,12 +295,13 @@
     var gateReason = currentGateReason();
     var sig = $("signal"), summary = $("summary"), passed = $("passed");
     var checklist = $("checklist"), timeframes = $("timeframes"), levels = $("levels");
-    var riskPlan = $("riskPlan"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx");
+    var riskPlan = $("riskPlan"), timestamp = $("timestamp"), rsi = $("rsi"), adx = $("adx"), riskExample = $("riskExampleNote");
 
     if (!decision || !decision.main || !decision.main.bar) {
       if (sig) { sig.textContent = "ODOTA"; sig.className = "signal wait"; }
       if (summary) summary.textContent = "Uutta kaupankäyntipäätöstä ei ole laskettu: " + (state.decisionError || "markkinadata puuttuu.");
       if (passed) passed.textContent = "Ehdot —";
+      if (riskExample) riskExample.hidden = true;
       if (checklist) checklist.textContent = "Tarkistuslista ei ole voimassa ilman tuoretta, täydellistä markkina-analyysiä.";
       if (timeframes) timeframes.textContent = "Aikavälivahvistusta ei ole saatavilla.";
       if (levels) levels.textContent = "Tukia, vastuksia tai indikaattoreita ei näytetä ilman vahvistettua dataa.";
@@ -312,7 +320,12 @@
       }
       if (summary) summary.textContent = gateReason ? "SIGNAALI ESTETTY: " + gateReason :
         decision.reason + (decision.blockingReasons && decision.blockingReasons.length ? " Estävät ehdot: " + decision.blockingReasons.join(" · ") : "");
-      if (passed) passed.textContent = decision.passed + " / " + decision.total + " ehtoa täyttyy";
+      var dataItems = (decision.checklist || []).filter(function (x) { return x.group === "Data OK"; });
+      var technicalItems = (decision.checklist || []).filter(function (x) { return x.group === "Trendi" || x.group === "Ajoitus"; });
+      var dataPassed = dataItems.filter(function (x) { return x.ok; }).length;
+      var technicalPassed = technicalItems.filter(function (x) { return x.ok; }).length;
+      if (passed) passed.textContent = "Data " + dataPassed + "/" + dataItems.length + " · Tekniset " + technicalPassed + "/" + technicalItems.length + " · Yhteensä " + decision.passed + "/" + decision.total;
+      if (riskExample) riskExample.hidden = direction === "WAIT";
       if (rsi) rsi.textContent = num(bar.rsi, 1);
       if (adx) adx.textContent = num(bar.adx, 1);
       if (timestamp) timestamp.textContent = "Viimeisin suljettu kynttilä " + new Date(bar.closeTime).toLocaleString("fi-FI");
@@ -322,9 +335,10 @@
       }).join("");
       if (timeframes) {
         var rows = [{name:state.interval + " (valittu)",bias:decision.main.checks.bias}];
-        ["1h","4h","1d"].forEach(function (tf, i) {
-          if (tf !== state.interval && decision.higher && decision.higher[i]) rows.push({name:tf,bias:decision.higher[i].checks.bias});
-        });
+        var higherRows = state.higherIntervals || ["1h","4h","1d"], firstRequired = decision.higher && decision.higher.length >= 3 ? 1 : 0;
+        for (var hi = firstRequired; hi < higherRows.length; hi++) {
+          if (higherRows[hi] !== state.interval && decision.higher && decision.higher[hi]) rows.push({name:higherRows[hi],bias:decision.higher[hi].checks.bias});
+        }
         timeframes.innerHTML = rows.map(function (item) {
           var label = item.bias === "bull" ? "NOUSU" : item.bias === "bear" ? "LASKU" : "EPÄSELVÄ";
           var cls = item.bias === "bull" ? "good" : item.bias === "bear" ? "bad" : "neutral";
@@ -336,13 +350,13 @@
         '<div class="kv"><span>Vastus (30 edellistä suljettua kynttilää)</span><strong>' + price(decision.main.resistance) + '</strong></div>' +
         '<div class="kv"><span>ATR (14)</span><strong>' + price(bar.atr) + '</strong></div>' +
         '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>' + num(bar.volumeRatio, 2) + "×</strong></div>" +
-        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + Math.max(0, Math.round(decision.priceAgeMs / 1000)) + " s</strong></div>";
+        '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + num(decision.priceAgeMs / 1000, 1) + " s</strong></div>";
       if (riskPlan) {
         if (gateReason || direction === "WAIT") {
           riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(gateReason || "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.") + '</p><p class="sub">Positiota ei ehdoteta ODOTA-tilassa.</p>';
         } else if (direction === "BUY") {
           riskPlan.innerHTML = '<div class="signal buy">OSTA · SPOT</div>' +
-            '<div class="kv"><span>Entry (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
+            '<div class="kv"><span>Sisääntulo (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
             '<div class="kv"><span>Stop-loss (arvio)</span><strong>' + price(decision.stop) + '</strong></div>' +
             '<div class="kv"><span>Tavoite (arvio)</span><strong>' + price(decision.target) + '</strong></div>' +
             '<div class="kv"><span>Arvioitu määrä</span><strong>' + num(decision.qty, 6) + '</strong></div>' +
@@ -391,7 +405,9 @@
   async function refreshScalpScores() {
     var symbol = state.symbol, selectedInterval = state.interval;
     var scalpTimeframes = ["1m", "3m", "5m", "15m"];
-    var allTimeframes = Array.from(new Set(scalpTimeframes.concat([selectedInterval, "1h", "4h", "1d"])));
+    var higherIntervals = selectedInterval === "1h" ? ["4h", "1d"] : selectedInterval === "4h" ? ["1d", "3d"] : selectedInterval === "1d" ? ["3d", "1w"] : ["1h", "4h", "1d"];
+    state.higherIntervals = higherIntervals;
+    var allTimeframes = Array.from(new Set(scalpTimeframes.concat([selectedInterval], higherIntervals)));
     var fetched = await Promise.all(allTimeframes.map(async function (tf) {
       try { return { tf: tf, bars: await getBars(tf, symbol), error: null }; }
       catch (error) { return { tf: tf, bars: null, error: error }; }
@@ -423,7 +439,7 @@
       }
       var mainCloseTime = mainItem.bars[mainItem.bars.length - 1].closeTime;
       var mainBars = mainItem.bars.filter(function (bar) { return bar.closeTime <= mainCloseTime; });
-      var higher = ["1h", "4h", "1d"].map(function (tf) {
+      var higher = higherIntervals.map(function (tf) {
         var item = byTimeframe[tf];
         if (!item || !item.bars) throw new Error(tf + "-vahvistusdata puuttuu.");
         var aligned = item.bars.filter(function (bar) { return bar.closeTime <= mainCloseTime; });
@@ -447,7 +463,8 @@
         riskPct: n($("riskPct") && $("riskPct").value) || 0.5,
         maxExposurePct: n($("exposurePct") && $("exposurePct").value) || 25,
         feePct: Math.max(0, n($("feePct") && $("feePct").value) || 0),
-        slippagePct: Math.max(0, n($("slippagePct") && $("slippagePct").value) || 0)
+        slippagePct: Math.max(0, n($("slippagePct") && $("slippagePct").value) || 0),
+        higherLabels: higherIntervals
       };
       var main = TradingEngine.analyzeSeries(mainBars);
       state.decision = TradingEngine.evaluateSignal(main, higher, {

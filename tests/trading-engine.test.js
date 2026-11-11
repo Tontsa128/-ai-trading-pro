@@ -86,6 +86,22 @@ assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
 assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
 assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
+const emaPriceCheck = signal.checklist.find(x => x.name.startsWith("Hinta EMA 200:n"));
+const ema50Check = signal.checklist.find(x => x.name.startsWith("EMA 50 EMA 200:n"));
+const ema9Check = signal.checklist.find(x => x.name.startsWith("EMA 9 EMA 21:n"));
+assert.ok(emaPriceCheck.detail.includes(analysed.bar.close > analysed.bar.ema200 ? "yläpuolella" : "alapuolella"),
+  "EMA 200 explanation must derive its direction from the actual close/EMA comparison");
+assert.ok(ema50Check.detail.includes(analysed.bar.ema50 > analysed.bar.ema200 ? "yläpuolella" : "alapuolella"),
+  "EMA 50 explanation must derive its direction from the actual EMA comparison");
+assert.ok(ema9Check.detail.includes(analysed.bar.ema9 > analysed.bar.ema21 ? "yläpuolella" : "alapuolella"),
+  "EMA 9 explanation must derive its direction from the actual EMA comparison");
+const emaDistanceCheck = signal.checklist.find(x => x.name === "Hinta ei ole liian kaukana EMA 21:stä");
+assert.ok(emaDistanceCheck.detail.includes(emaDistanceCheck.ok ? "ehto täyttyy" : "ehto ei täyty"),
+  "EMA 21 explanation must reflect the same boolean as its checkmark");
+assert.ok(signal.checklist.some(x => x.name.startsWith("RSI ") && x.detail.includes("RSI (14) =")),
+  "RSI checklist row must display its measured value");
+assert.ok(signal.checklist.some(x => x.name.startsWith("ADX ") && x.detail.includes("ADX (14) =") && x.detail.includes("DI+")),
+  "ADX checklist row must display ADX and directional-index values");
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
 assert.ok(signal.checklist.filter(x => x.group === "Trendi").every(x => x.direction === expectedSide), "checklist direction follows EMA trend bias before score fallback");
 assert.ok(signal.checklist.some(x => x.name.includes("0,5×")), "volume gate uses the calibrated 0.5x threshold");
@@ -188,6 +204,15 @@ assert.equal(E.resolveLongExit(
 
 assert.ok(Math.abs(E.estimatePerSideFriction(0.10, 0.05, 0.10) - 0.002) < 1e-12,
   "risk/backtest friction must include fee, slippage and half of the estimated spread per side");
+assert.ok(Math.abs(E.estimateRoundTripFriction(0.10, 0.05, 0.10) - 0.004) < 1e-12,
+  "round-trip cost must equal 0.40% when 0.10% fee and 0.05% slippage apply per side plus 0.10% full spread");
+assert.ok(Number.isFinite(signal.roundTripCostPerUnit) && Number.isFinite(signal.rewardCostRatio),
+  "live signal exposes its estimated round-trip costs and target-to-cost ratio");
+const expensiveSignal = E.evaluateSignal(analysed, [analysed, analysed],
+  {price: analysed.bar.close, closeTime: Date.now(), bid: analysed.bar.close * 0.9999, ask: analysed.bar.close * 1.0001},
+  {...opts, feePct: 0.50, slippagePct: 0.20});
+assert.equal(expensiveSignal.costRewardOk, false,
+  "a target that does not clear 1.5 times estimated round-trip costs must be blocked");
 assert.ok(Math.abs(E.estimatePerSideFriction(0.10, 0.05, 0) - 0.0015) < 1e-12,
   "explicit zero assumed spread must be respected instead of replaced with a default");
 assert.ok(E.estimatePerSideFriction(0.10, 0.05, 0.10) >
