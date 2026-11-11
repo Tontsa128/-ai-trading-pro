@@ -187,9 +187,10 @@
     if(b.close<b.ema200&&b.ema50<b.ema200&&b.ema9<b.ema21)bias="bear";
     return {bull:bull,bear:bear,bullN:bullN,bearN:bearN,bias:bias};
   }
-  function analyzeSeriesAt(series,index) {
+  function analyzeSeriesAt(series,index,lightweight) {
     if(!Array.isArray(series)||index<219||index>=series.length)throw new Error("Tarvitaan vähintään 220 sulkeutunutta kynttilää EMA 200 -suodattimeen.");
-    var b=series[index],checks=explainCandle(b);
+    var b=series[index],bias=b.close>b.ema200&&b.ema50>b.ema200&&b.ema9>b.ema21?"bull":b.close<b.ema200&&b.ema50<b.ema200&&b.ema9<b.ema21?"bear":"neutral";
+    var checks=lightweight?{bias:bias}:explainCandle(b);
     var longCore=b.close>b.ema200&&b.ema50>b.ema200&&b.ema9>b.ema21&&b.macdHist>0&&b.rsi>=50&&b.rsi<=68&&b.adx>=18&&b.pdi>b.mdi&&Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO;
     var shortCore=b.close<b.ema200&&b.ema50<b.ema200&&b.ema9<b.ema21&&b.macdHist<0&&b.rsi>=32&&b.rsi<=50&&b.adx>=18&&b.mdi>b.pdi&&Number.isFinite(b.volumeRatio)&&b.volumeRatio>=MIN_VOLUME_RATIO;
     var validEmaDistance=Number.isFinite(b.close)&&Number.isFinite(b.ema21)&&Number.isFinite(b.atr)&&b.atr>0;var overextended=!validEmaDistance||Math.abs(b.close-b.ema21)>1.6*b.atr,highVolatility=!Number.isFinite(b.atrPct)||b.atrPct>3;
@@ -310,15 +311,24 @@
       while(lo<hi){var mid=(lo+hi)>>1;if(items[mid].closeTime<=time)lo=mid+1;else hi=mid;}
       return lo-1;
     }
+    var higherIndexes=higherBars.map(function(){return -1;}),higherCache=higherBars.map(function(){return null;});
     for(var i=startIndex;i<bars.length-2;i++){
       if(i<=inPositionUntil)continue;
       var b=bars[i],main;
-      try{main=analyzeSeriesAt(bars,i);}catch(_){continue;}
+      try{main=analyzeSeriesAt(bars,i,true);}catch(_){continue;}
+      // This backtest opens long-only spot positions, so no BUY core means no entry is possible.
+      if(!main.longCore)continue;
+      main.checks=explainCandle(b);
       var higher=[];
       for(var h=0;h<higherBars.length;h++){
         var hIndex=lastIndexAtOrBefore(higherBars[h],b.closeTime);
         if(hIndex<219){higher=[];break;}
-        try{higher.push(analyzeSeriesAt(higherBars[h],hIndex));}catch(_){higher=[];break;}
+        if(hIndex!==higherIndexes[h]){
+          try{higherCache[h]=analyzeSeriesAt(higherBars[h],hIndex,true);higherIndexes[h]=hIndex;}
+          catch(_){higherCache[h]=null;higherIndexes[h]=hIndex;}
+        }
+        if(!higherCache[h]){higher=[];break;}
+        higher.push(higherCache[h]);
       }
       if(higher.length<2)continue;
       var halfSpread=b.close*assumedSpreadPct/200,decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},Object.assign({},opts,{capital:equity,historical:true}));

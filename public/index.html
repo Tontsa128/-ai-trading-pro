@@ -342,7 +342,10 @@ function renderChart(series,signal,symbol,chartCount){
   shapes.push({type:"line",x0:x[0],x1:x[x.length-1],y0:signal.target,y1:signal.target,line:{color:"#28d7a0",dash:"dash"}});
  }
  var settled=false,fallbackTimer=setTimeout(function(){
-  if(settled)return;settled=true;
+  if(settled)return;
+  var currentNode=$("chart");
+  if(currentNode&&currentNode.querySelector("svg")){settled=true;return;}
+  settled=true;
   renderNativeCandleChart(valid,signal,symbol,count,"Plotly-piirto ei valmistunut 5 sekunnissa.");
  },5000);
  try{
@@ -352,10 +355,11 @@ function renderChart(series,signal,symbol,chartCount){
   Promise.resolve(chartResult).then(function(){
    if(settled)return;settled=true;clearTimeout(fallbackTimer);
    var node=$("chart");
-   if(!node||!node.querySelector(".main-svg"))renderNativeCandleChart(valid,signal,symbol,count,"Plotly ei luonut kaavion SVG-elementtiä.");
+   if((!node||!node.querySelector(".main-svg"))&&(!node||!node.querySelector("svg")))renderNativeCandleChart(valid,signal,symbol,count,"Plotly ei luonut kaavion SVG-elementtiä.");
   }).catch(function(error){
    if(settled)return;settled=true;clearTimeout(fallbackTimer);
-   renderNativeCandleChart(valid,signal,symbol,count,error&&error.message?error.message:"Plotly-piirto epäonnistui.");
+   var node=$("chart");
+   if(!node||!node.querySelector("svg"))renderNativeCandleChart(valid,signal,symbol,count,error&&error.message?error.message:"Plotly-piirto epäonnistui.");
   });
   return true;
  }catch(e){

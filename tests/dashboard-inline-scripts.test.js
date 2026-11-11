@@ -29,6 +29,8 @@ assert.ok(html.includes("fallbackTimer=setTimeout") && html.includes("Plotly-pii
   "a stalled Plotly promise must time out and render the local SVG fallback");
 assert.ok(html.includes("Kaavion piirto-ongelma: ") && html.includes("Plotly ei luonut kaavion SVG-elementtiä."),
   "chart failures must be visible instead of leaving an indefinite loading message");
+assert.ok(html.includes('currentNode.querySelector("svg")') && html.includes('node.querySelector("svg")'),
+  "the delayed Plotly fallback must not overwrite a live SVG chart rendered by the live dashboard");
 const formatterSource = fs.readFileSync("public/number-format.js", "utf8");
 assert.ok(html.includes('src="./number-format.js"') && formatterSource.includes('Intl.NumberFormat("fi-FI"'),
   "dashboard values must use the shared Finnish number formatter");
