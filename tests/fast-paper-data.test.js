@@ -28,6 +28,10 @@ const invalid = rowsFor(0, 5);
 invalid[2] = [2000, "100", "1", "99", "101", "1", 2999];
 assert.equal(aggregateOneSecondKlines(invalid, 5, 5000).length, 0,
   "an internally inconsistent OHLC row invalidates its bucket");
+const badCloseTime = rowsFor(0, 5);
+badCloseTime[1][6] = 2500;
+assert.equal(aggregateOneSecondKlines(badCloseTime, 5, 5000).length, 0,
+  "a one-second candle with an invalid close timestamp invalidates its bucket");
 assert.equal(aggregateOneSecondKlines(rowsFor(0, 15), 15, 15000).length, 1,
   "15-second aggregation requires and accepts all fifteen constituents");
 assert.throws(() => aggregateOneSecondKlines({}, 5, 5000), /must be an array/);
