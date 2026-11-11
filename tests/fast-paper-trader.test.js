@@ -10,6 +10,11 @@ assert.match(source,/quoteAgeMs:\s*Number\.isFinite\(s\?\.lastQuoteAt\)/,"quote 
 assert.match(source,/let endpointIndex = 0;/);
 assert.match(source,/WEBSOCKET_BASES\[endpointIndex % WEBSOCKET_BASES\.length\]/,"reconnect endpoint rotates");
 assert.match(source,/websocketTradeMessages:\s*tradeMessages/,"report distinguishes trade messages");
+assert.match(source,/const tradeFresh = isFreshQuote\(s\.lastTradeAt/,"entries require a fresh genuine trade event");
+assert.match(source,/const quoteFresh = isFreshQuote\(s\.lastQuoteAt/,"entries require a fresh quote");
+assert.match(source,/const contiguous = time - b\.time === barMs/,"missing short-horizon candles are not bridged");
+assert.match(source,/trailingContiguousBars\(s\.bars\)/,"indicators use only the trailing contiguous candle sequence");
+assert.ok(source.indexOf("s.lastTradeAt = Date.now();") < source.indexOf("onClosedBar(s, b)"),"rejected out-of-order events cannot refresh trade freshness");
 assert.match(source,/WebSocket handshake timed out/,"a stalled connecting handshake is failed closed");
 assert.match(source,/WebSocket market-data stream was silent for over 15 seconds/,"an open but silent market stream triggers reconnect");
 assert.match(source,/websocketIdleTimeouts:\s*socketIdleTimeouts/,"report exposes idle stream recovery counts");
