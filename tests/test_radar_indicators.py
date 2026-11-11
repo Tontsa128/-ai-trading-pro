@@ -173,7 +173,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
     def test_volume_below_approved_half_average_blocks_buy(self):
         bar = dict(self.bull, volume_ratio=0.499)
         decision, _ = evaluate_signal_gates(
-            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 300, 90.0, 112.0
         )
         self.assertEqual(decision, "WAIT")
 
@@ -190,7 +190,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
             {"4h": "NOUSU"},
             {"4h": "NOUSU", "1d": "?"},
         ):
-            decision, _ = evaluate_signal_gates(self.bull, higher, 0.08, 300, 90.0, 112.0)
+            decision, _ = evaluate_signal_gates(self.bull, higher, 0.08, 110.0, 1000.0, 300, 90.0, 112.0)
             self.assertEqual(decision, "WAIT")
 
     def test_missing_history_and_overextension_block_signal(self):
