@@ -197,6 +197,15 @@ assert.ok(E.estimatePerSideFriction(0.10, 0.05, 0.10) >
 
 
 assert.equal(alignedBt.startIndex, 220, "full-history backtest preserves the default warm-up period");
+
+const frictionBacktest = E.backtest(full, {...opts, higherSeries:[full, full], assumedSpreadPct:0.10});
+assert.equal(frictionBacktest.roundTripFrictionPct, 0.4,
+  "backtest round-trip friction must include fee, slippage and the full assumed spread");
+assert.equal(frictionBacktest.assumedSpreadPct, 0.10,
+  "backtest exposes its assumed spread so the displayed cost model can be audited");
+assert.ok(frictionBacktest.trades.every(t => Number.isFinite(t.costs) && t.costs >= 0),
+  "each backtest trade records the exact modeled entry/exit costs");
+
 const holdoutStart = 400;
 const holdoutBt = E.backtest(full, {...opts, higherSeries: [full, full], startIndex: holdoutStart});
 assert.equal(holdoutBt.startIndex, holdoutStart, "backtest supports an explicit holdout start index");
@@ -317,3 +326,10 @@ assert.ok(liveDashboardSource.includes('Promise.all(allTimeframes.map') &&
   liveDashboardSource.includes('bar.closeTime <= scalpSnapshot') &&
   liveDashboardSource.includes('TradingEngine.evaluateSignal(main, higher'),
   "live technical cards align one snapshot while the primary decision uses the canonical selected-interval engine");
+
+assert.ok(dashboardSource.includes('new Intl.NumberFormat("fi-FI"'), "dashboard uses the Finnish locale for numeric display");
+assert.ok(dashboardSource.includes('var timeframeRows=[{name:iv+" (valittu)"') &&
+  !dashboardSource.includes('name:"1 h",a:higher[0].checks.bias'),
+  "1h context is not displayed as a required higher-timeframe confirmation");
+assert.ok(dashboardSource.includes('fmt(Math.max(0,signal.priceAgeMs/1000),1)+" s"'),
+  "market price age is displayed to one decimal place rather than rounded to whole seconds");
