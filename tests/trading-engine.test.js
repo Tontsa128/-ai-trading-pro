@@ -84,6 +84,7 @@ const signal = E.makeSignal(analysed, [analysed, analysed],
   {price: analysed.bar.close, closeTime: Date.now(), bid: 100, ask: 100.01}, opts);
 assert.ok(["BUY", "SELL", "WAIT"].includes(signal.direction), "signal is a known enum");
 assert.ok(signal.passed <= signal.total && signal.passed >= 0, "checklist count is coherent");
+assert.equal(signal.total,14,"the checklist keeps four data checks and ten technical checks");
 assert.equal(E.evaluateSignal, E.makeSignal, "legacy and shared evaluator names point to one function");
 assert.ok(signal.checklist.every(x => ["Data OK", "Trendi", "Ajoitus"].includes(x.group)), "signal checklist is grouped");
 const expectedSide = signal.direction === "BUY" ? "BUY" : signal.direction === "SELL" ? "SELL" : analysed.checks.bias === "bear" ? "SELL" : analysed.checks.bias === "bull" ? "BUY" : analysed.checks.bearN > analysed.checks.bullN ? "SELL" : "BUY";
@@ -98,8 +99,10 @@ const costSensitiveSignal = E.evaluateSignal(costSensitiveMain,
   [{...analysed,checks:{...analysed.checks,bias:"bull"}},
    {...analysed,checks:{...analysed.checks,bias:"bull"}}],
   {price:100,closeTime:Date.now(),bid:99.99,ask:100.01},opts);
-const costGate = costSensitiveSignal.checklist.find(x => x.name.startsWith("Oston tavoiteliike"));
-assert.equal(costGate.ok,false,"a target that cannot cover round-trip friction by 1.5x must be blocked");
+const costGate = costSensitiveSignal.checklist.find(x => x.name.startsWith("Ostolle tilaa vastukseen"));
+assert.equal(costSensitiveSignal.targetCoversCosts,false,"a target that cannot cover round-trip friction by 1.5x must be blocked");
+assert.equal(costGate.ok,false,"the combined entry-space and cost gate must fail when the target does not cover costs");
+assert.ok(costGate.detail.includes("kuluehto ei täyty"),"the combined checklist row must explain the failed cost condition");
 assert.equal(costSensitiveSignal.direction,"WAIT","the cost gate must prevent a marginal BUY");
 const emaDescription = costSensitiveSignal.checklist.find(x => x.name.startsWith("Hinta EMA 200:n"));
 assert.ok(emaDescription.detail.includes("Kynttilän päätöshinta") && emaDescription.detail.includes("yläpuolella") && emaDescription.detail.includes("ehto täyttyy"),
