@@ -110,7 +110,7 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     result["EMA9"] = close.ewm(span=9, adjust=False).mean()
     result["EMA21"] = close.ewm(span=21, adjust=False).mean()
     result["EMA50"] = close.ewm(span=50, adjust=False).mean()
-    result["EMA100"] = close.ewm(span=100, adjust=False).mean()  # Legacy UI only.
+    result["EMA100"] = close.ewm(span=100, adjust=False).mean()  # Legacy Python signal path until it is ported.
     result["EMA200"] = close.ewm(span=200, adjust=False).mean()
 
     result["RSI"] = rsi(close)
