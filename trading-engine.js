@@ -102,7 +102,7 @@
     if (x.name.indexOf("MACD-histogrammi") === 0) {
       var bearishMacd = x.name.indexOf("negatiivinen") >= 0;
       var requirement = bearishMacd ? "< 0 (laskusuunnan ehto)" : "> 0 (noususuunnan ehto)";
-      return "MACD-histogrammi " + signedFixedFi(b.macdHist, 6) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "MACD-histogrammi " + signedFixedFi(b.macdHist, 2) + "; vaaditaan " + requirement + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Volyymi") === 0) {
       var ratio = Number.isFinite(b.volumeRatio) ? fixedFi(b.volumeRatio, 2) + "×" : "ei saatavilla";
@@ -114,7 +114,7 @@
       var fourHour = higher[hasOneHour ? 1 : 0] && higher[hasOneHour ? 1 : 0].checks ? higher[hasOneHour ? 1 : 0].checks.bias : "neutral";
       var daily = higher[hasOneHour ? 2 : 1] && higher[hasOneHour ? 2 : 1].checks ? higher[hasOneHour ? 2 : 1].checks.bias : "neutral";
       var requiredBias = side === "SELL" ? "bear" : "bull";
-      return "1 h: " + trendLabelFi(oneHour) + ", 4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
+      return (hasOneHour ? "1 h (taustatieto): " + trendLabelFi(oneHour) + ", " : "") + "4 h: " + trendLabelFi(fourHour) + ", 1 d: " + trendLabelFi(daily) +
         "; vahvistus vaatii 4 h ja 1 d: " + trendLabelFi(requiredBias) + (x.ok ? "" : ". Vahvistus puuttuu: vaaditaan 4 h ja 1 d " + (side === "SELL" ? "laskua" : "nousua") + ".");
     }
     if (x.name.indexOf("Myynnille tilaa tukeen") === 0) {
