@@ -79,10 +79,20 @@
     var hist=macd.map(function(v,i){ return v-macdSignal[i]; });
     var volAvg=bars.map(function (_,i) { return i >= 20 ? average(bars.slice(i-20,i).map(function(b){return b.volume;})) : null; });
     var volumeRatio=bars.map(function(b,i){ return Number.isFinite(volAvg[i]) && volAvg[i]>0 ? b.volume/volAvg[i] : null; });
+    var vwap=Array(bars.length).fill(null), sessionKey=null, cumulativeValue=0, cumulativeVolume=0;
+    for(var vi=0;vi<bars.length;vi++){
+      var vb=bars[vi], time=Number(vb.time), key=Number.isFinite(time)?Math.floor(time/86400000):null;
+      if(key===null){vwap[vi]=null;continue;}
+      if(key!==sessionKey){sessionKey=key;cumulativeValue=0;cumulativeVolume=0;}
+      var volume=Number.isFinite(vb.volume)&&vb.volume>=0?vb.volume:0;
+      var typical=(vb.high+vb.low+vb.close)/3;
+      if(Number.isFinite(typical)){cumulativeValue+=typical*volume;cumulativeVolume+=volume;}
+      vwap[vi]=cumulativeVolume>0?cumulativeValue/cumulativeVolume:null;
+    }
     return bars.map(function(b,i) {
       return Object.assign({},b,{ema9:e9[i],ema21:e21[i],ema50:e50[i],ema200:e200[i],rsi:rsi[i],atr:atr[i],
         atrPct:atr[i]/b.close*100, pdi:pdi[i],mdi:mdi[i],adx:adx[i],macd:macd[i],macdSignal:macdSignal[i],
-        macdHist:hist[i],volumeRatio:volumeRatio[i]});
+        macdHist:hist[i],volumeRatio:volumeRatio[i],vwap:vwap[i]});
     });
   }
   function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "Ei vahvistusta"; }
