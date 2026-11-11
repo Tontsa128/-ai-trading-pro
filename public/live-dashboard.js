@@ -352,8 +352,9 @@
         '<div class="kv"><span>Volyymi / 20 kynttilän keskiarvo</span><strong>' + num(bar.volumeRatio, 2) + "×</strong></div>" +
         '<div class="kv"><span>Markkinahinnan ikä</span><strong>' + num(Math.max(0, decision.priceAgeMs / 1000), 1) + " s</strong></div>";
       if (riskPlan) {
-        if (gateReason || direction === "WAIT") {
-          riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(gateReason || "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.") + '</p><p class="sub">Positiota ei ehdoteta ODOTA-tilassa.</p>';
+        if (gateReason || direction === "WAIT" || (direction === "BUY" && !(decision.qty > 0))) {
+          var sizingReason = gateReason || (direction === "BUY" ? "Positiota ei voida mitoittaa annetuilla pääoma- ja riskiasetuksilla." : "Kaikki hyväksytyt kaupankäyntiehdot eivät täyty.");
+          riskPlan.innerHTML = '<div class="signal wait">Ei kauppaa</div><p>' + esc(sizingReason) + '</p><p class="sub">Positiota ei ehdoteta ilman vahvistettua signaalia ja käyttökelpoista position kokoa.</p>';
         } else if (direction === "BUY") {
           riskPlan.innerHTML = '<div class="signal buy">OSTA · SPOT</div>' +
             '<div class="kv"><span>Avaushinta (markkinahinta)</span><strong>' + price(decision.entry) + '</strong></div>' +
