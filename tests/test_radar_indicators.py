@@ -200,7 +200,7 @@ class ConservativeSignalGateTests(unittest.TestCase):
         self.assertEqual(decision, "WAIT")
         bar = dict(self.bull, close=120.0)
         decision, _ = evaluate_signal_gates(
-            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 300, 90.0, 112.0
+            bar, {"4h": "NOUSU", "1d": "NOUSU"}, 0.08, 110.0, 1000.0, 300, 90.0, 112.0
         )
         self.assertEqual(decision, "WAIT")
 
