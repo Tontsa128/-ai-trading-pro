@@ -80,5 +80,7 @@ console.log("Dashboard tests passed: inline scripts parse, chart fallback is wir
 assert.ok(html.includes('new Intl.NumberFormat("fi-FI"'), "dashboard numeric values use Finnish number formatting");
 assert.ok(html.includes('id="btMonths"') && html.includes('getHistoricalBars(sym,iv,total)'), "backtest uses the selected signal timeframe and a selectable 12/24-month window");
 assert.ok(html.includes('OOS-taulukon vähimmäisnäyttöraja on 30 kauppaa') && html.includes('Koko historian alustava tarkistusraja on 100 kauppaa'), "full-history and OOS sample thresholds are separately explained");
-assert.ok(html.includes('Tekniset "') && html.includes('data "'), "checklist separates technical conditions from data-quality checks");
-assert.ok(html.includes('riskExample').includes ? true : true, "risk example is controlled by the no-trade state");
+assert.ok(html.includes('textContent="Tekniset "+') && html.includes('" · data "'),
+  "checklist separates technical conditions from data-quality checks");
+assert.ok(html.includes('id="riskExample"') && html.includes('$("riskExample").style.display="none"'),
+  "the explanatory example is hidden while the signal says no trade");
