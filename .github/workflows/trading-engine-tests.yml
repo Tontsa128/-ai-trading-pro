@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, fix/indicator-lookahead-leakage]
 
 jobs:
   test:
@@ -14,7 +14,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Python indicator test dependencies
+        run: python -m pip install --upgrade pip pandas numpy
       - run: npm test
+      - name: Run Python indicator and JavaScript parity tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
       - name: Checkout paper-data branch for paper exit regression tests
         uses: actions/checkout@v4
         with:
