@@ -20,7 +20,12 @@ function buildCombinedStreamUrl(base, symbols) {
   return base.replace(/\/+$/, "") + "/stream?streams=" + streams.join("/");
 }
 
-function parseBinanceMessage(raw) {
+function isFreshQuote(lastQuoteAt, now = Date.now(), maxAgeMs = 5000) {
+  return Number.isFinite(lastQuoteAt) && Number.isFinite(now) && Number.isFinite(maxAgeMs) &&
+    maxAgeMs >= 0 && lastQuoteAt <= now && now - lastQuoteAt <= maxAgeMs;
+}
+
+function parseBinanceMessage(raw, now = Date.now(), maxAgeMs = 5000) {
   let text;
   if (typeof raw === "string") text = raw;
   else if (Buffer.isBuffer(raw)) text = raw.toString("utf8");
@@ -34,12 +39,20 @@ function parseBinanceMessage(raw) {
   const symbol = d.s.toUpperCase();
   if (d.e === "trade" || (d.p != null && d.q != null && d.T != null)) {
     const price = Number(d.p), qty = Number(d.q), time = Number(d.T);
-    if (price > 0 && qty >= 0 && Number.isFinite(time)) return { type: "trade", symbol, price, qty, time };
+    if (price > 0 && qty >= 0 && Number.isFinite(time) && isFreshQuote(time, now, maxAgeMs)) {
+      const event = { type: "trade", symbol, price, qty, time };
+      if (Number.isFinite(Number(d.E))) event.exchangeEventTime = Number(d.E);
+      return event;
+    }
     return null;
   }
   if (d.b != null && d.a != null) {
-    const bid = Number(d.b), ask = Number(d.a);
-    if (bid > 0 && ask >= bid) return { type: "bookTicker", symbol, bid, ask };
+    const bid = Number(d.b), ask = Number(d.a), eventTime = Number(d.E);
+    if (bid > 0 && ask >= bid && (!Number.isFinite(eventTime) || isFreshQuote(eventTime, now, maxAgeMs))) {
+      const event = { type: "bookTicker", symbol, bid, ask };
+      if (Number.isFinite(eventTime)) event.exchangeEventTime = eventTime;
+      return event;
+    }
   }
   return null;
 }
@@ -53,4 +66,4 @@ function normalizeTickerQuote(payload) {
   return { price, bid, ask };
 }
 
-module.exports = { parseBinanceMessage, normalizeTickerQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };
+module.exports = { parseBinanceMessage, normalizeTickerQuote, isFreshQuote, WEBSOCKET_BASES, buildCombinedStreamUrl };
