@@ -84,3 +84,16 @@ assert.ok(html.includes('textContent="Tekniset "+') && html.includes('" · data 
   "checklist separates technical conditions from data-quality checks");
 assert.ok(html.includes('id="riskExample"') && html.includes('$("riskExample").style.display="none"'),
   "the explanatory example is hidden while the signal says no trade");
+
+assert.ok(liveDashboard.includes('new Intl.NumberFormat("fi-FI"') && !liveDashboard.includes('toLocaleString("en-US"'),
+  "live dashboard cards and price metrics use the same Finnish number locale");
+assert.ok(liveDashboard.includes('Tekniset "') && liveDashboard.includes('" · data "') &&
+  !liveDashboard.includes('decision.passed + " / " + decision.total'),
+  "live dashboard does not mix data checks into the technical checklist counter");
+assert.ok(liveDashboard.includes('name:"4 h (vahvistus)"') && liveDashboard.includes('name:"1 d (vahvistus)"') &&
+  !liveDashboard.includes('["1h","4h","1d"].forEach'),
+  "only 4h and 1d are shown as required higher-timeframe confirmations");
+assert.ok(liveDashboard.includes('num(Math.max(0, decision.priceAgeMs / 1000), 1) + " s"'),
+  "live dashboard shows market-price age with one decimal place");
+assert.ok(liveDashboard.includes('Rahasampo live chart rendering failed:') && liveDashboard.includes('Kaavion piirto epäonnistui:'),
+  "live SVG chart errors are logged and displayed visibly");
