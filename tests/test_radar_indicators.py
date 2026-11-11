@@ -107,6 +107,15 @@ class CausalIndicatorTests(unittest.TestCase):
         result = validate_ohlcv(sample_ohlcv(), interval="1h")
         self.assertEqual(len(result), 80)
 
+    def test_validation_preserves_derived_columns_and_allows_indicator_warmup_nans(self):
+        source = sample_ohlcv()
+        source["EMA9"] = source["Close"].ewm(span=9, adjust=False).mean()
+        source["ATR"] = np.nan
+        result = validate_ohlcv(source)
+        self.assertIn("EMA9", result.columns)
+        self.assertIn("ATR", result.columns)
+        self.assertTrue(result["ATR"].isna().all())
+
     def test_signal_context_requires_a_clear_direction_and_all_timeframes(self):
         complete = {"5m": "NOUSU", "15m": "NOUSU", "1h": "LASKU", "4h": "NOUSU"}
         self.assertTrue(signal_context_is_valid("NOUSU", complete))
