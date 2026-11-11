@@ -31,20 +31,31 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
   "the user-facing dashboard must not contain demo/paper-trading report panels");
 
 const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
-assert.ok(liveDashboard.includes("Tekninen pistemäärä") && liveDashboard.includes("Tämä ei ole kaupankäyntipäätös") && html.includes("Voittotodennäköisyyttä ei arvioida."),
-  "technical scores are distinguished from trading decisions and win probability is clarified once in the page header");
-assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("pisteet "),
-  "bearish spot guidance must not imply short-selling or probability");
+assert.ok(liveDashboard.includes("Tekninen suuntapiste") && liveDashboard.includes("Ei kaupankäyntisignaali.") && html.includes("Voittotodennäköisyyttä ei arvioida."),
+  "technical direction scores are explicitly distinguished from canonical trading decisions");
+assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("Myynti koskee vain jo omistamaasi omaisuutta"),
+  "bearish spot guidance must not imply short-selling or invent a sell quantity");
 assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
   "bearish technical points must be oriented to the displayed direction");
-assert.ok(liveDashboard.includes("ODOTA · ehdot eivät täyty"),
-  "WAIT must explain that conditions are not met and must not be decorated with a fabricated confidence percentage");
+assert.ok(liveDashboard.includes("state.decisionError") && liveDashboard.includes("ODOTA"),
+  "missing or invalid canonical analysis must fail closed as WAIT with an explicit reason");
 assert.ok(!liveDashboard.includes("num(s && s.score, 0) + '%'") &&
   !liveDashboard.includes('Math.round(base.score) + "%"') &&
   !liveDashboard.includes('Math.round(50 + Math.abs(base.score - 50)) + "%"'),
   "heuristic scores must never be rendered as percentages or win probabilities");
 
 const liveGuards = fs.readFileSync("public/live-signal-guards.js", "utf8");
+assert.ok(liveDashboard.includes("refreshRestFallback") && liveDashboard.includes("setInterval(refreshRestFallback, 2000)") && liveDashboard.includes("state.tradeSource = \"REST\"") && liveDashboard.includes("state.bookSource = \"REST\""),
+  "live dashboard must automatically fall back to fresh Binance REST quotes when WebSocket data is stale");
+assert.ok(liveDashboard.includes("state.chartLive = enriched[enriched.length - 1]") && liveDashboard.includes("closeTime >= Date.now()"),
+  "REST fallback must update the current chart candle only from a validated, still-open Binance candle");
+assert.ok(liveDashboard.includes("TradingEngine.evaluateSignal(main, higher") && liveDashboard.includes("var decision = state.decision"),
+  "the primary live BUY/SELL/WAIT decision must come from the canonical multi-timeframe strategy engine");
+assert.ok(liveDashboard.includes("Tekninen suuntapiste") && liveDashboard.includes("Ei kaupankäyntisignaali.") &&
+  !liveDashboard.includes('base.side === "BUY" ? "OSTA · pisteet "'),
+  "short-term heuristic scores must be shown only as technical bias and must not overwrite the canonical trading decision");
+assert.ok(liveDashboard.includes('sig.direction !== "WAIT"') && liveDashboard.includes("currentGateReason()"),
+  "chart BUY/SELL overlays must use the canonical decision and live freshness guards");
 assert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
   "live dashboard must gate signals on recent trade and order-book data");
 assert.ok(liveDashboard.includes("window.LiveSignalGuards.apply") &&

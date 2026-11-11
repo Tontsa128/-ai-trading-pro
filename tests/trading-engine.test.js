@@ -312,7 +312,8 @@ assert.ok(dashboardSource.includes('getBars(symbol,"1h",300)') &&
   "main dashboard fetches 1h, 4h and 1d confirmation data explicitly");
 assert.ok(dashboardSource.includes('bar.closeTime<=snapshotCloseTime'),
   "main dashboard aligns higher-timeframe candles to the selected candle close");
-assert.ok(liveDashboardSource.includes('Promise.all(timeframes.map') &&
-  liveDashboardSource.includes('Math.min.apply(null, latestCloses)') &&
-  liveDashboardSource.includes('bar.closeTime <= snapshotCloseTime'),
-  "live timeframe cards are fetched concurrently and aligned to one shared candle snapshot");
+assert.ok(liveDashboardSource.includes('Promise.all(allTimeframes.map') &&
+  liveDashboardSource.includes('Math.min.apply(null, latestScalpCloses)') &&
+  liveDashboardSource.includes('bar.closeTime <= scalpSnapshot') &&
+  liveDashboardSource.includes('TradingEngine.evaluateSignal(main, higher'),
+  "live technical cards align one snapshot while the primary decision uses the canonical selected-interval engine");
