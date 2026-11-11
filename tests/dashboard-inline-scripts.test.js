@@ -56,6 +56,8 @@ assert.ok(liveDashboard.includes("Tekninen suuntapiste") && liveDashboard.includ
   "short-term heuristic scores must be shown only as technical bias and must not overwrite the canonical trading decision");
 assert.ok(liveDashboard.includes('sig.direction !== "WAIT"') && liveDashboard.includes("currentGateReason()"),
   "chart BUY/SELL overlays must use the canonical decision and live freshness guards");
+assert.ok(liveDashboard.includes("txt + '</text>'") && !liveDashboard.includes("txt + ' ' + points + '/100p"),
+  "canonical chart signal overlay must not reference the removed heuristic score variable");
 assert.ok(liveDashboard.includes("gatedScore(score)") && liveDashboard.includes("lastBookAt = Date.now()"),
   "live dashboard must gate signals on recent trade and order-book data");
 assert.ok(liveDashboard.includes("window.LiveSignalGuards.apply") &&
