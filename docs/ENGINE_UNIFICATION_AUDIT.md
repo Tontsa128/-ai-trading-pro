@@ -24,7 +24,7 @@ The Python `radar_indicators.py` implementation now follows the JavaScript `Trad
 | VWAP | Typical-price × volume cumulative VWAP, reset at each UTC day boundary |
 | Candle closure | Only closed candles enter indicator and signal calculations |
 
-Python retains EMA100 temporarily because the legacy `ai_engine()` still reads it; EMA200 is the shared JavaScript trend-filter indicator. No approved spread, volume, ADX, risk, fee, slippage or allocation thresholds are changed by indicator parity.
+Python retains an unused EMA100 compatibility column; the active Streamlit and JavaScript trend filters both use EMA200. No approved spread, volume, ADX, risk, fee, slippage or allocation thresholds are changed by indicator parity.
 
 ## Validation
 
@@ -36,7 +36,7 @@ The Streamlit application now applies the same core BUY/SELL/WAIT gates as the b
 
 - EMA 9/21/50/200 trend alignment, MACD histogram direction, RSI bands, ADX >= 18, DI direction and volume ratio >= 0.50.
 - Both 4h and 1d trend confirmations must agree.
-- Binance public Spot bookTicker bid/ask is fetched directly; missing, invalid or >0.15% spread blocks a signal.
+- Binance public Spot bookTicker bid/ask and the latest aggregate trade timestamp/price are fetched directly; missing, invalid, future-dated or >30-second-old trade data, or spread >0.15%, blocks a signal.
 - ATR volatility >3%, price extension >1.6 ATR from EMA21, or less than 0.5 ATR room to prior 30-candle support/resistance blocks a signal.
 - Missing history, indicators or quote data returns WAIT. No score or pattern override can bypass these gates.
 - The legacy synthetic confidence percentage was removed. The displayed score is explicitly a diagnostic score, not a probability.
