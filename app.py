@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+from radar_indicators import add_indicators, validate_ohlcv
 from radar_indicators import add_indicators, rsi
 
 
@@ -176,9 +177,17 @@ def get_klines(symbol_code, interval_code, limit_count):
                 continue
 
             raw = r.json()
-            rows = []
+            if not isinstance(raw, list):
+                raise ValueError("Binance returned an invalid kline payload.")
 
+            now_ms = int(pd.Timestamp.now(tz="UTC").timestamp() * 1000)
+            rows = []
             for k in raw:
+                if not isinstance(k, list) or len(k) < 7:
+                    raise ValueError("Binance returned a malformed kline.")
+                # Binance kline field 6 is close time. Never score an open candle.
+                if int(k[6]) >= now_ms:
+                    continue
                 rows.append({
                     "Date": pd.to_datetime(k[0], unit="ms", utc=True).tz_convert(APP_TZ),
                     "Open": float(k[1]),
@@ -188,7 +197,11 @@ def get_klines(symbol_code, interval_code, limit_count):
                     "Volume": float(k[5]),
                 })
 
-            return pd.DataFrame(rows).set_index("Date")
+            if not rows:
+                raise ValueError("Binance returned no fully closed candles.")
+
+            frame = pd.DataFrame(rows).set_index("Date")
+            return validate_ohlcv(frame, interval=interval_code)
 
         except Exception as e:
             last_error = str(e)
@@ -228,7 +241,12 @@ def higher_tf_bias(symbol_code):
     for htf in ["5m", "15m", "1h", "4h"]:
         try:
             d = add_indicators(get_klines(symbol_code, htf, 180))
-            last = d.iloc[-2]
+            if len(d) < 101:
+                raise ValueError("Not enough closed candles for higher-timeframe indicators.")
+            last = d.iloc[-1]
+
+            if not np.isfinite([last.EMA50, last.EMA100, last.Close]).all():
+                raise ValueError("Higher-timeframe indicators are not ready.")
 
             if last.Close > last.EMA50 > last.EMA100:
                 result[htf] = "NOUSU"
@@ -639,14 +657,20 @@ def save_learning_result(result, ai):
 # ============================================================
 
 def ai_engine(df):
+    # get_klines() filters out the still-open Binance candle. Therefore the
+    # newest row is a completed observation and belongs in the analysis set.
+    df = validate_ohlcv(df, interval=tf)
+    if len(df) < 220:
+        raise ValueError("Not enough validated closed candles for signal analysis.")
     live = df.iloc[-1]
-    closed = df.iloc[:-1].copy()
+    closed = df.copy()
 
     price = float(live.Close)
     score = 0
     notes = []
 
     bias, details = higher_tf_bias(symbol)
+    higher_timeframes_valid = all(value in ("NOUSU", "LASKU", "EPÄSELVÄ") for value in details.values())
     support, resistance, mid = support_resistance(closed)
 
     if bias == "VAHVA NOUSU":
@@ -760,7 +784,11 @@ def ai_engine(df):
 
     final = int(max(-100, min(100, score)))
 
-    if alert == "NOPEA OSTA":
+    if not higher_timeframes_valid:
+        final = 0
+        level = "ODOTA"
+        notes.append("Signaali estetty: vähintään yhden korkeamman aikavälin markkinadata tai indikaattorit eivät ole kelvollisia.")
+    elif alert == "NOPEA OSTA":
         level = "⚡ NOPEA OSTA"
         final = max(final, 58)
     elif alert == "NOPEA MYY":
