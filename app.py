@@ -273,12 +273,12 @@ def higher_tf_bias(symbol_code):
                 raise ValueError("Not enough closed candles for higher-timeframe indicators.")
             last = d.iloc[-1]
 
-            if not np.isfinite([last.EMA50, last.EMA200, last.Close]).all():
+            if not np.isfinite([last.EMA9, last.EMA21, last.EMA50, last.EMA200, last.Close]).all():
                 raise ValueError("Higher-timeframe indicators are not ready.")
 
-            if last.Close > last.EMA200 and last.EMA50 > last.EMA200:
+            if last.Close > last.EMA200 and last.EMA50 > last.EMA200 and last.EMA9 > last.EMA21:
                 result[htf] = "NOUSU"
-            elif last.Close < last.EMA200 and last.EMA50 < last.EMA200:
+            elif last.Close < last.EMA200 and last.EMA50 < last.EMA200 and last.EMA9 < last.EMA21:
                 result[htf] = "LASKU"
             else:
                 result[htf] = "EPÄSELVÄ"
