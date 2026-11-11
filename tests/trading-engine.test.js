@@ -351,5 +351,12 @@ assert.ok(dashboardSource.includes('new Intl.NumberFormat("fi-FI"'), "dashboard 
 assert.ok(dashboardSource.includes('var timeframeRows=[{name:iv+" (valittu)"') &&
   !dashboardSource.includes('name:"1 h",a:higher[0].checks.bias'),
   "1h context is not displayed as a required higher-timeframe confirmation");
-assert.ok(dashboardSource.includes('fmt(Math.max(0,signal.priceAgeMs/1000),1)+" s"'),
+assert.ok(dashboardSource.includes("fmt(Math.max(0,signal.priceAgeMs/1000),1)+' s'"),
   "market price age is displayed to one decimal place rather than rounded to whole seconds");
+
+assert.ok(E.explainCandle(costSensitiveBar).bull.some(x => x.name.includes("MACD-histogrammi")),
+  "MACD diagnostic gate remains present after display precision changes");
+assert.ok((awaitableEngineSource => awaitableEngineSource.includes('signedFixedFi(b.macdHist, 2)'))(liveEngineSource),
+  "MACD histogram is rendered to two decimals in signal explanations");
+assert.ok(liveEngineSource.includes('1 h (taustatieto): ') || liveEngineSource.includes('4 h: '),
+  "the diagnostic text distinguishes contextual 1h data from the required 4h/1d confirmations");
