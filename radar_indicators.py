@@ -7,6 +7,8 @@ import numpy as np
 import pandas as pd
 
 OHLCV_COLUMNS = ("Open", "High", "Low", "Close", "Volume")
+REQUIRED_HIGHER_TIMEFRAMES = {"5m", "15m", "1h", "4h"}
+DIRECTIONAL_BIASES = {"VAHVA NOUSU", "NOUSU", "VAHVA LASKU", "LASKU"}
 INTERVALS = {
     "1m": pd.Timedelta(minutes=1),
     "3m": pd.Timedelta(minutes=3),
@@ -64,6 +66,15 @@ def validate_ohlcv(df: pd.DataFrame, interval: str | None = None) -> pd.DataFram
             raise ValueError(f"OHLCV candle sequence contains a gap for interval {interval}.")
 
     return result
+
+
+def signal_context_is_valid(bias: str, details: dict[str, str]) -> bool:
+    """Allow directional signals only with complete higher-timeframe context."""
+    return (
+        bias in DIRECTIONAL_BIASES
+        and set(details) == REQUIRED_HIGHER_TIMEFRAMES
+        and all(value in ("NOUSU", "LASKU", "EPÄSELVÄ") for value in details.values())
+    )
 
 
 def rsi(close: pd.Series, period: int = 14) -> pd.Series:
