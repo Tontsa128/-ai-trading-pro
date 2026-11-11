@@ -386,10 +386,15 @@ async function seed(s) {
     const open = Number(k[1]), high = Number(k[2]), low = Number(k[3]), close = Number(k[4]), volume = Number(k[5]);
     if (![open, high, low, close, volume].every(Number.isFinite) || Math.min(open, high, low, close) <= 0 || volume < 0 || high < Math.max(open, close, low) || low > Math.min(open, close, high)) continue;
     const b = grouped.get(time);
-    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1 });
-    else { b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume; }
+    if (!b) grouped.set(time, { time, open, high, low, close, volume, closeTime: time + barMs - 1, seconds: new Set([ts]) });
+    else { b.high = Math.max(b.high, high); b.low = Math.min(b.low, low); b.close = close; b.volume += volume; b.seconds.add(ts); }
   }
-  s.bars = Array.from(grouped.values()).sort((a, b) => a.time - b.time).slice(-400);
+  // Build seed bars only when every 1-second constituent is present exactly once.
+  s.bars = Array.from(grouped.values())
+    .filter(b => b.seconds.size === INTERVAL_SECONDS)
+    .map(({ seconds, ...bar }) => bar)
+    .sort((a, b) => a.time - b.time)
+    .slice(-400);
   if (s.bars.length) s.lastPrice = s.bars[s.bars.length - 1].close;
 }
 function equity() {
