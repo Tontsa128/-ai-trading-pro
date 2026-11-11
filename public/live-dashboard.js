@@ -325,7 +325,7 @@
         var technicalChecks = (decision.checklist || []).filter(function (x) { return x.group !== "Data OK"; });
         passed.textContent = "Tekniset " + technicalChecks.filter(function (x) { return x.ok; }).length + " / " + technicalChecks.length + " · data " + dataChecks.filter(function (x) { return x.ok; }).length + " / " + dataChecks.length;
       }
-      if (riskExample) riskExample.style.display = gateReason || direction === "WAIT" ? "none" : "block";
+      if (riskExample) riskExample.style.display = gateReason || direction === "WAIT" || (direction === "BUY" && !(decision.qty > 0)) ? "none" : "block";
       if (rsi) rsi.textContent = num(bar.rsi, 1);
       if (adx) adx.textContent = num(bar.adx, 1);
       if (timestamp) timestamp.textContent = "Viimeisin suljettu kynttilä " + new Date(bar.closeTime).toLocaleString("fi-FI");
