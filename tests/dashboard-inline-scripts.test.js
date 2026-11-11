@@ -31,8 +31,8 @@ assert.ok(!/Paper Trading|Paper-Treidaus|paper-data\/data\/latest-report|fastPap
   "the user-facing dashboard must not contain demo/paper-trading report panels");
 
 const liveDashboard = fs.readFileSync("public/live-dashboard.js", "utf8");
-assert.ok(liveDashboard.includes("Tekninen pistemäärä") && liveDashboard.includes("Tämä ei ole kaupankäyntipäätös") && html.includes("Voittotodennäköisyyttä ei arvioida."),
-  "technical scores are distinguished from trading decisions and win probability is clarified once in the page header");
+assert.ok(liveDashboard.includes("Tekninen suuntapiste") && liveDashboard.includes("Ei kaupankäyntisignaali.") && html.includes("Voittotodennäköisyyttä ei arvioida."),
+  "technical direction scores are explicitly distinguished from canonical trading decisions");
 assert.ok(liveDashboard.includes("MYY / KEVENNÄ") && liveDashboard.includes("Myynti koskee vain jo omistamaasi omaisuutta"),
   "bearish spot guidance must not imply short-selling or invent a sell quantity");
 assert.ok(liveDashboard.includes('side === "SELL" ? 100 - rawScore : rawScore'),
