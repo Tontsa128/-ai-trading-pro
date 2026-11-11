@@ -88,7 +88,7 @@
   function trendLabelFi(bias) { return bias === "bull" ? "NOUSU" : bias === "bear" ? "LASKU" : "Ei vahvistusta"; }
   function fixed(value, digits) { return Number.isFinite(value) ? value.toFixed(digits) : "ei saatavilla"; }
   function signedFixed(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + value.toFixed(digits) : "ei saatavilla"; }
-  function fixedFi(value, digits) { return Number.isFinite(value) ? value.toLocaleString("fi-FI", {minimumFractionDigits:digits,maximumFractionDigits:digits}) : "ei saatavilla"; }
+  function fixedFi(value, digits) { return Number.isFinite(value) ? value.toLocaleString("fi-FI", {minimumFractionDigits:digits,maximumFractionDigits:digits}).replace(/^-/, "−") : "ei saatavilla"; }
   function signedFixedFi(value, digits) { return Number.isFinite(value) ? (value > 0 ? "+" : "") + fixedFi(value, digits) : "ei saatavilla"; }
   // Percent inputs are expressed in percentage points; half the spread is charged per side.
   function estimatePerSideFriction(feePct, slippagePct, spreadPct) {
@@ -127,12 +127,12 @@
       var resistanceDistance = main.resistance - referencePrice;
       var resistanceMin = 0.5 * b.atr;
       return "Viitehinta " + fixedFi(referencePrice, 2) + "; vastus " + fixedFi(main.resistance, 2) + "; etäisyys " + fixedFi(resistanceDistance, 2) +
-        " hinnan yksikköä (" + fixedFi(resistanceRoom, 2) + " ATR); vaatimus ≥ " + fixedFi(resistanceMin, 2) + " (0.50 ATR)";
+        " USDT (" + fixedFi(resistanceRoom, 2) + " ATR); vaatimus ≥ " + fixedFi(resistanceMin, 2) + " (0.50 ATR)";
     }
     if (x.name === "Hinta ei ole liian kaukana EMA 21:stä") {
       var emaDistanceAtr = Number.isFinite(b.atr) && b.atr > 0 ? Math.abs(b.close-b.ema21)/b.atr : NaN;
       return (x.ok ? "Hinta ei ole liian kaukana" : "Hinta on liian kaukana") + " EMA 21:stä: " +
-        fixedFi(Math.abs(b.close-b.ema21), 2) + " hinnan yksikköä (" + fixedFi(emaDistanceAtr, 2) +
+        fixedFi(Math.abs(b.close-b.ema21), 2) + " USDT (" + fixedFi(emaDistanceAtr, 2) +
         " ATR; sallittu enintään 1.60 ATR); " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Ei poikkeuksellisen suuri ATR-volatiliteetti") === 0) {
@@ -142,19 +142,32 @@
       return main.high.length + " suljettua kynttilää; vähimmäismäärä 220";
     }
     if (x.name.indexOf("Hinta EMA 200:n") === 0) {
-      return "Hinta " + fixedFi(b.close, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
+      var relation200 = b.close > b.ema200 ? "yläpuolella" : b.close < b.ema200 ? "alapuolella" : "tasolla";
+      return "Kynttilän päätöshinta " + fixedFi(b.close, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") " + relation200 +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
     if (x.name.indexOf("EMA 50 EMA 200:n") === 0) {
-      return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") alapuolella";
+      var ema50Relation = b.ema50 > b.ema200 ? "yläpuolella" : b.ema50 < b.ema200 ? "alapuolella" : "tasolla";
+      return "EMA 50 = " + fixedFi(b.ema50, 2) + " on EMA 200:n (" + fixedFi(b.ema200, 2) + ") " + ema50Relation +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
     if (x.name.indexOf("EMA 9 EMA 21:n") === 0) {
-      return "EMA 9 = " + fixedFi(b.ema9, 2) + " on EMA 21:n (" + fixedFi(b.ema21, 2) + ") alapuolella";
+      var ema9Relation = b.ema9 > b.ema21 ? "yläpuolella" : b.ema9 < b.ema21 ? "alapuolella" : "tasolla";
+      return "EMA 9 = " + fixedFi(b.ema9, 2) + " on EMA 21:n (" + fixedFi(b.ema21, 2) + ") " + ema9Relation +
+        "; ehto " + (x.ok ? "täyttyy" : "ei täyty");
     }
-    if (x.name.indexOf("RSI 32–50") === 0) {
-      return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan 32–50";
+    if (x.name.indexOf("RSI 32–50") === 0 || x.name.indexOf("RSI 50–68") === 0) {
+      var rsiRange = x.name.indexOf("RSI 32–50") === 0 ? "32–50" : "50–68";
+      return "RSI " + fixedFi(b.rsi, 1) + "; vaaditaan " + rsiRange + "; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+    }
+    if (x.name.indexOf("ADX vähintään 18") === 0) {
+      var directional = side === "SELL" ? "−DI " + fixedFi(b.mdi, 1) + " > +DI " + fixedFi(b.pdi, 1) :
+        "+DI " + fixedFi(b.pdi, 1) + " > −DI " + fixedFi(b.mdi, 1);
+      return "ADX " + fixedFi(b.adx, 1) + " (vaatimus ≥ 18); " + directional + "; " +
+        (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Osto/myyntihajonta") === 0) {
-      return "Hajonta " + fixedFi(spreadPct, 4) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
+      return "Hajonta " + fixedFi(spreadPct, 6) + " %; raja enintään 0,15 %; " + (x.ok ? "ehto täyttyy" : "ehto ei täyty");
     }
     if (x.name.indexOf("Markkinahinta tuore") === 0 || x.name.indexOf("Historiallinen kynttilä sulkeutunut") === 0) {
       return "Ikä " + fixedFi(priceAgeMs / 1000, 1) + " s; raja 30 s";
@@ -187,17 +200,23 @@
     var upConfirmed=confirmationHigher.length>=2&&confirmationHigher.every(function(x){return x&&x.checks&&x.checks.bias==="bull";}),downConfirmed=confirmationHigher.length>=2&&confirmationHigher.every(function(x){return x&&x.checks&&x.checks.bias==="bear";});
     var referencePrice=Number.isFinite(market.price)&&market.price>0?market.price:b.close;
     var supportRoom=main.support>0&&Number.isFinite(b.atr)?(referencePrice-main.support)/b.atr:NaN,resistanceRoom=main.resistance>0&&Number.isFinite(b.atr)?(main.resistance-referencePrice)/b.atr:NaN;
+    var targetDistanceForCost=Number.isFinite(b.atr)&&b.atr>0?2.5*b.atr:NaN;
+    var targetPriceForCost=referencePrice+targetDistanceForCost;
+    var costPerSide=estimatePerSideFriction(opts.feePct,opts.slippagePct,spreadPct);
+    var roundTripCostPerUnit=(referencePrice+targetPriceForCost)*costPerSide;
+    var targetCostMultiple=1.5;
+    var targetCoversCosts=Number.isFinite(targetDistanceForCost)&&Number.isFinite(roundTripCostPerUnit)&&targetDistanceForCost>=roundTripCostPerUnit*targetCostMultiple;
     var longSpace=Number.isFinite(resistanceRoom)&&resistanceRoom>=MIN_LEVEL_CLEARANCE_ATR,shortSpace=Number.isFinite(supportRoom)&&supportRoom>=MIN_LEVEL_CLEARANCE_ATR;
-    var long=main.longCore&&upConfirmed&&common.every(function(x){return x.ok;})&&longSpace,short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;})&&shortSpace;
+    var long=main.longCore&&upConfirmed&&common.every(function(x){return x.ok;})&&longSpace&&targetCoversCosts,short=main.shortCore&&downConfirmed&&common.every(function(x){return x.ok;})&&shortSpace;
     var direction=long?"BUY":short?"SELL":"WAIT",side=direction==="BUY"?"BUY":direction==="SELL"?"SELL":checks.bias==="bear"?"SELL":checks.bias==="bull"?"BUY":checks.bearN>checks.bullN?"SELL":"BUY";
     var directional=(side==="BUY"?checks.bull:checks.bear).map(function(x){return {name:x.name,ok:x.ok,group:"Trendi",direction:side,detail:describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)};});
     var dataChecks=common.slice(0,4).map(function(x){return {name:x.name,ok:x.ok,group:"Data OK",direction:side,detail:describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)};});
-    var timingChecks=[{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side,detail:describeCheck({name:"Hinta ei ole liian kaukana EMA 21:stä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)},{name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side,detail:describeCheck({name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)},{name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side,detail:describeCheck({name:"Kaksi suurempaa aikaväliä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)}];
+    var timingChecks=[{name:"Hinta ei ole liian kaukana EMA 21:stä",ok:!main.overextended,group:"Ajoitus",direction:side,detail:describeCheck({name:"Hinta ei ole liian kaukana EMA 21:stä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)},{name:side==="BUY"?"Ostolle tilaa vastukseen vähintään 0,5 ATR":"Myynnille tilaa tukeen vähintään 0,5 ATR",ok:side==="BUY"?longSpace:shortSpace,group:"Ajoitus",direction:side,detail:describeCheck({name:side==="BUY"?"Ostolle tilaa vastukseen":"Myynnille tilaa tukeen"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)},{name:"Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa",ok:side==="BUY"?upConfirmed:downConfirmed,group:"Ajoitus",direction:side,detail:describeCheck({name:"Kaksi suurempaa aikaväliä"},b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice)},{name:"Tavoiteliike kattaa kulut vähintään 1,5-kertaisesti",ok:targetCoversCosts,group:"Ajoitus",direction:side,detail:"Tavoiteliike "+fixedFi(targetDistanceForCost/referencePrice*100,3)+" %; arvioitu edestakainen kulu "+fixedFi(roundTripCostPerUnit/referencePrice*100,3)+" %; vähimmäiskerroin 1,5×; "+(targetCoversCosts?"ehto täyttyy":"ehto ei täyty")}] ;
     var checklist=dataChecks.concat(directional,timingChecks),passes=checklist.filter(function(x){return x.ok;}).length;
     var capital=Math.max(0,number(opts.capital)||0),riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5)),exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25));
     var spreadFriction=estimatePerSideFriction(opts.feePct,opts.slippagePct,spreadPct),riskCash=capital*riskPct/100,entry=Number(market.price),stop=null,target=null,qty=0,notional=0,estLoss=0,estGain=0;
     if(direction!=="WAIT"&&Number.isFinite(entry)&&entry>0&&Number.isFinite(b.atr)&&b.atr>0){var stopDistance=1.5*b.atr,targetDistance=2.5*b.atr;stop=direction==="BUY"?entry-stopDistance:entry+stopDistance;target=direction==="BUY"?entry+targetDistance:entry-targetDistance;if(direction==="BUY"){var costPerUnit=stopDistance+(entry+stop)*spreadFriction;qty=capital>0?Math.min(riskCash/costPerUnit,capital*(exposurePct/100)/entry):0;notional=qty*entry;estLoss=qty*costPerUnit;estGain=qty*(targetDistance-(entry+target)*spreadFriction);}}
-    return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",params:opts,main:main};
+    return {direction:direction,entry:entry,stop:stop,target:target,qty:qty,notional:notional,riskCash:riskCash,estimatedLoss:estLoss,estimatedGain:estGain,spreadPct:spreadPct,priceAgeMs:priceAgeMs,checklist:checklist,passed:passes,total:checklist.length,checks:checks,higher:higher,trendBias:checks.bias,higherBias:higher.map(function(x){return x.checks.bias;}),blockingReasons:checklist.filter(function(x){return !x.ok;}).map(function(x){return describeCheck(x,b,main,higher,checks,side,supportRoom,resistanceRoom,spreadPct,priceAgeMs,referencePrice);}),supportDistanceAtr:supportRoom,resistanceDistanceAtr:resistanceRoom,targetCoversCosts:targetCoversCosts,targetCostMultiple:targetCostMultiple,roundTripCostPct:referencePrice>0?roundTripCostPerUnit/referencePrice*100:NaN,reason:direction==="BUY"?"Nousuehdot täyttyivät kaikilla suodattimilla. Spot-osto, ei automaattista toimeksiantoa.":direction==="SELL"?"Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.":"ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",params:opts,main:main};
   }
   function fastReaction(series) {
     function idle(note) {
@@ -274,10 +293,47 @@
 
   function backtest(series,options){
     var opts=Object.assign({},COST_DEFAULTS,options||{}),startCapital=Math.max(100,number(opts.capital)||10000),equity=startCapital,peak=equity,maxDd=0,trades=[];
-    var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100,exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100,higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[],assumedSpreadRaw=number(opts.assumedSpreadPct),assumedSpreadPct=Math.max(0,Number.isFinite(assumedSpreadRaw)?assumedSpreadRaw:0.10),friction=estimatePerSideFriction(opts.feePct,opts.slippagePct,assumedSpreadPct),requestedStart=Number(opts.startIndex),startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220,inPositionUntil=-1;
-    for(var i=startIndex;i<series.length-2;i++){if(i<=inPositionUntil)continue;var b=series[i],prefix=series.slice(0,i+1),main;try{main=analyzeSeries(prefix);}catch(_){continue;}var higher=[];for(var h=0;h<higherSeries.length;h++){var hist=higherSeries[h].filter(function(x){return x.closeTime<=b.closeTime;});if(hist.length<220){higher=[];break;}try{higher.push(analyzeSeries(hist));}catch(_){higher=[];break;}}if(higher.length<2)continue;var halfSpread=b.close*assumedSpreadPct/200,decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},Object.assign({},opts,{capital:equity,historical:true}));if(decision.direction!=="BUY")continue;var entryBar=series[i+1],entry=entryBar.open,atr=b.atr;if(!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0)continue;var stop=entry-1.5*atr,target=entry+2.5*atr,riskPerUnit=(entry-stop)+(entry+stop)*friction,qty=Math.min((equity*riskPct)/riskPerUnit,(equity*exposurePct)/entry);if(!(qty>0))continue;var exit=entry,exitIndex=i+1,cause="Aikaraja",maxIndex=Math.min(series.length-1,i+30);for(var j=i+1;j<=maxIndex;j++){var bar=series[j],outcome=resolveLongExit(bar,stop,target);if(outcome){exit=outcome.price;exitIndex=j;cause=outcome.cause;break;}exit=bar.close;exitIndex=j;}var gross=(exit-entry)*qty,costs=(entry+exit)*qty*friction,pnl=gross-costs,before=equity;equity+=pnl;peak=Math.max(peak,equity);maxDd=Math.max(maxDd,peak>0?(peak-equity)/peak*100:0);trades.push({entryTime:entryBar.time,exitTime:series[exitIndex].time,entry:entry,exit:exit,stop:stop,target:target,qty:qty,pnl:pnl,returnPct:before>0?pnl/before*100:0,cause:cause,win:pnl>0});inPositionUntil=exitIndex;}
+    var riskPct=Math.max(0,Math.min(1,number(opts.riskPct)||0.5))/100,exposurePct=Math.max(1,Math.min(100,number(opts.maxExposurePct)||25))/100;
+    var higherSeries=Array.isArray(opts.higherSeries)?opts.higherSeries:[],assumedSpreadRaw=number(opts.assumedSpreadPct);
+    var assumedSpreadPct=Math.max(0,Number.isFinite(assumedSpreadRaw)?assumedSpreadRaw:0.10);
+    var friction=estimatePerSideFriction(opts.feePct,opts.slippagePct,assumedSpreadPct);
+    var requestedStart=Number(opts.startIndex),startIndex=Number.isInteger(requestedStart)?Math.max(220,Math.min(series.length-2,requestedStart)):220,inPositionUntil=-1;
+    var higherIndexes=higherSeries.map(function(){return 0;}),higherHistory=higherSeries.map(function(){return [];});
+    for(var i=startIndex;i<series.length-2;i++){
+      if(i<=inPositionUntil)continue;
+      var b=series[i],mainWindow=series.slice(Math.max(0,i-219),i+1),main;
+      try{main=analyzeSeries(mainWindow);}catch(_){continue;}
+      var higher=[];
+      for(var h=0;h<higherSeries.length;h++){
+        var source=higherSeries[h],cursor=higherIndexes[h],history=higherHistory[h];
+        while(cursor<source.length&&source[cursor].closeTime<=b.closeTime){history.push(source[cursor]);cursor++;}
+        higherIndexes[h]=cursor;
+        if(history.length<220){higher=[];break;}
+        try{higher.push(analyzeSeries(history));}catch(_){higher=[];break;}
+      }
+      if(higher.length<2)continue;
+      var halfSpread=b.close*assumedSpreadPct/200;
+      var decision=evaluateSignal(main,higher,{price:b.close,closeTime:b.closeTime,bid:b.close-halfSpread,ask:b.close+halfSpread},Object.assign({},opts,{capital:equity,historical:true}));
+      if(decision.direction!=="BUY")continue;
+      var entryBar=series[i+1],entry=entryBar.open,atr=b.atr;
+      if(!Number.isFinite(entry)||!Number.isFinite(atr)||entry<=0||atr<=0)continue;
+      var stop=entry-1.5*atr,target=entry+2.5*atr;
+      var riskPerUnit=(entry-stop)+(entry+stop)*friction;
+      var qty=Math.min((equity*riskPct)/riskPerUnit,(equity*exposurePct)/entry);
+      if(!(qty>0))continue;
+      var exit=entry,exitIndex=i+1,cause="Aikaraja",maxIndex=Math.min(series.length-1,i+30);
+      for(var j=i+1;j<=maxIndex;j++){
+        var bar=series[j],outcome=resolveLongExit(bar,stop,target);
+        if(outcome){exit=outcome.price;exitIndex=j;cause=outcome.cause;break;}
+        exit=bar.close;exitIndex=j;
+      }
+      var gross=(exit-entry)*qty,costs=(entry+exit)*qty*friction,pnl=gross-costs,before=equity;
+      equity+=pnl;peak=Math.max(peak,equity);maxDd=Math.max(maxDd,peak>0?(peak-equity)/peak*100:0);
+      trades.push({entryTime:entryBar.time,exitTime:series[exitIndex].time,entry:entry,exit:exit,stop:stop,target:target,qty:qty,pnl:pnl,costs:costs,returnPct:before>0?pnl/before*100:0,cause:cause,win:pnl>0});
+      inPositionUntil=exitIndex;
+    }
     var wins=trades.filter(function(t){return t.win;}),losses=trades.filter(function(t){return !t.win;}),grossWins=wins.reduce(function(a,t){return a+t.pnl;},0),grossLoss=Math.abs(losses.reduce(function(a,t){return a+t.pnl;},0));
-    return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),note:"Suljettujen kynttilöiden long-only spot-koe. Jokainen sisääntulo käyttää evaluateSignal()-arviota sekä annettuja sulkeutuneita korkeampia aikavälejä; kulut ja lipsuma vähennetään. Historiallinen tulos ei ennusta tulevaa."};
+    return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),assumedSpreadPct:assumedSpreadPct,roundTripFrictionPct:friction*200,note:"Suljettujen kynttilöiden long-only spot-koe. Sama päätöslogiikka kuin live-signaalissa; korkeampien aikavälien data rajataan päätöshetkeen. Kaupankäyntikulut sisältävät palkkion, lipsuman ja puolet oletusspreadistä kummallakin suunnalla."};
   }
   root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,fastReaction:fastReaction,resolveLongExit:resolveLongExit,estimatePerSideFriction:estimatePerSideFriction,backtest:backtest,defaults:COST_DEFAULTS};
 })(typeof window !== "undefined" ? window : globalThis);
