@@ -1,0 +1,142 @@
+{
+  "schema": 1,
+  "generatedAtUtc": "2026-11-12T14:15:16.015Z",
+  "mode": "forward_signal_evaluation",
+  "metricType": "signal_value_not_executable_trade_pnl",
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT"
+  ],
+  "horizonsHours": [
+    1,
+    4,
+    24
+  ],
+  "feesPerSidePct": 0.1,
+  "randomBaselineSeeds": 100,
+  "signalCount": 6,
+  "maturedOutcomeCount": 0,
+  "newSignals": 6,
+  "newOutcomes": 0,
+  "errors": [],
+  "metrics": {
+    "1h": {
+      "BUY": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "SELL": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "WAIT_NEAR_MISS": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      }
+    },
+    "4h": {
+      "BUY": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "SELL": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "WAIT_NEAR_MISS": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      }
+    },
+    "24h": {
+      "BUY": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "SELL": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      },
+      "WAIT_NEAR_MISS": {
+        "samples": 0,
+        "hitRatePct": null,
+        "avgNetDirectionalReturnPct": null,
+        "avgBuyAndHoldNetReturnPct": null,
+        "avgRandomDirectionNetReturnPct": null,
+        "excessVsBuyAndHoldPct": null,
+        "excessVsRandomPct": null,
+        "buyCount": 0,
+        "sellCount": 0
+      }
+    }
+  },
+  "notes": [
+    "Every unique closed 1h candle per symbol is recorded, including BUY, SELL and WAIT.",
+    "WAIT_NEAR_MISS means WAIT with a directional bias and no more than two failed checklist gates; this is analysis-only and does not change the decision engine.",
+    "Checklist pass percentage is not a success probability or calibrated confidence.",
+    "BUY/SELL directional returns and WAIT near-miss watch-direction returns are research metrics, not executed trades. SELL is not a short order.",
+    "Net directional return applies 0.10% fee per side. Buy-and-hold and deterministic 100-seed random-direction baselines use the same fee model.",
+    "Higher-timeframe candles are aligned to the 1h signal candle close. Signal collection time and market price observation are recorded separately.",
+    "Do not tune parameters on this forward-evaluation sample. Preserve it as unseen evaluation data."
+  ]
+}
