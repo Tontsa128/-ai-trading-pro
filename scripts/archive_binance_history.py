@@ -107,7 +107,8 @@ def archive_pair(symbol: str, interval: str, output: Path, lookback_days: int, n
         ranges.append((target_start, now_ms))
         mode = "initial_backfill"
     else:
-        mode = "backfill_and_incremental" if covered[0] > target_start or covered[-1] + interval_ms < now_ms - interval_ms else "incremental"
+        has_internal_gaps = any(right - left > interval_ms for left, right in zip(covered, covered[1:]))
+        mode = "backfill_and_incremental" if covered[0] > target_start or covered[-1] + interval_ms < now_ms - interval_ms or has_internal_gaps else "incremental"
         if covered[0] > target_start:
             ranges.append((target_start, covered[0] - interval_ms + 1))
         for left, right in zip(covered, covered[1:]):
