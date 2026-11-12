@@ -190,14 +190,15 @@ async function run(dataDir) {
   const knownOutcomes = new Set(outcomes.map(x => x.signalId + "|" + x.horizonHours));
   const newSignals = [];
   const newOutcomes = [];
-  const observedAt = new Date().toISOString();
-  const observedAtMs = Date.now();
+  const runStartedAt = new Date().toISOString();
 
   for (const symbol of SYMBOLS) {
     try {
       const [one, four, day, market] = await Promise.all([
         getBars(symbol, "1h", 1000), getBars(symbol, "4h", 300), getBars(symbol, "1d", 300), getMarket(symbol)
       ]);
+      const signalObservedAt = new Date().toISOString();
+      const evaluationNowMs = Date.now();
       if (one.length < 220 || four.length < 220 || day.length < 220) throw new Error("At least 220 closed candles are required on all timeframes");
       const main = E.analyzeSeries(one);
       const signalCandle = main.bar;
@@ -214,7 +215,7 @@ async function run(dataDir) {
           schema: 1,
           signalId: id,
           symbol,
-          signalTimeUtc: observedAt,
+          signalTimeUtc: signalObservedAt,
           signalAvailableAtUtc: new Date(signalCandle.closeTime + 1).toISOString(),
           candleOpenTimeUtc: new Date(signalCandle.time).toISOString(),
           candleCloseTimeUtc: new Date(signalCandle.closeTime).toISOString(),
@@ -252,7 +253,7 @@ async function run(dataDir) {
         for (const horizon of HORIZONS) {
           const outcomeKey = signal.signalId + "|" + horizon;
           if (knownOutcomes.has(outcomeKey)) continue;
-          const future = findFutureClose(futureBars, signalMs, horizon, observedAtMs);
+          const future = findFutureClose(futureBars, signalMs, horizon, evaluationNowMs);
           if (!future) continue;
           const outcome = buildOutcome(signal, horizon, future.close, new Date(future.closeTime).toISOString());
           if (outcome) {
@@ -262,7 +263,7 @@ async function run(dataDir) {
         }
       }
     } catch (error) {
-      errors.push({ symbol, error: String(error.message || error), at: observedAt });
+      errors.push({ symbol, error: String(error.message || error), at: new Date().toISOString() });
     }
   }
 
