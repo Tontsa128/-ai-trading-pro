@@ -68,6 +68,8 @@ function makeBars(length, breakAfter) {
 const raw = makeBars(520);
 const full = E.enrich(raw);
 assert.equal(full.length, 520);
+assert.equal(typeof E.analyzeSeriesAt, "function", "point-in-time analyzer is exported for diagnostics");
+assert.equal(E.analyzeSeriesAt(full, 300, true).bar.close, full[300].close, "point-in-time analysis reads only the requested historical candle");
 assert.ok(Number.isFinite(full[400].ema200), "EMA 200 is computed");
 assert.ok(Number.isFinite(full[400].atr) && full[400].atr > 0, "ATR is positive");
 assert.ok(full[400].rsi >= 0 && full[400].rsi <= 100, "RSI stays within [0,100]");
