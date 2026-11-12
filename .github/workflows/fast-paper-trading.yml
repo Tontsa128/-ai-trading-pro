@@ -61,6 +61,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
+      - name: Set up Python for historical archive regression tests
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Test historical archive timestamp and CSV logic
+        run: python -m unittest discover -s tests -p "test_historical_archive.py" -v
       - name: Restore 5-second portfolio and report history from paper-data branch
         if: github.event_name != 'pull_request'
         run: |
