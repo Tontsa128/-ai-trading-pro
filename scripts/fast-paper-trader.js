@@ -85,6 +85,13 @@ state.sessions ||= [];
 state.initialCash ||= 1000;
 const errors = [];
 const events = [];
+const signalDiagnostics = Object.fromEntries(SYMBOLS.map(symbol => [symbol, {
+  closedBars: 0, insufficientHistory: 0, evaluatedBars: 0,
+  freshTrade: 0, staleTrade: 0, freshQuote: 0, staleQuote: 0,
+  validSpread: 0, invalidSpread: 0, spreadWithinLimit: 0, spreadTooWide: 0,
+  crossUp: 0, noCross: 0, momentumPassed: 0, momentumFailed: 0,
+  capacityAvailable: 0, capacityBlocked: 0, entryCandidates: 0, entriesOpened: 0
+}]));
 const barMs = INTERVAL_SECONDS * 1000;
 
 async function json(url, timeoutMs = 8000) {
@@ -168,12 +175,17 @@ function closePosition(s, reason, marketPrice, time) {
   delete state.positions[s.symbol];
 }
 function onClosedBar(s, bar) {
+  const diag = signalDiagnostics[s.symbol];
+  diag.closedBars += 1;
   const closedBars = trailingContiguousBars(s.bars, barMs);
   const closes = closedBars.map(x => x.close);
-  if (closes.length < 30) return;
+  if (closes.length < 30) { diag.insufficientHistory += 1; return; }
+  diag.evaluatedBars += 1;
   const now = Date.now();
   const tradeFresh = isFreshQuote(s.lastTradeAt, now, MAX_TRADE_AGE_MS);
   const quoteFresh = isFreshQuote(s.lastQuoteAt, now, MAX_QUOTE_AGE_MS);
+  if (tradeFresh) diag.freshTrade += 1; else diag.staleTrade += 1;
+  if (quoteFresh) diag.freshQuote += 1; else diag.staleQuote += 1;
   // Use the same full history for current and previous EMA values so rolling-window
   // re-seeding cannot create artificial crossovers at the 80-candle boundary.
   const fast = ema(closes, 9);
@@ -183,6 +195,8 @@ function onClosedBar(s, bar) {
   const prevSlow = ema(priorCloses, 21);
   const momentum = (closes[closes.length - 1] / closes[closes.length - 4] - 1) * 100;
   const spreadPct = s.bid > 0 && s.ask >= s.bid ? (s.ask - s.bid) / ((s.ask + s.bid) / 2) * 100 : null;
+  if (spreadPct === null || !Number.isFinite(spreadPct)) diag.invalidSpread += 1;
+  else { diag.validSpread += 1; if (spreadPct <= 0.08) diag.spreadWithinLimit += 1; else diag.spreadTooWide += 1; }
   const p = state.positions[s.symbol];
   if (p) {
     p.lastPrice = bar.close;
@@ -194,7 +208,12 @@ function onClosedBar(s, bar) {
   const crossUp = prevFast !== null && prevSlow !== null && prevFast <= prevSlow && fast > slow;
   const enoughEdge = momentum >= MIN_EDGE_PCT;
   const spreadOk = tradeFresh && quoteFresh && spreadPct !== null && spreadPct <= 0.08;
-  if (crossUp && enoughEdge && spreadOk && Object.keys(state.positions).length < MAX_OPEN_POSITIONS) {
+  if (crossUp) diag.crossUp += 1; else diag.noCross += 1;
+  if (enoughEdge) diag.momentumPassed += 1; else diag.momentumFailed += 1;
+  const capacityAvailable = Object.keys(state.positions).length < MAX_OPEN_POSITIONS;
+  if (capacityAvailable) diag.capacityAvailable += 1; else diag.capacityBlocked += 1;
+  if (crossUp && enoughEdge && spreadOk && capacityAvailable) {
+    diag.entryCandidates += 1;
     const equity = state.cash + Object.values(state.positions).reduce((a, x) => a + x.qty * (x.lastPrice || x.entry), 0);
     const budget = Math.min(state.cash, equity * MAX_POSITION_PCT / 100);
     const fill = (s.ask || bar.close) * (1 + SLIPPAGE_PCT / 100);
@@ -213,6 +232,7 @@ function onClosedBar(s, bar) {
         stop: state.positions[s.symbol].stop, target: state.positions[s.symbol].target,
         reason: "5/15-second EMA cross + momentum; simulated only" };
       state.trades.push(trade); events.push(trade);
+      diag.entriesOpened += 1;
     }
   }
 }
@@ -425,6 +445,7 @@ function writeReport() {
     }),
     portfolio: { initialCash: state.initialCash, cash: state.cash, equity: equity(), realizedPnl,
       openPositions: Object.keys(state.positions).length, positions: state.positions },
+    signalDiagnostics: signalDiagnostics,
     sessionTrades: events, errors: reportErrors,
     notes: [
       "Paper trading only: no private API keys and no real exchange orders.",
@@ -454,7 +475,7 @@ function writeReport() {
     websocketEndpointsTried: websocketEndpointsTried, lastConnectedWebSocketEndpoint: lastConnectedWebSocketEndpoint,
     errors: report.errors.length, cash: state.cash,
     equity: report.portfolio.equity, realizedPnl, openPositions: report.portfolio.openPositions,
-    feedMode: report.source }, null, 2));
+    feedMode: report.source, signalDiagnostics }, null, 2));
 }
 async function main() {
   fs.mkdirSync(DATA_DIR, { recursive: true });
