@@ -16,7 +16,9 @@ on:
     paths:
       - ".github/workflows/binance-historical-archive.yml"
       - "scripts/archive_binance_history.py"
+      - "scripts/historical-strategy-diagnostics.js"
       - "tests/test_historical_archive.py"
+      - "tests/historical-strategy-diagnostics.test.js"
   push:
     branches: [main]
     paths:
@@ -54,8 +56,9 @@ jobs:
       - name: Test archive timestamp and CSV logic
         run: python -m unittest discover -s tests -p "test_historical_archive.py" -v
 
-      - name: Compile collector
-        run: python -m py_compile scripts/archive_binance_history.py tests/test_historical_archive.py
+      - name: Compile collector and diagnostics
+        run: |
+          python -m py_compile scripts/archive_binance_history.py tests/test_historical_archive.py
           node --check scripts/historical-strategy-diagnostics.js
 
       - name: Restore historical archive branch
