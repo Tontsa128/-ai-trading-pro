@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-12T14:15:16.015Z",
+  "generatedAtUtc": "2026-11-12T21:30:06.608Z",
   "mode": "forward_signal_evaluation",
   "metricType": "signal_value_not_executable_trade_pnl",
   "symbols": [
@@ -18,10 +18,10 @@
   ],
   "feesPerSidePct": 0.1,
   "randomBaselineSeeds": 100,
-  "signalCount": 6,
-  "maturedOutcomeCount": 0,
+  "signalCount": 12,
+  "maturedOutcomeCount": 2,
   "newSignals": 6,
-  "newOutcomes": 0,
+  "newOutcomes": 2,
   "errors": [],
   "metrics": {
     "1h": {
@@ -48,15 +48,15 @@
         "sellCount": 0
       },
       "WAIT_NEAR_MISS": {
-        "samples": 0,
-        "hitRatePct": null,
-        "avgNetDirectionalReturnPct": null,
-        "avgBuyAndHoldNetReturnPct": null,
-        "avgRandomDirectionNetReturnPct": null,
-        "excessVsBuyAndHoldPct": null,
-        "excessVsRandomPct": null,
+        "samples": 1,
+        "hitRatePct": 0,
+        "avgNetDirectionalReturnPct": -0.024965556529343846,
+        "avgBuyAndHoldNetReturnPct": -0.37452834645670396,
+        "avgRandomDirectionNetReturnPct": -0.1962513235937503,
+        "excessVsBuyAndHoldPct": 0.3495627899273601,
+        "excessVsRandomPct": 0.17128576706440646,
         "buyCount": 0,
-        "sellCount": 0
+        "sellCount": 1
       }
     },
     "4h": {
@@ -83,15 +83,15 @@
         "sellCount": 0
       },
       "WAIT_NEAR_MISS": {
-        "samples": 0,
-        "hitRatePct": null,
-        "avgNetDirectionalReturnPct": null,
-        "avgBuyAndHoldNetReturnPct": null,
-        "avgRandomDirectionNetReturnPct": null,
-        "excessVsBuyAndHoldPct": null,
-        "excessVsRandomPct": null,
+        "samples": 1,
+        "hitRatePct": 0,
+        "avgNetDirectionalReturnPct": -0.3161832508010609,
+        "avgBuyAndHoldNetReturnPct": -0.08348110236219286,
+        "avgRandomDirectionNetReturnPct": -0.18819706915968318,
+        "excessVsBuyAndHoldPct": -0.23270214843886805,
+        "excessVsRandomPct": -0.12798618164137773,
         "buyCount": 0,
-        "sellCount": 0
+        "sellCount": 1
       }
     },
     "24h": {
