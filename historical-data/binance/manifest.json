@@ -1,0 +1,156 @@
+{
+  "schema": 1,
+  "source": "Binance public Spot REST klines",
+  "generated_at_utc": "2026-11-12T14:15:50.191Z",
+  "lookback_days_for_new_files": 180,
+  "symbols": [
+    "BTCUSDT",
+    "ETHUSDT",
+    "SOLUSDT",
+    "BNBUSDT",
+    "XRPUSDT",
+    "DOGEUSDT"
+  ],
+  "intervals": [
+    "1h",
+    "4h"
+  ],
+  "availability_timestamp": "available_at_utc = Binance inclusive close_time + 1ms; derived earliest availability boundary, not observed publication latency",
+  "collection_timestamp": "collected_at_utc = actual UTC retrieval time for the API page",
+  "results": [
+    {
+      "symbol": "BTCUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/BTCUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "BTCUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/BTCUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/ETHUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "ETHUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/ETHUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/SOLUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "SOLUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/SOLUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/BNBUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "BNBUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/BNBUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/XRPUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "XRPUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/XRPUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "interval": "1h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/DOGEUSDT/1h.csv",
+      "rows_total": 4320,
+      "rows_added": 4320,
+      "pages_fetched": 5,
+      "first_open_utc": "2026-05-16T14:00:00.000Z",
+      "last_open_utc": "2026-11-12T13:00:00.000Z"
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "interval": "4h",
+      "mode": "initial_backfill",
+      "file": "../paper-data/historical-data/binance/DOGEUSDT/4h.csv",
+      "rows_total": 1080,
+      "rows_added": 1080,
+      "pages_fetched": 2,
+      "first_open_utc": "2026-05-16T12:00:00.000Z",
+      "last_open_utc": "2026-11-12T08:00:00.000Z"
+    }
+  ],
+  "failures": [],
+  "passed": true
+}
