@@ -21,4 +21,11 @@ assert.match(source,/WebSocket market-data stream was silent for over 15 seconds
 assert.match(source,/websocketIdleTimeouts:\s*socketIdleTimeouts/,"report exposes idle stream recovery counts");
 assert.match(source,/websocketHandshakeTimeouts:\s*socketHandshakeTimeouts/,"report exposes handshake timeout counts");
 assert.ok((source.match(/if \(socket !== currentSocket\) return;/g)||[]).length>=4,"callbacks from replaced sockets cannot clear the active socket timeout or alter the current feed");
+assert.match(source,/signalDiagnostics:\s*signalDiagnostics/,"report exposes per-symbol signal gate diagnostics");
+assert.match(source,/diag\.insufficientHistory \+= 1/,"report counts contiguous-history blocks");
+assert.match(source,/diag\.crossUp \+= 1/,"report counts EMA crossovers");
+assert.match(source,/diag\.momentumFailed \+= 1/,"report counts momentum gate failures");
+assert.match(source,/diag\.spreadTooWide \+= 1/,"report counts spread gate failures");
+assert.match(source,/diag\.staleTrade \+= 1/,"report counts stale trade feed blocks");
+assert.match(source,/diag\.staleQuote \+= 1/,"report counts stale quote feed blocks");
 console.log("Fast paper trader tests passed.");
