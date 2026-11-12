@@ -38,7 +38,7 @@ jobs:
       - name: Checkout application source
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.event.pull_request.head.sha || 'main' }}
           fetch-depth: 0
 
       - name: Set up Python
