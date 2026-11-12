@@ -11,6 +11,12 @@ on:
         default: "180"
   schedule:
     - cron: "13 * * * *"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/binance-historical-archive.yml"
+      - "scripts/archive_binance_history.py"
+      - "tests/test_historical_archive.py"
   push:
     branches: [main]
     paths:
@@ -43,18 +49,24 @@ jobs:
       - name: Test archive timestamp and CSV logic
         run: python -m unittest discover -s tests -p "test_historical_archive.py" -v
 
+      - name: Compile collector
+        run: python -m py_compile scripts/archive_binance_history.py tests/test_historical_archive.py
+
       - name: Restore historical archive branch
+        if: github.event_name != 'pull_request'
         run: |
           git fetch origin paper-data
           git worktree add ../paper-data origin/paper-data
 
       - name: Collect closed Binance Spot candles
+        if: github.event_name != 'pull_request'
         env:
           LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '180' }}
         run: |
           python scripts/archive_binance_history.py --output ../paper-data/historical-data/binance --lookback-days "$LOOKBACK_DAYS"
 
       - name: Validate archive completeness and monotonic timestamps
+        if: github.event_name != 'pull_request'
         run: |
           python - <<'PY'
           import csv, json
@@ -76,6 +88,7 @@ jobs:
           PY
 
       - name: Persist archive to paper-data branch
+        if: github.event_name != 'pull_request'
         working-directory: ../paper-data
         run: |
           git config user.name "github-actions[bot]"
