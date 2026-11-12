@@ -88,7 +88,7 @@ function evaluateArchive(symbol, dataDir) {
   const gatePasses = {};
   let evaluated = 0, buys = 0, sells = 0, waits = 0, nearMisses = 0;
   let longCoreBars = 0, shortCoreBars = 0, higherBull = 0, higherBear = 0;
-  let firstEligible = null, lastEligible = null;
+  let firstEligible = null, firstEligibleIndex = null, lastEligible = null;
   const assumedHalfSpread = ASSUMED_SPREAD_PCT / 200;
 
   for (let i = 219; i < one.length; i++) {
@@ -99,7 +99,7 @@ function evaluateArchive(symbol, dataDir) {
     const main = E.analyzeSeriesAt(one, i, true);
     main.checks = E.explainCandle(main.bar);
     const higher = [E.analyzeSeriesAt(four, fourIndex, true), E.analyzeSeriesAt(day, dayIndex, true)];
-    if (!firstEligible) firstEligible = new Date(bar.closeTime).toISOString();
+    if (!firstEligible) { firstEligible = new Date(bar.closeTime).toISOString(); firstEligibleIndex = i; }
     lastEligible = new Date(bar.closeTime).toISOString();
     if (main.longCore) longCoreBars++;
     if (main.shortCore) shortCoreBars++;
@@ -132,7 +132,7 @@ function evaluateArchive(symbol, dataDir) {
     assumedSpreadPct: ASSUMED_SPREAD_PCT,
     higherSeries: [four, day], startIndex: 220
   });
-  const baselineStart = one[Math.min(one.length - 1, 220) + 1];
+  const baselineStart = firstEligibleIndex === null ? null : one[Math.min(one.length - 1, firstEligibleIndex + 1)];
   const baselineEnd = one[one.length - 1];
   const baselines = baselineStart ? baselineReturns(symbol, baselineStart.open, baselineEnd.close, friction) :
     { buyAndHoldNetPct: null, randomDirectionMeanNetPct: null };
@@ -154,6 +154,8 @@ function evaluateArchive(symbol, dataDir) {
       startCapitalUsdt: backtest.startCapital, endEquityUsdt: backtest.endEquity
     },
     sameWindowBaselines: {
+      windowStartUtc: baselineStart ? new Date(baselineStart.time).toISOString() : null,
+      windowEndUtc: new Date(baselineEnd.time).toISOString(),
       buyAndHoldNetReturnPct: baselines.buyAndHoldNetPct,
       randomDirectionMeanNetReturnPct: baselines.randomDirectionMeanNetPct,
       randomSeeds: RANDOM_SEEDS,
