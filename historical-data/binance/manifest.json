@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": "Binance public Spot REST klines",
-  "generated_at_utc": "2026-11-12T15:47:38.722Z",
+  "generated_at_utc": "2026-11-12T21:51:08.756Z",
   "lookback_days_target_for_all_files": 600,
   "symbols": [
     "BTCUSDT",
@@ -24,22 +24,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BTCUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "BTCUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BTCUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "BTCUSDT",
@@ -57,22 +57,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/ETHUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "ETHUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/ETHUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "ETHUSDT",
@@ -90,22 +90,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/SOLUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "SOLUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/SOLUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "SOLUSDT",
@@ -123,22 +123,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BNBUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "BNBUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BNBUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "BNBUSDT",
@@ -156,22 +156,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/XRPUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "XRPUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/XRPUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "XRPUSDT",
@@ -189,22 +189,22 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/DOGEUSDT/1h.csv",
-      "rows_total": 14401,
-      "rows_added": 1,
+      "rows_total": 14407,
+      "rows_added": 6,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-12T14:00:00.000Z"
+      "last_open_utc": "2026-11-12T20:00:00.000Z"
     },
     {
       "symbol": "DOGEUSDT",
       "interval": "4h",
-      "mode": "incremental",
+      "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/DOGEUSDT/4h.csv",
-      "rows_total": 3600,
-      "rows_added": 0,
+      "rows_total": 3602,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T08:00:00.000Z"
+      "last_open_utc": "2026-11-12T16:00:00.000Z"
     },
     {
       "symbol": "DOGEUSDT",
