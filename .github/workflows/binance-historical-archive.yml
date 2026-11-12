@@ -7,8 +7,8 @@ on:
         description: "Target history window for all pairs and timeframes; fills missing older candles"
         required: true
         type: choice
-        options: ["365", "540", "730"]
-        default: "365"
+        options: ["600", "730", "900"]
+        default: "600"
   schedule:
     - cron: "13 * * * *"
   pull_request:
@@ -75,7 +75,7 @@ jobs:
       - name: Collect closed Binance Spot candles
         if: github.event_name != 'pull_request'
         env:
-          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '365' }}
+          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '600' }}
         run: |
           python scripts/archive_binance_history.py --output ../paper-data/historical-data/binance --lookback-days "$LOOKBACK_DAYS"
 
