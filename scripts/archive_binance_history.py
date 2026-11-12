@@ -19,7 +19,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
 SYMBOLS = ("BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT", "DOGEUSDT")
-INTERVALS = {"1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000}
+INTERVALS = {"1h": 60 * 60 * 1000, "4h": 4 * 60 * 60 * 1000, "1d": 24 * 60 * 60 * 1000}
 ENDPOINTS = (
     "https://data-api.binance.vision/api/v3/klines",
     "https://api.binance.com/api/v3/klines",
@@ -96,38 +96,51 @@ def archive_pair(symbol: str, interval: str, output: Path, lookback_days: int, n
     path.parent.mkdir(parents=True, exist_ok=True)
     existing = read_existing(path)
     now_ms = int(now.timestamp() * 1000)
-    if existing:
-        start_ms = max(existing) + interval_ms
-        mode = "incremental"
-    else:
-        start_ms = int((now - timedelta(days=lookback_days)).timestamp() * 1000)
-        start_ms = (start_ms // interval_ms) * interval_ms
+    target_start = int((now - timedelta(days=lookback_days)).timestamp() * 1000)
+    target_start = (target_start // interval_ms) * interval_ms
+
+    # Repair missing prefixes and internal gaps as well as appending new candles.
+    # Existing rows are retained; only absent open times are requested from Binance.
+    covered = sorted(key for key in existing if target_start <= key < now_ms)
+    ranges: list[tuple[int, int]] = []
+    if not covered:
+        ranges.append((target_start, now_ms))
         mode = "initial_backfill"
+    else:
+        mode = "backfill_and_incremental" if covered[0] > target_start or covered[-1] + interval_ms < now_ms - interval_ms else "incremental"
+        if covered[0] > target_start:
+            ranges.append((target_start, covered[0] - interval_ms + 1))
+        for left, right in zip(covered, covered[1:]):
+            if right - left > interval_ms:
+                ranges.append((left + interval_ms, right - 1))
+        if covered[-1] + interval_ms < now_ms:
+            ranges.append((covered[-1] + interval_ms, now_ms))
 
     added = 0
     pages = 0
-    cursor = start_ms
-    while cursor < now_ms:
-        payload = fetch_page(symbol, interval, cursor, now_ms)
-        pages += 1
-        if not payload:
-            break
-        collected_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
-        page_last_open = int(payload[-1][0])
-        for raw in payload:
-            row = candle_row(symbol, interval, raw, collected_at, now_ms)
-            if row is not None:
-                open_ms = parse_ms(row["open_time_utc"])
-                if open_ms not in existing:
-                    existing[open_ms] = row
-                    added += 1
-        next_cursor = page_last_open + interval_ms
-        if next_cursor <= cursor:
-            raise RuntimeError(f"Pagination did not advance for {symbol} {interval}")
-        cursor = next_cursor
-        if len(payload) < LIMIT:
-            break
-        time.sleep(0.15)
+    for range_start, range_end in ranges:
+        cursor = range_start
+        while cursor < range_end:
+            payload = fetch_page(symbol, interval, cursor, range_end)
+            pages += 1
+            if not payload:
+                break
+            collected_at = datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+            page_last_open = int(payload[-1][0])
+            for raw in payload:
+                row = candle_row(symbol, interval, raw, collected_at, now_ms)
+                if row is not None:
+                    open_ms = parse_ms(row["open_time_utc"])
+                    if open_ms not in existing:
+                        existing[open_ms] = row
+                        added += 1
+            next_cursor = page_last_open + interval_ms
+            if next_cursor <= cursor:
+                raise RuntimeError(f"Pagination did not advance for {symbol} {interval}")
+            cursor = next_cursor
+            if len(payload) < LIMIT:
+                break
+            time.sleep(0.15)
 
     ordered = [existing[key] for key in sorted(existing)]
     temp_path = path.with_suffix(".csv.tmp")
@@ -144,14 +157,13 @@ def archive_pair(symbol: str, interval: str, output: Path, lookback_days: int, n
         "last_open_utc": ordered[-1]["open_time_utc"] if ordered else None,
     }
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, default=Path("historical-data/binance"))
     parser.add_argument("--lookback-days", type=int, default=180)
     args = parser.parse_args()
-    if args.lookback_days < 30:
-        parser.error("--lookback-days must be at least 30")
+    if args.lookback_days < 220:
+        parser.error("--lookback-days must be at least 220 so the 1d EMA 200 warm-up can be evaluated")
     now = datetime.now(timezone.utc)
     results, failures = [], []
     for symbol in SYMBOLS:
@@ -167,7 +179,7 @@ def main() -> int:
         "schema": 1,
         "source": "Binance public Spot REST klines",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z"),
-        "lookback_days_for_new_files": args.lookback_days,
+        "lookback_days_target_for_all_files": args.lookback_days,
         "symbols": list(SYMBOLS),
         "intervals": list(INTERVALS),
         "availability_timestamp": "available_at_utc = Binance inclusive close_time + 1ms; derived earliest availability boundary, not observed publication latency",
