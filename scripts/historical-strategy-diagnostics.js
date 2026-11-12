@@ -178,7 +178,8 @@ function run(dataDir, outputFile) {
     source: "paper-data/historical-data/binance",
     symbols: SYMBOLS,
     requiredTimeframes: ["1h", "4h", "1d"],
-    lookbackTargetDays: 365,
+    archiveLookbackDays: 600,
+    targetPostWarmupEvaluationDays: 365,
     results,
     totals: results.reduce((acc, item) => {
       for (const key of ["BUY", "SELL", "WAIT", "WAIT_NEAR_MISS"]) acc[key] += item.signalCounts[key];
