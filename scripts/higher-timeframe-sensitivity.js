@@ -43,10 +43,7 @@ function lastClosedIndex(series, timestamp) {
   }
   return lo - 1;
 }
-
-function blankCounts() {
-  return { BUY: 0, SELL: 0, WAIT: 0, CONFLICT: 0 };
-}
+function blankCounts() { return { BUY: 0, SELL: 0, WAIT: 0, CONFLICT: 0 }; }
 function addDecision(counts, direction) {
   if (direction === "BUY" || direction === "SELL") counts[direction]++;
   else counts.WAIT++;
@@ -72,18 +69,18 @@ function evaluateSymbol(symbol, dataDir) {
     const market = { price: bar.close, closeTime: bar.closeTime, bid: bar.close - halfSpread, ask: bar.close + halfSpread };
     const opts = { historical: true, feePct: 0.10, slippagePct: 0.05 };
     const strict = E.evaluateSignal(main, [h4, d1], market, opts);
-    // The duplicated frame is a research adapter for the existing "both supplied frames agree" API.
-    // It means "the named single timeframe is the sole confirmation source", not two independent votes.
+    // Duplicate the selected frame only to reuse the canonical evaluator's two-input AND contract.
+    // This is an explicitly research-only single-timeframe comparison, never a live configuration.
     const fourOnly = E.evaluateSignal(main, [h4, h4], market, opts);
     const dailyOnly = E.evaluateSignal(main, [d1, d1], market, opts);
     addDecision(modes.strictBoth, strict.direction);
     addDecision(modes.fourHourOnly, fourOnly.direction);
     addDecision(modes.dailyOnly, dailyOnly.direction);
-    if (fourOnly.direction === dailyOnly.direction && (fourOnly.direction === "BUY" || fourOnly.direction === "SELL")) {
-      addDecision(modes.eitherHigher, fourOnly.direction);
-    } else if ((fourOnly.direction === "BUY" && dailyOnly.direction === "SELL") ||
-               (fourOnly.direction === "SELL" && dailyOnly.direction === "BUY")) {
+    const directional = [fourOnly.direction, dailyOnly.direction].filter(x => x === "BUY" || x === "SELL");
+    if (directional.includes("BUY") && directional.includes("SELL")) {
       modes.eitherHigher.CONFLICT++;
+    } else if (directional.length) {
+      addDecision(modes.eitherHigher, directional[0]);
     } else {
       modes.eitherHigher.WAIT++;
     }
@@ -97,9 +94,7 @@ function run(dataDir, outputFile) {
   const totals = {};
   for (const mode of ["strictBoth", "fourHourOnly", "dailyOnly", "eitherHigher"]) {
     totals[mode] = blankCounts();
-    for (const result of results) {
-      for (const key of Object.keys(totals[mode])) totals[mode][key] += result.modes[mode][key];
-    }
+    for (const result of results) for (const key of Object.keys(totals[mode])) totals[mode][key] += result.modes[mode][key];
   }
   const report = {
     schema: 1,
@@ -111,7 +106,7 @@ function run(dataDir, outputFile) {
       strictBoth: "Canonical production confirmation: 4h AND 1d agree.",
       fourHourOnly: "Research comparison: 4h is the sole higher-timeframe confirmation.",
       dailyOnly: "Research comparison: 1d is the sole higher-timeframe confirmation.",
-      eitherHigher: "Research comparison: accept only when 4h-only and 1d-only independently agree on the same direction; opposite directions are conflicts."
+      eitherHigher: "Research comparison: 4h OR 1d confirms; opposite-direction signals are counted as conflicts."
     },
     results, totals
   };
