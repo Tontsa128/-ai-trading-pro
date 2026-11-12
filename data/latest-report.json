@@ -1,22 +1,22 @@
 {
   "schema": 1,
   "mode": "paper",
-  "cycleStartedAt": "2026-11-12T09:55:38.035Z",
+  "cycleStartedAt": "2026-11-12T14:47:02.475Z",
   "cycleHours": 2,
   "source": "Binance public Spot API",
   "symbols": [
     {
       "symbol": "BTCUSDT",
-      "price": 73424.86,
-      "change24hPct": -0.352,
-      "spreadPct": 0.00001361936449561237,
+      "price": 71737.93,
+      "change24hPct": -2.502,
+      "spreadPct": 0.000013939632066636496,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -24,24 +24,26 @@
         "neutral"
       ],
       "blockedBy": [
-        "Volyymi 0.36× (vaatimus ≥ 0.50× ei täyty)",
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 1041.68 hinnan yksikköä (2.45 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Tuen etäisyys -231.37 hinnan yksikköä (-0.54 ATR); vaatimus ≥ 212.85 (0.50 ATR)",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
-      "supportDistanceAtr": 0.998,
-      "resistanceDistanceAtr": 3.131,
-      "passed": 12,
+      "supportDistanceAtr": -0.544,
+      "resistanceDistanceAtr": 5.422,
+      "passed": 10,
       "total": 14,
       "indicators": {
-        "rsi": 42.90303494876132,
-        "adx": 19.078888974131868,
-        "atr": 388.12012125076177,
-        "atrPct": 0.5273635610953344,
-        "ema9": 73733.95083208224,
-        "ema21": 73867.04420802818,
-        "ema50": 74064.68845261849,
-        "ema200": 75508.79228957056,
-        "macdHist": -58.53532922034652,
-        "volumeRatio": 0.3645222240831257
+        "rsi": 26.54805239480889,
+        "adx": 27.79795813335549,
+        "atr": 425.69510763662237,
+        "atrPct": 0.5871386168369932,
+        "ema9": 73209.36601345672,
+        "ema21": 73545.01501538529,
+        "ema50": 73879.94922757386,
+        "ema200": 75386.90207420131,
+        "macdHist": -128.47143085855913,
+        "volumeRatio": 2.8890829206984394
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -49,16 +51,16 @@
     },
     {
       "symbol": "ETHUSDT",
-      "price": 2044.2,
-      "change24hPct": -0.53,
-      "spreadPct": 0.000489202086935658,
+      "price": 2004,
+      "change24hPct": -2.458,
+      "spreadPct": 0.0004990007509956764,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -66,24 +68,26 @@
         "neutral"
       ],
       "blockedBy": [
-        "Volyymi 0.40× (vaatimus ≥ 0.50× ei täyty)",
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 34.57 hinnan yksikköä (2.08 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Tuen etäisyys -0.91 hinnan yksikköä (-0.05 ATR); vaatimus ≥ 8.32 (0.50 ATR)",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
-      "supportDistanceAtr": 0.988,
-      "resistanceDistanceAtr": 3.674,
-      "passed": 12,
+      "supportDistanceAtr": -0.055,
+      "resistanceDistanceAtr": 5.486,
+      "passed": 10,
       "total": 14,
       "indicators": {
-        "rsi": 43.297490098573846,
-        "adx": 24.029272300204674,
-        "atr": 14.573745083186411,
-        "atrPct": 0.710834642122416,
-        "ema9": 2053.05425841719,
-        "ema21": 2058.601539564592,
-        "ema50": 2073.7503491314546,
-        "ema200": 2165.8885032276285,
-        "macdHist": -1.306554002326954,
-        "volumeRatio": 0.39695168884293186
+        "rsi": 27.675854369564888,
+        "adx": 29.958349031642587,
+        "atr": 16.645432043143362,
+        "atrPct": 0.8271145429816773,
+        "ema9": 2034.7914337981451,
+        "ema21": 2047.0364768083348,
+        "ema50": 2065.6520037193163,
+        "ema200": 2159.072642507714,
+        "macdHist": -3.928835020237619,
+        "volumeRatio": 8.55897553026477
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -91,16 +95,16 @@
     },
     {
       "symbol": "SOLUSDT",
-      "price": 83.03,
-      "change24hPct": -0.622,
-      "spreadPct": 0.012044564890099505,
+      "price": 81.16,
+      "change24hPct": -3.565,
+      "spreadPct": 0.012322099685775252,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -108,24 +112,26 @@
         "neutral"
       ],
       "blockedBy": [
-        "Volyymi 0.31× (vaatimus ≥ 0.50× ei täyty)",
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 1.67 hinnan yksikköä (2.07 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Tuen etäisyys -0.67 hinnan yksikköä (-0.83 ATR); vaatimus ≥ 0.40 (0.50 ATR)",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
-      "supportDistanceAtr": 1.083,
-      "resistanceDistanceAtr": 3.873,
-      "passed": 12,
+      "supportDistanceAtr": -0.83,
+      "resistanceDistanceAtr": 5.477,
+      "passed": 10,
       "total": 14,
       "indicators": {
-        "rsi": 41.935932049838044,
-        "adx": 29.315635057193024,
-        "atr": 0.7385146546551146,
-        "atrPct": 0.8898839072841481,
-        "ema9": 83.19794878742873,
-        "ema21": 83.54534742243969,
-        "ema50": 84.16604411928896,
-        "ema200": 88.06626625683096,
-        "macdHist": -0.11557186247855167,
-        "volumeRatio": 0.3114602619662429
+        "rsi": 29.455516546523725,
+        "adx": 33.59674157967508,
+        "atr": 0.8069388158037974,
+        "atrPct": 0.9909601078273331,
+        "ema9": 82.56454705866466,
+        "ema21": 83.09729447345231,
+        "ema50": 83.8477375359184,
+        "ema200": 87.7845161278586,
+        "macdHist": -0.1613911003499402,
+        "volumeRatio": 4.979702656053475
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -133,16 +139,16 @@
     },
     {
       "symbol": "BNBUSDT",
-      "price": 671.19,
-      "change24hPct": -1.213,
-      "spreadPct": 0.001489879990165437,
+      "price": 652.97,
+      "change24hPct": -4.078,
+      "spreadPct": 0.0015314521995468287,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -150,24 +156,26 @@
         "neutral"
       ],
       "blockedBy": [
-        "Hinta on liian kaukana EMA 21:stä: 6.24 hinnan yksikköä (1.74 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 17.31 hinnan yksikköä (3.90 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Tuen etäisyys -3.37 hinnan yksikköä (-0.76 ATR); vaatimus ≥ 2.22 (0.50 ATR)",
         "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
       ],
-      "supportDistanceAtr": 0.505,
-      "resistanceDistanceAtr": 4.606,
-      "passed": 12,
+      "supportDistanceAtr": -0.76,
+      "resistanceDistanceAtr": 7.524,
+      "passed": 10,
       "total": 14,
       "indicators": {
-        "rsi": 35.14934899349062,
-        "adx": 30.93359413471416,
-        "atr": 3.5863642664576574,
-        "atrPct": 0.5330664208890956,
-        "ema9": 676.2231030533338,
-        "ema21": 679.0186813061118,
-        "ema50": 681.7164491006947,
-        "ema200": 691.89893581021,
-        "macdHist": -1.0916868479584432,
-        "volumeRatio": 0.7271175656236132
+        "rsi": 18.758825925301878,
+        "adx": 41.5723365239765,
+        "atr": 4.43657597575762,
+        "atrPct": 0.6763897999386541,
+        "ema9": 667.1096248085165,
+        "ema21": 673.2251625299513,
+        "ema50": 678.5421094411519,
+        "ema200": 690.5463352967826,
+        "macdHist": -2.176714950828056,
+        "volumeRatio": 3.8384362278837543
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -175,16 +183,16 @@
     },
     {
       "symbol": "XRPUSDT",
-      "price": 1.0515,
-      "change24hPct": -0.746,
-      "spreadPct": 0.009508867018493699,
+      "price": 1.0269,
+      "change24hPct": -2.802,
+      "spreadPct": 0.009740417863925288,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -192,23 +200,23 @@
         "bear"
       ],
       "blockedBy": [
-        "Volyymi 0.40× (vaatimus ≥ 0.50× ei täyty)"
+        "Tuen etäisyys 0.00 hinnan yksikköä (0.06 ATR); vaatimus ≥ 0.01 (0.50 ATR)"
       ],
-      "supportDistanceAtr": 0.863,
-      "resistanceDistanceAtr": 3.616,
+      "supportDistanceAtr": 0.057,
+      "resistanceDistanceAtr": 4.525,
       "passed": 13,
       "total": 14,
       "indicators": {
-        "rsi": 40.978741990686224,
-        "adx": 23.249559626609408,
-        "atr": 0.009735560118525005,
-        "atrPct": 0.9310979455360562,
-        "ema9": 1.0472080683087648,
-        "ema21": 1.052670355710703,
-        "ema50": 1.0646151134489619,
-        "ema200": 1.1371513258474542,
-        "macdHist": -0.0009842454698374883,
-        "volumeRatio": 0.40408587080429764
+        "rsi": 34.57399178410259,
+        "adx": 23.230259174872227,
+        "atr": 0.010451966671415734,
+        "atrPct": 1.01131752989025,
+        "ema9": 1.0425171718234163,
+        "ema21": 1.04842026482959,
+        "ema50": 1.0605176351069028,
+        "ema200": 1.1324029152115231,
+        "macdHist": -0.000978954686619347,
+        "volumeRatio": 3.5401998033708386
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
@@ -216,16 +224,16 @@
     },
     {
       "symbol": "DOGEUSDT",
-      "price": 0.06714,
-      "change24hPct": -1.279,
-      "spreadPct": 0.014893141708237578,
+      "price": 0.06516,
+      "change24hPct": -4.471,
+      "spreadPct": 0.015348016268891295,
       "timeframe": "1h",
       "confirmations": [
         "4h",
         "1d"
       ],
-      "lastClosedCandleAt": "2026-11-12T08:59:59.999Z",
-      "newClosedCandles": 9,
+      "lastClosedCandleAt": "2026-11-12T13:59:59.999Z",
+      "newClosedCandles": 5,
       "signal": "WAIT",
       "trendBias": "bear",
       "higherBias": [
@@ -233,23 +241,25 @@
         "bear"
       ],
       "blockedBy": [
-        "Volyymi 0.43× (vaatimus ≥ 0.50× ei täyty)"
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 0.00 hinnan yksikköä (2.32 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Tuen etäisyys -0.00 hinnan yksikköä (-0.78 ATR); vaatimus ≥ 0.00 (0.50 ATR)"
       ],
-      "supportDistanceAtr": 0.956,
-      "resistanceDistanceAtr": 4.396,
-      "passed": 13,
+      "supportDistanceAtr": -0.783,
+      "resistanceDistanceAtr": 5.692,
+      "passed": 11,
       "total": 14,
       "indicators": {
-        "rsi": 36.811164380198846,
-        "adx": 33.61092877384785,
-        "atr": 0.0005959669184524201,
-        "atrPct": 0.890167167217954,
-        "ema9": 0.06723080101825572,
-        "ema21": 0.06764064214016276,
-        "ema50": 0.06823093745959424,
-        "ema200": 0.07082258094193643,
-        "macdHist": -0.00009656734861144487,
-        "volumeRatio": 0.42555535520552523
+        "rsi": 26.144520801209495,
+        "adx": 40.432550745886495,
+        "atr": 0.0007027613960198022,
+        "atrPct": 1.0717727558636605,
+        "ema9": 0.06665365447766206,
+        "ema21": 0.06719837991702177,
+        "ema50": 0.06792043155104498,
+        "ema200": 0.07060905194629892,
+        "macdHist": -0.0001304382059379425,
+        "volumeRatio": 6.355448973082518
       },
       "action": "NO_ACTION",
       "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
