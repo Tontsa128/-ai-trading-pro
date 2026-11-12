@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
 
       - name: Test archive timestamp and CSV logic
-        run: python -m unittest tests.test_historical_archive -v
+        run: python -m unittest discover -s tests -p "test_historical_archive.py" -v
 
       - name: Restore historical archive branch
         run: |
