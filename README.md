@@ -62,3 +62,10 @@ The separate workflow fast-paper-trading.yml prefers Binance public Spot WebSock
 - A GitHub Actions schedule is best-effort, not a permanently connected trading server. Vercel hosts the static dashboard; it does not keep this WebSocket worker running continuously. For truly uninterrupted 24/7 streaming, run the worker on an always-on host with monitoring and durable storage.
 - The latest JSON state and report history for all three paper workflows are saved on the dedicated paper-data branch, not main. A retry-safe writer handles concurrent pushes; Vercel's Git configuration disables deployments from the paper-data branch, while its ignored-build script skips report-only and documentation/test/workflow commits. The public dashboard can read report JSON from that branch without producing a Vercel deployment for each refresh.
 - Paper only: no private API keys, account balances, or real orders are used. Do not enable real-money execution based on these results.
+
+
+## Binance historical candle archive (point-in-time data)
+
+The **Binance historical candle archive** workflow backfills six Binance Spot USDT pairs (BTC, ETH, SOL, BNB, XRP, DOGE) for 1h and 4h intervals. New archives start with 180 days by default (manual runs can select 90/180/270/365 days); subsequent hourly runs append only newly closed candles. CSV files and a manifest are stored on the dedicated `paper-data` branch under `historical-data/binance/<SYMBOL>/<interval>.csv`. This branch is not a production deployment source.
+
+Each row includes Binance open/close timestamps, OHLCV, quote volume, trade count and taker-buy volume. `available_at_utc` is the derived earliest availability boundary (Binance's inclusive close timestamp + 1 ms), **not** a measured exchange publication timestamp. `collected_at_utc` records when the collector actually retrieved the API page. Evaluation code must use `available_at_utc` to prevent look-ahead and must not treat the collection timestamp as the candle's market event time. The archive contains closed candles only; API failures fail the workflow rather than silently presenting incomplete coverage.
