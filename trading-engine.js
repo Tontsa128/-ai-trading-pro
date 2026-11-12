@@ -348,107 +348,12 @@
     return {trades:trades,count:trades.length,wins:wins.length,winRate:trades.length?wins.length/trades.length*100:0,startIndex:startIndex,startCapital:startCapital,endEquity:equity,netPnl:equity-startCapital,netPct:(equity/startCapital-1)*100,maxDrawdownPct:maxDd,profitFactor:grossLoss>0?grossWins/grossLoss:(grossWins>0?Infinity:0),assumedSpreadPct:assumedSpreadPct,roundTripCostPct:estimateRoundTripFriction(opts.feePct,opts.slippagePct,assumedSpreadPct)*100,note:"Suljettujen kynttilöiden long-only spot-koe. Indikaattorit lasketaan historiasta kerran ja päätökset käsitellään aikajärjestyksessä; korkeammat aikavälit rajataan aina päätöshetkeen. Sama kulufunktio veloittaa osto- ja myyntipuolen. Historiallinen tulos ei ennusta tulevaa."};
   }
   root.TradingEngine={parseKlines:parseKlines,enrich:enrich,analyzeSeries:analyzeSeries,explainCandle:explainCandle,evaluateSignal:evaluateSignal,makeSignal:evaluateSignal,fastReaction:fastReaction,resolveLongExit:resolveLongExit,estimatePerSideFriction:estimatePerSideFriction,estimateRoundTripFriction:estimateRoundTripFriction,backtest:backtest,defaults:COST_DEFAULTS};
+})(typeof window !== "undefined" ? window : globalThis);
 
-  /* Live scalping layer. It deliberately runs independently of the REST refresh loop:
-     WebSocket carries trade/bookTicker/kline events, while the chart is rendered locally.
-     This keeps the candle chart alive on mobile even when Plotly fails or is slow. */
-  function startLiveLayer(){
-    if(!document.getElementById("chart") || !window.TradingEngine) return;
-    var chart=document.getElementById("chart"), symbolEl=document.getElementById("symbol"), intervalEl=document.getElementById("interval"), statusEl=document.getElementById("status");
-    var candles=[], socket=null, reconnectTimer=null, lastTrade=0, bid=NaN, ask=NaN, lastPrice=NaN, generation=0;
-    var allowed={"1m":true,"3m":true,"5m":true,"15m":true,"1h":true,"4h":true,"1d":true};
-    var api="https://data-api.binance.vision";
-    function fmt(v,d){return root.RahasampoFormat?root.RahasampoFormat.number(v,d||2):Number.isFinite(v)?Number(v).toLocaleString("fi-FI",{minimumFractionDigits:d||2,maximumFractionDigits:d||2}):"—";}
-    function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];});}
-    function setStatus(text,ok){if(!statusEl)return;statusEl.className="status "+(ok?"ok":"");statusEl.textContent=text;}
-    function intervalMs(iv){return ({"1m":60000,"3m":180000,"5m":300000,"15m":900000,"1h":3600000,"4h":14400000,"1d":86400000}[iv]||60000);}
-    function renderSvg(signal){
-      var d=candles.slice(-120);if(d.length<2)return;
-      var W=Math.max(320,chart.clientWidth||window.innerWidth-24),H=390,pad={l:10,r:60,t:18,b:34},pw=W-pad.l-pad.r,ph=H-pad.t-pad.b;
-      var lo=Math.min.apply(null,d.map(function(x){return x.low;})),hi=Math.max.apply(null,d.map(function(x){return x.high;}));
-      var range=Math.max(hi-lo,1e-9),xStep=pw/d.length,cw=Math.max(2,Math.min(12,xStep*.62));
-      function x(i){return pad.l+(i+.5)*xStep;} function y(v){return pad.t+(hi-v)/range*ph;}
-      var svg='<svg viewBox="0 0 '+W+' '+H+'" width="100%" height="390" preserveAspectRatio="none" role="img" aria-label="Reaaliaikainen kynttiläkaavio">';
-      for(var g=0;g<5;g++){var gy=pad.t+g*ph/4,gv=hi-g*range/4;svg+='<line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+gy+'" y2="'+gy+'" stroke="#263750" stroke-width="1"/><text x="'+(W-pad.r+4)+'" y="'+(gy+4)+'" fill="#9db0c8" font-size="10">'+esc(fmt(gv,gv<1?5:2))+'</text>';}
-      function path(key){var pts=[];d.forEach(function(b,i){if(Number.isFinite(b[key]))pts.push((i===0?"M":"L")+x(i)+" "+y(b[key]));});return pts.join(" ");}
-      [["ema9","#ffd166",1.4],["ema21","#67b7ff",1.3],["ema50","#c084fc",1.2],["ema200","#fb7185",1.2]].forEach(function(a){var p=path(a[0]);if(p)svg+='<path d="'+p+'" fill="none" stroke="'+a[1]+'" stroke-width="'+a[2]+'" opacity=".9"/>';});
-      d.forEach(function(b,i){var xx=x(i),up=b.close>=b.open,c=up?"#28d7a0":"#ff647c",bodyY=Math.min(y(b.open),y(b.close)),bodyH=Math.max(1,Math.abs(y(b.open)-y(b.close)));svg+='<line x1="'+xx+'" x2="'+xx+'" y1="'+y(b.high)+'" y2="'+y(b.low)+'" stroke="'+c+'" stroke-width="1"/><rect x="'+(xx-cw/2)+'" y="'+bodyY+'" width="'+cw+'" height="'+bodyH+'" rx="1" fill="'+c+'"/>';});
-      var lb=d[d.length-1],lx=x(d.length-1),ly=y(lb.close);svg+='<line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+ly+'" y2="'+ly+'" stroke="#edf5ff" stroke-width="1" stroke-dasharray="3 3"/><rect x="'+(W-pad.r+1)+'" y="'+(ly-9)+'" width="58" height="18" rx="4" fill="#173c5b"/><text x="'+(W-pad.r+5)+'" y="'+(ly+4)+'" fill="#fff" font-size="10">'+esc(fmt(lb.close,lb.close<1?6:2))+'</text>';
-      if(signal&&signal.direction!=="WAIT"&&Number.isFinite(signal.stop)){var sy=y(signal.stop),ty=y(signal.target);svg+='<line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+sy+'" y2="'+sy+'" stroke="#ff647c" stroke-width="1" stroke-dasharray="5 4"/><text x="'+(pad.l+4)+'" y="'+(sy-4)+'" fill="#ff647c" font-size="10">STOP</text><line x1="'+pad.l+'" x2="'+(W-pad.r)+'" y1="'+ty+'" y2="'+ty+'" stroke="#28d7a0" stroke-width="1" stroke-dasharray="5 4"/><text x="'+(pad.l+4)+'" y="'+(ty-4)+'" fill="#28d7a0" font-size="10">TARGET</text>';}
-      svg+='<text x="'+pad.l+'" y="14" fill="#9db0c8" font-size="10">LIVE · '+esc(symbolEl.value)+' · '+esc(intervalEl.value)+' · '+new Date(lb.time).toLocaleTimeString("fi-FI")+'</text></svg>';chart.innerHTML=svg;
-    }
-    function scoreSeries(s){
-      if(!s||s.length<220)return {score:0,prob:50,bias:"neutral"};
-      var a=TradingEngine.analyzeSeries(s),b=a.bar,score=0;
-      if(b.close>b.ema200)score+=2;else score-=2;
-      if(b.ema9>b.ema21)score+=2;else score-=2;
-      if(b.ema21>b.ema50)score+=1;else score-=1;
-      if(b.macdHist>0)score+=1;else score-=1;
-      if(b.rsi>52&&b.rsi<70)score+=1;else if(b.rsi<48&&b.rsi>30)score-=1;
-      if(b.pdi>b.mdi)score+=1;else if(b.mdi>b.pdi)score-=1;
-      if(Number.isFinite(b.volumeRatio)&&b.volumeRatio>1.2)score+=(b.close>=b.open?1:-1);
-      var prob=Math.max(1,Math.min(99,50+score*4));return {score:score,prob:prob,bias:score>2?"bull":score<-2?"bear":"neutral",analysis:a,fastReaction:TradingEngine.fastReaction(s)};
-    }
-    function ensureProbability(){
-      var panel=document.getElementById("signal");if(!panel)return null;
-      var p=document.getElementById("liveProbability");if(!p){p=document.createElement("div");p.id="liveProbability";p.style.cssText="font-size:14px;font-weight:800;margin-top:4px;letter-spacing:0;";panel.parentNode.appendChild(p);}return p;
-    }
-    function updateSignal(){
-      if(candles.length<220)return;
-      var iv=intervalEl.value, mainScore=scoreSeries(candles), current=candles[candles.length-1];
-      var fast=mainScore.fastReaction||{score:0,signal:"EI",notes:[],atr:null};
-      var side=fast.signal==="NOPEA OSTA"?"BUY":fast.signal==="NOPEA MYY"?"SELL":mainScore.score>2?"BUY":mainScore.score<-2?"SELL":"WAIT";
-      var p=ensureProbability();
-      if(p){
-        var fastLabel=fast.signal==="NOPEA OSTA"?"⚡ NOPEA OSTA":fast.signal==="NOPEA MYY"?"⚡ NOPEA MYY":(side==="BUY"?"🟢 OSTA":side==="SELL"?"🔴 MYY":"🟡 ODOTA");
-        p.textContent=fastLabel+" · live-pisteet "+(fast.score>0?"+":"")+fast.score+" · trendipisteet "+(mainScore.score>0?"+":"")+mainScore.score;
-        p.style.color=side==="BUY"?"#28d7a0":side==="SELL"?"#ff647c":"#ffd166";
-        var reason=document.getElementById("liveReactionNotes");
-        if(!reason){reason=document.createElement("div");reason.id="liveReactionNotes";reason.style.cssText="font-size:12px;font-weight:500;line-height:1.5;margin-top:5px;letter-spacing:0;";p.parentNode.appendChild(reason);}
-        reason.textContent=fast.notes.length?fast.notes.join(" · "):"Nopea kynttiläpisteytys ei ylitä +30 / −30 pisteen rajaa.";
-        reason.style.color=side==="BUY"?"#8de8c0":side==="SELL"?"#ffadb8":"#a9bad0";
-      }
-      var sig=window.__liveSignal={direction:side,probability:mainScore.prob,score:mainScore.score,fastScore:fast.score,fastSignal:fast.signal,fastNotes:fast.notes,stop:null,target:null};
-      var a=mainScore.analysis,b=a.bar,riskAtr=fast.signal!=="EI"&&Number.isFinite(fast.atr)?fast.atr:b.atr;
-      if(side!=="WAIT"&&Number.isFinite(riskAtr)&&riskAtr>0){sig.stop=side==="BUY"?b.close-1.5*riskAtr:b.close+1.5*riskAtr;sig.target=side==="BUY"?b.close+2.5*riskAtr:b.close-2.5*riskAtr;}
-      renderSvg(sig);
-      var priceEl=document.getElementById("price");if(priceEl&&Number.isFinite(lastPrice))priceEl.textContent=fmt(lastPrice,lastPrice<1?6:2);
-      var rsiEl=document.getElementById("rsi");if(rsiEl)rsiEl.textContent=fmt(b.rsi,1);
-      var adxEl=document.getElementById("adx");if(adxEl)adxEl.textContent=fmt(b.adx,1);
-      var ts=document.getElementById("timestamp");if(ts)ts.textContent="LIVE · "+new Date(current.time).toLocaleString("fi-FI")+" · kynttilä liikkuu";
-      if(statusEl&&lastTrade)setStatus("LIVE · Binance WebSocket · "+iv+" · viimeisin tick "+Math.round((Date.now()-lastTrade)/1000)+" s sitten",true);
-    }
-    function applyKline(k){
-      var t=Number(k[0]),bar={time:t,closeTime:Number(k[6]),open:+k[1],high:+k[2],low:+k[3],close:+k[4],volume:+k[5]};
-      if(![bar.time,bar.open,bar.high,bar.low,bar.close,bar.volume].every(Number.isFinite))return;
-      var idx=candles.findIndex(function(x){return x.time===t});if(idx>=0)candles[idx]=bar;else{candles.push(bar);candles.sort(function(a,b){return a.time-b.time});if(candles.length>600)candles=candles.slice(-600);}
-      candles=TradingEngine.enrich(candles);updateSignal();
-    }
-    async function seed(sym,iv,token){
-      var res=await fetch(api+"/api/v3/klines?symbol="+encodeURIComponent(sym)+"&interval="+encodeURIComponent(iv)+"&limit=500",{cache:"no-store"});
-      if(!res.ok)throw Error("Binance REST HTTP "+res.status);
-      var raw=await res.json(),now=Date.now();
-      candles=TradingEngine.parseKlines(raw,now);candles=TradingEngine.enrich(candles);if(token!==generation)return;
-      lastPrice=candles.length?candles[candles.length-1].close:NaN;updateSignal();
-    }
-    function closeSocket(){if(socket){try{socket.onclose=null;socket.close();}catch(e){}socket=null;}if(reconnectTimer)clearTimeout(reconnectTimer);}
-    function connect(){
-      var sym=symbolEl.value.toLowerCase(),iv=allowed[intervalEl.value]?intervalEl.value:"1m",token=++generation;closeSocket();setStatus("Yhdistetään Binance WebSocketiin…",false);
-      seed(sym.toUpperCase(),iv,token).catch(function(e){if(token===generation)setStatus("Live-datan alustus epäonnistui: "+e.message+" · yritetään uudelleen",false);});
-      var streams=sym+"@kline_"+iv+"/"+sym+"@trade/"+sym+"@bookTicker";
-      try{socket=new WebSocket("wss://stream.binance.com:9443/stream?streams="+streams);}catch(e){setStatus("WebSocket ei käynnistynyt: "+e.message,false);return;}
-      socket.onopen=function(){if(token===generation)setStatus("LIVE · Binance WebSocket yhdistetty · "+iv+"",true);};
-      socket.onmessage=function(ev){if(token!==generation)return;try{var m=JSON.parse(ev.data),d=m.data||m;if(d.e==="trade"){lastPrice=+d.p;lastTrade=Date.now();var p=document.getElementById("price");if(p)p.textContent=fmt(lastPrice,lastPrice<1?6:2);updateSignal();}else if(d.e==="bookTicker"){bid=+d.b;ask=+d.a;var sp=document.getElementById("spread");if(sp&&bid>0&&ask>=bid)sp.textContent=fmt((ask-bid)/((ask+bid)/2)*100,4)+"%";}else if(d.e==="kline"){applyKline(d.k);lastTrade=Date.now();}}catch(e){}}
-      socket.onerror=function(){if(token===generation)setStatus("WebSocket-virhe · odotetaan automaattista uudelleenyhdistystä",false);};
-      socket.onclose=function(){if(token!==generation)return;setStatus("Live-yhteys katkesi · yhdistetään uudelleen…",false);reconnectTimer=setTimeout(connect,1500);};
-    }
-    function onControlChange(){setTimeout(connect,50);}
-    symbolEl.addEventListener("change",onControlChange);intervalEl.addEventListener("change",onControlChange);
-    window.addEventListener("online",connect);window.addEventListener("offline",function(){setStatus("Laite offline · live-data odottaa verkkoyhteyttä",false);});
-    window.__liveLayer={reconnect:connect,getState:function(){return {symbol:symbolEl.value,interval:intervalEl.value,candles:candles.length,lastPrice:lastPrice,bid:bid,ask:ask};}};
-    connect();
+/* Rahasampo mobile chart fallback */
+(function () {
+  "use strict";
+  if (window.matchMedia && window.matchMedia("(max-width: 850px)").matches) {
+    window.Plotly = null;
   }
-  if(typeof document!=="undefined"&&typeof window!=="undefined"){
-    if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",startLiveLayer);else setTimeout(startLiveLayer,0);
-  }
-})(window);
+})();
