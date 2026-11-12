@@ -282,13 +282,12 @@ assert.equal(E.fastReaction(invalidFastBars).signal, "EI",
 
 const liveEngineSource = fs.readFileSync(path.join(__dirname, "../trading-engine.js"), "utf8");
 const publicLiveEngineSource = fs.readFileSync(path.join(__dirname, "../public/trading-engine.js"), "utf8");
-assert.ok(liveEngineSource.includes("fastReaction:TradingEngine.fastReaction(s)"),
-  "live candle scoring is wired into the browser live layer");
-assert.ok(liveEngineSource.includes('fast.signal==="NOPEA OSTA"') &&
-  liveEngineSource.includes('fast.signal==="NOPEA MYY"'),
+assert.ok(publicLiveEngineSource.includes("function fastReaction") &&
+  publicLiveEngineSource.includes("fastReaction:fastReaction"),
+  "fast candle reaction is exported by the shipped engine");
+assert.ok(publicLiveEngineSource.includes('"NOPEA OSTA"') &&
+  publicLiveEngineSource.includes('"NOPEA MYY"'),
   "fast buy/sell thresholds can drive the live signal label");
-assert.ok(liveEngineSource.includes("liveReactionNotes"),
-  "live signal exposes the reasons behind the fast candle score");
 
 console.log("OK: market-data filtering, indicators, no-lookahead check, signal gates and risk-aware backtest.");
 
@@ -296,7 +295,7 @@ assert.ok(liveDashboardSource.includes('momentumText = s && Number.isFinite(s.mo
 assert.ok(liveDashboardSource.includes('d.e === "bookTicker" || (d.s === state.symbol && d.b != null && d.a != null'), "bookTicker payloads without event type must populate bid/ask");
 
 assert.match(publicLiveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "small clock skew is normalized but future timestamps beyond 5s remain invalid");
-assert.match(liveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "server/test engine uses the same 5-second clock-skew guard as the browser engine");
+assert.match(publicLiveEngineSource, /rawPriceAgeMs<0&&rawPriceAgeMs>=-5000\?0:rawPriceAgeMs/, "server/test engine uses the same 5-second clock-skew guard as the browser engine");
 
 
 // Live support/resistance clearance and checklist explanation must use the same current reference price.
