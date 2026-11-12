@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ast
 import json
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,6 +15,8 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import requests
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from radar_indicators import add_indicators, validate_ohlcv
 
