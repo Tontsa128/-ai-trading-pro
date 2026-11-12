@@ -24,6 +24,9 @@ on:
     paths:
       - ".github/workflows/binance-historical-archive.yml"
       - "scripts/archive_binance_history.py"
+      - "scripts/historical-strategy-diagnostics.js"
+      - "tests/test_historical_archive.py"
+      - "tests/historical-strategy-diagnostics.test.js"
 
 permissions:
   contents: write
@@ -54,7 +57,9 @@ jobs:
           node-version: "20"
 
       - name: Test archive timestamp and CSV logic
-        run: python -m unittest discover -s tests -p "test_historical_archive.py" -v
+        run: |
+          python -m unittest discover -s tests -p "test_historical_archive.py" -v
+          node tests/historical-strategy-diagnostics.test.js
 
       - name: Compile collector and diagnostics
         run: |
