@@ -17,16 +17,20 @@ on:
       - ".github/workflows/binance-historical-archive.yml"
       - "scripts/archive_binance_history.py"
       - "scripts/historical-strategy-diagnostics.js"
+      - "scripts/higher-timeframe-sensitivity.js"
       - "tests/test_historical_archive.py"
       - "tests/historical-strategy-diagnostics.test.js"
+      - "tests/higher-timeframe-sensitivity.test.js"
   push:
     branches: [main]
     paths:
       - ".github/workflows/binance-historical-archive.yml"
       - "scripts/archive_binance_history.py"
       - "scripts/historical-strategy-diagnostics.js"
+      - "scripts/higher-timeframe-sensitivity.js"
       - "tests/test_historical_archive.py"
       - "tests/historical-strategy-diagnostics.test.js"
+      - "tests/higher-timeframe-sensitivity.test.js"
 
 permissions:
   contents: write
@@ -60,11 +64,13 @@ jobs:
         run: |
           python -m unittest discover -s tests -p "test_historical_archive.py" -v
           node tests/historical-strategy-diagnostics.test.js
+          node tests/higher-timeframe-sensitivity.test.js
 
       - name: Compile collector and diagnostics
         run: |
           python -m py_compile scripts/archive_binance_history.py tests/test_historical_archive.py
           node --check scripts/historical-strategy-diagnostics.js
+          node --check scripts/higher-timeframe-sensitivity.js
 
       - name: Restore historical archive branch
         if: github.event_name != 'pull_request'
@@ -111,6 +117,11 @@ jobs:
         run: |
           node scripts/historical-strategy-diagnostics.js --data-dir ../paper-data/historical-data/binance --output ../paper-data/historical-data/diagnostics/latest.json
 
+      - name: Run research-only higher-timeframe sensitivity study
+        if: github.event_name != 'pull_request'
+        run: |
+          node scripts/higher-timeframe-sensitivity.js --data-dir ../paper-data/historical-data/binance --output ../paper-data/historical-data/diagnostics/higher-timeframe-sensitivity.json
+
       - name: Persist archive and diagnostics to paper-data branch
         if: github.event_name != 'pull_request'
         working-directory: ../paper-data
@@ -121,7 +132,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No new closed candles"
           else
-            git commit -m "Archive Binance Spot historical candles"
+            git commit -m "Archive Binance Spot historical candles and diagnostics"
             git pull --rebase origin paper-data
             git push origin HEAD:paper-data
           fi
