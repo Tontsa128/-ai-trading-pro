@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-from radar_indicators import add_indicators, signal_context_is_valid, validate_ohlcv
+from radar_indicators import add_indicators, detect_triangle, signal_context_is_valid, validate_ohlcv
 
 
 # ============================================================
@@ -410,71 +410,6 @@ def candle_pattern_score(df):
         notes.append("Three Black Crows / myyjät painavat")
 
     return score, notes
-
-
-def detect_triangle(df):
-    if len(df) < 40:
-        return "Ei tarpeeksi dataa", 0, None
-
-    d = df.tail(35).copy()
-    x = np.arange(len(d))
-
-    highs = d["High"].values
-    lows = d["Low"].values
-
-    high_slope, high_intercept = np.polyfit(x, highs, 1)
-    low_slope, low_intercept = np.polyfit(x, lows, 1)
-
-    price = float(d.Close.iloc[-1])
-    atr = max(float(d.ATR.iloc[-1]), price * 0.001)
-
-    flat_limit = atr * 0.018
-    slope_strength = atr * 0.025
-
-    resistance_line = high_slope * x[-1] + high_intercept
-    support_line = low_slope * x[-1] + low_intercept
-
-    breakout_up = d.Close.iloc[-1] > resistance_line + atr * 0.15
-    breakout_down = d.Close.iloc[-1] < support_line - atr * 0.15
-
-    triangle_type = "Ei kolmiota"
-    score = 0
-
-    if high_slope < -slope_strength and low_slope > slope_strength:
-        triangle_type = "Symmetrinen kolmio"
-        if breakout_up:
-            score = 24
-            triangle_type += " + breakout ylös"
-        elif breakout_down:
-            score = -24
-            triangle_type += " + breakdown alas"
-        else:
-            score = 4
-
-    elif abs(high_slope) < flat_limit and low_slope > slope_strength:
-        triangle_type = "Nouseva kolmio"
-        if breakout_up:
-            score = 30
-            triangle_type += " + breakout ylös"
-        else:
-            score = 14
-
-    elif high_slope < -slope_strength and abs(low_slope) < flat_limit:
-        triangle_type = "Laskeva kolmio"
-        if breakout_down:
-            score = -30
-            triangle_type += " + breakdown alas"
-        else:
-            score = -14
-
-    lines = {
-        "resistance_line": resistance_line,
-        "support_line": support_line,
-        "high_slope": high_slope,
-        "low_slope": low_slope,
-    }
-
-    return triangle_type, score, lines
 
 
 def smart_money_score(df):
@@ -932,10 +867,15 @@ def draw_chart(df, ai):
         fig.add_hline(y=ai["target"], line_dash="dash", line_color="#22c55e")
 
     if show_patterns and ai["triangle_lines"]:
-        x0 = d.index[0]
-        x1 = d.index[-1]
-        fig.add_hline(y=ai["triangle_lines"]["resistance_line"], line_dash="dash", line_color="#ef4444")
-        fig.add_hline(y=ai["triangle_lines"]["support_line"], line_dash="dash", line_color="#22c55e")
+        tl = ai["triangle_lines"]
+        # Draw the fitted trendlines across the triangle window (start to end),
+        # not as flat horizontal lines at the last bar's value.
+        if tl.get("start_index") is not None and tl.get("end_index") is not None:
+            x0, x1 = tl["start_index"], tl["end_index"]
+            fig.add_shape(type="line", x0=x0, x1=x1, y0=tl["resistance_start"], y1=tl["resistance_end"],
+                          line=dict(dash="dash", color="#ef4444"))
+            fig.add_shape(type="line", x0=x0, x1=x1, y0=tl["support_start"], y1=tl["support_end"],
+                          line=dict(dash="dash", color="#22c55e"))
 
     fig.update_layout(
         title=f"{selected_name} — Rahasampo Radar V26 PRO",
