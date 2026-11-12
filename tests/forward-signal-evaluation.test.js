@@ -50,8 +50,10 @@ const bars = [
   {closeTime:2000,close:101},
   {closeTime:3000,close:102}
 ];
-assert.equal(E.findFutureClose(bars, 1000, 0, 3000).close, 100);
-assert.equal(E.findFutureClose(bars, 1000, 0.0000001, 3000).close, 101);
+assert.equal(E.findFutureClose(bars, 500, 0, 3000).close, 100,
+  "the first candle closing strictly after the signal timestamp is selected");
+assert.equal(E.findFutureClose(bars, 1000, 0.0000001, 3000).close, 101,
+  "the outcome uses the first candle closing after the requested horizon");
 assert.equal(E.findFutureClose(bars, 3000, 1, 3000), null);
 
 console.log("OK: forward signal returns, WAIT near-misses, fees and baselines.");
