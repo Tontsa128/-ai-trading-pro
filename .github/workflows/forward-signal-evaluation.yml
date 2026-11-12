@@ -1,0 +1,72 @@
+name: Forward signal quality evaluation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/forward-signal-evaluation.yml"
+      - "scripts/forward-signal-evaluation.js"
+      - "tests/forward-signal-evaluation.test.js"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forward-signal-evaluation
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout canonical signal engine
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Test forward-return math and WAIT near-miss classification
+        run: node tests/forward-signal-evaluation.test.js
+      - name: Restore persistent forward-test history
+        run: |
+          git fetch origin paper-data
+          git worktree add ../paper-data origin/paper-data
+      - name: Collect signals and mature forward outcomes
+        run: node scripts/forward-signal-evaluation.js --data-dir ../paper-data/forward-test
+      - name: Validate forward-test JSONL and summary
+        run: |
+          node - <<'NODE'
+          const fs = require("node:fs");
+          const path = require("node:path");
+          const dir = "../paper-data/forward-test";
+          const signals = fs.existsSync(path.join(dir,"signals.jsonl")) ? fs.readFileSync(path.join(dir,"signals.jsonl"),"utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse) : [];
+          const outcomes = fs.existsSync(path.join(dir,"outcomes.jsonl")) ? fs.readFileSync(path.join(dir,"outcomes.jsonl"),"utf8").trim().split(/\r?\n/).filter(Boolean).map(JSON.parse) : [];
+          const summary = JSON.parse(fs.readFileSync(path.join(dir,"summary.json"),"utf8"));
+          const ids = signals.map(x => x.signalId);
+          if (new Set(ids).size !== ids.length) throw new Error("Duplicate signal IDs");
+          const outcomeIds = outcomes.map(x => x.signalId + "|" + x.horizonHours);
+          if (new Set(outcomeIds).size !== outcomeIds.length) throw new Error("Duplicate outcomes");
+          if (signals.some(x => !["BUY","SELL","WAIT"].includes(x.signalDirection))) throw new Error("Invalid signal direction");
+          if (summary.metricType !== "signal_value_not_executable_trade_pnl") throw new Error("Incorrect metric type");
+          console.log(JSON.stringify({signals:signals.length,outcomes:outcomes.length,summary:summary.metrics},null,2));
+          NODE
+      - name: Persist forward-test records to paper-data
+        working-directory: ../paper-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add forward-test/
+          if git diff --cached --quiet; then
+            echo "No new forward-test records"
+          else
+            git commit -m "Record forward signal quality observations"
+            git pull --rebase origin paper-data
+            git push origin HEAD:paper-data
+          fi
