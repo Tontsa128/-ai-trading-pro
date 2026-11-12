@@ -104,9 +104,10 @@ def validate_symbol(symbol: str, detect_triangle) -> dict:
     if len(candles) < 120:
         raise ValueError(f"Only {len(candles)} closed candles; at least 120 are required")
 
-    latest_age = (datetime.now(timezone.utc) - candles.index[-1].to_pydatetime()).total_seconds()
+    latest_close_time = candles.index[-1] + pd.Timedelta(hours=1) - pd.Timedelta(milliseconds=1)
+    latest_age = (datetime.now(timezone.utc) - latest_close_time.to_pydatetime()).total_seconds()
     if latest_age < 0 or latest_age > MAX_LATEST_AGE_SECONDS:
-        raise ValueError(f"Latest closed candle is stale/future-dated ({latest_age:.0f}s old)")
+        raise ValueError(f"Latest closed candle is stale/future-dated ({latest_age:.0f}s since close)")
 
     enriched = add_indicators(candles)
     missing = [name for name in INDICATOR_COLUMNS if name not in enriched.columns]
@@ -139,7 +140,8 @@ def validate_symbol(symbol: str, detect_triangle) -> dict:
         "closed_candles": int(len(candles)),
         "first_candle_open_utc": candles.index[0].isoformat(),
         "latest_candle_open_utc": candles.index[-1].isoformat(),
-        "latest_candle_age_seconds": round(latest_age, 1),
+        "latest_candle_close_utc": latest_close_time.isoformat(),
+        "seconds_since_latest_close": round(latest_age, 1),
         "latest_close": float(latest["Close"]),
         "indicators": indicator_values,
         "triangle": {"pattern": pattern, "score": float(score), "trendlines": lines},
