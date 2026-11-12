@@ -63,6 +63,30 @@ jobs:
         run: npm test && node tests/paper-data-persistence.test.js && bash -n scripts/persist-paper-data.sh
       - name: Validate fast worker syntax
         run: node --check scripts/fast-paper-trader.js
+      - name: Run isolated live Binance paper diagnostics (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          FAST_INTERVAL_SECONDS: "15"
+          FAST_SESSION_SECONDS: "60"
+        run: node scripts/fast-paper-trader.js
+      - name: Validate PR 15-second paper diagnostics report
+        if: github.event_name == 'pull_request'
+        run: |
+          node - <<'NODE'
+          const fs = require('node:fs');
+          const report = JSON.parse(fs.readFileSync('data/fast-paper-latest-15s.json', 'utf8'));
+          if (report.mode !== 'paper' || report.intervalSeconds !== 15) throw new Error('Invalid PR 15-second paper report identity');
+          if (!report.signalDiagnostics || !Array.isArray(report.sessionTrades)) throw new Error('Missing live signal diagnostics');
+          for (const symbol of ['BTCUSDT','ETHUSDT','SOLUSDT','BNBUSDT','XRPUSDT','DOGEUSDT']) {
+            const d = report.signalDiagnostics[symbol];
+            if (!d || !Number.isInteger(d.closedBars) || !Number.isInteger(d.insufficientHistory) ||
+                !Number.isInteger(d.crossUp) || !Number.isInteger(d.momentumFailed) ||
+                !Number.isInteger(d.spreadTooWide) || !Number.isInteger(d.entriesOpened)) {
+              throw new Error('Incomplete 15-second signal gate counters for ' + symbol);
+            }
+          }
+          console.log('Validated isolated live Binance 15-second paper diagnostics for all six symbols');
+          NODE
       - name: Listen to public market stream and simulate 15-second trades
         if: github.event_name != 'pull_request'
         run: node scripts/fast-paper-trader.js
