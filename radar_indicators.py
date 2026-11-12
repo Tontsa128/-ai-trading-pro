@@ -144,3 +144,74 @@ def add_indicators(df: pd.DataFrame) -> pd.DataFrame:
     result["VWAP"] = (cumulative_value / cumulative_volume).ffill()
 
     return result
+
+
+def detect_triangle(df):
+    if len(df) < 40:
+        return "Ei tarpeeksi dataa", 0, None
+
+    d = df.tail(35).copy()
+    x = np.arange(len(d))
+
+    highs = d["High"].values
+    lows = d["Low"].values
+
+    high_slope, high_intercept = np.polyfit(x, highs, 1)
+    low_slope, low_intercept = np.polyfit(x, lows, 1)
+
+    price = float(d.Close.iloc[-1])
+    atr = max(float(d.ATR.iloc[-1]), price * 0.001)
+
+    flat_limit = atr * 0.018
+    slope_strength = atr * 0.025
+
+    resistance_line = high_slope * x[-1] + high_intercept
+    support_line = low_slope * x[-1] + low_intercept
+
+    breakout_up = d.Close.iloc[-1] > resistance_line + atr * 0.15
+    breakout_down = d.Close.iloc[-1] < support_line - atr * 0.15
+
+    triangle_type = "Ei kolmiota"
+    score = 0
+
+    if high_slope < -slope_strength and low_slope > slope_strength:
+        triangle_type = "Symmetrinen kolmio"
+        if breakout_up:
+            score = 24
+            triangle_type += " + breakout ylös"
+        elif breakout_down:
+            score = -24
+            triangle_type += " + breakdown alas"
+        else:
+            score = 4
+
+    elif abs(high_slope) < flat_limit and low_slope > slope_strength:
+        triangle_type = "Nouseva kolmio"
+        if breakout_up:
+            score = 30
+            triangle_type += " + breakout ylös"
+        else:
+            score = 14
+
+    elif high_slope < -slope_strength and abs(low_slope) < flat_limit:
+        triangle_type = "Laskeva kolmio"
+        if breakout_down:
+            score = -30
+            triangle_type += " + breakdown alas"
+        else:
+            score = -14
+
+    lines = {
+        "resistance_line": resistance_line,
+        "support_line": support_line,
+        "resistance_start": float(high_intercept),
+        "resistance_end": float(high_slope * x[-1] + high_intercept),
+        "support_start": float(low_intercept),
+        "support_end": float(low_slope * x[-1] + low_intercept),
+        "start_index": d.index[0],
+        "end_index": d.index[-1],
+        "high_slope": high_slope,
+        "low_slope": low_slope,
+    }
+
+    return triangle_type, score, lines
