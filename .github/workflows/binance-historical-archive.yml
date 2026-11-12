@@ -1,0 +1,90 @@
+name: Binance historical candle archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      lookback_days:
+        description: "Backfill age for symbols/timeframes without an archive"
+        required: true
+        type: choice
+        options: ["90", "180", "270", "365"]
+        default: "180"
+  schedule:
+    - cron: "13 * * * *"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/binance-historical-archive.yml"
+      - "scripts/archive_binance_history.py"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: binance-historical-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout application source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Test archive timestamp and CSV logic
+        run: python -m unittest tests.test_historical_archive -v
+
+      - name: Restore historical archive branch
+        run: |
+          git fetch origin paper-data
+          git worktree add ../paper-data origin/paper-data
+
+      - name: Collect closed Binance Spot candles
+        env:
+          LOOKBACK_DAYS: ${{ github.event.inputs.lookback_days || '180' }}
+        run: |
+          python scripts/archive_binance_history.py --output ../paper-data/historical-data/binance --lookback-days "$LOOKBACK_DAYS"
+
+      - name: Validate archive completeness and monotonic timestamps
+        run: |
+          python - <<'PY'
+          import csv, json
+          from pathlib import Path
+          root = Path("../paper-data/historical-data/binance")
+          manifest = json.loads((root / "manifest.json").read_text())
+          assert manifest["passed"], manifest["failures"]
+          for item in manifest["results"]:
+              path = root / item["symbol"] / f'{item["interval"]}.csv'
+              with path.open(newline="") as f:
+                  rows = list(csv.DictReader(f))
+              opens = [r["open_time_utc"] for r in rows]
+              assert len(opens) == len(set(opens)), f"duplicate candles: {path}"
+              assert opens == sorted(opens), f"unsorted candles: {path}"
+              assert all(r["available_at_utc"] > r["close_time_utc"] for r in rows)
+              assert all(r["collected_at_utc"] for r in rows)
+              assert len(rows) >= 100, f"insufficient history: {path}"
+          print("Validated 12 closed-candle CSV archives")
+          PY
+
+      - name: Persist archive to paper-data branch
+        working-directory: ../paper-data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add historical-data/binance/
+          if git diff --cached --quiet; then
+            echo "No new closed candles"
+          else
+            git commit -m "Archive Binance Spot historical candles"
+            git pull --rebase origin paper-data
+            git push origin HEAD:paper-data
+          fi
