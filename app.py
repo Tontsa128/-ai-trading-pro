@@ -470,6 +470,12 @@ def detect_triangle(df):
     lines = {
         "resistance_line": resistance_line,
         "support_line": support_line,
+        "resistance_start": float(high_intercept),
+        "resistance_end": float(high_slope * x[-1] + high_intercept),
+        "support_start": float(low_intercept),
+        "support_end": float(low_slope * x[-1] + low_intercept),
+        "start_index": d.index[0],
+        "end_index": d.index[-1],
         "high_slope": high_slope,
         "low_slope": low_slope,
     }
@@ -932,10 +938,15 @@ def draw_chart(df, ai):
         fig.add_hline(y=ai["target"], line_dash="dash", line_color="#22c55e")
 
     if show_patterns and ai["triangle_lines"]:
-        x0 = d.index[0]
-        x1 = d.index[-1]
-        fig.add_hline(y=ai["triangle_lines"]["resistance_line"], line_dash="dash", line_color="#ef4444")
-        fig.add_hline(y=ai["triangle_lines"]["support_line"], line_dash="dash", line_color="#22c55e")
+        tl = ai["triangle_lines"]
+        # Draw the fitted trendlines across the triangle window (start to end),
+        # not as flat horizontal lines at the last bar's value.
+        if tl.get("start_index") is not None and tl.get("end_index") is not None:
+            x0, x1 = tl["start_index"], tl["end_index"]
+            fig.add_shape(type="line", x0=x0, x1=x1, y0=tl["resistance_start"], y1=tl["resistance_end"],
+                          line=dict(dash="dash", color="#ef4444"))
+            fig.add_shape(type="line", x0=x0, x1=x1, y0=tl["support_start"], y1=tl["support_end"],
+                          line=dict(dash="dash", color="#22c55e"))
 
     fig.update_layout(
         title=f"{selected_name} — Rahasampo Radar V26 PRO",
