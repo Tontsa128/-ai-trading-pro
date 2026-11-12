@@ -1,0 +1,67 @@
+name: Live Binance indicator and triangle validation
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "31 */2 * * *"
+  push:
+    branches:
+      - main
+      - feat/live-binance-validation
+    paths:
+      - "app.py"
+      - "radar_indicators.py"
+      - "scripts/validate_live.py"
+      - "tests/test_*.py"
+      - ".github/workflows/live-validation.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "app.py"
+      - "radar_indicators.py"
+      - "scripts/validate_live.py"
+      - "tests/test_*.py"
+      - ".github/workflows/live-validation.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-binance-validation-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-live-market-data:
+    name: Validate real Binance Spot data (read-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install validation dependencies
+        run: python -m pip install --upgrade pip pandas numpy requests
+
+      - name: Compile validation and indicator modules
+        run: python -m py_compile app.py radar_indicators.py scripts/validate_live.py
+
+      - name: Run causal indicator regression tests
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Fetch live Binance candles and validate indicators and triangle patterns
+        run: python scripts/validate_live.py
+
+      - name: Upload live validation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rahasampo-live-validation-${{ github.run_id }}
+          path: validation/live-validation.json
+          if-no-files-found: warn
+          retention-days: 30
