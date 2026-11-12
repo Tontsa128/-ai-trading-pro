@@ -41,7 +41,12 @@ function randomBaselineMean(signalId, entry, future, seeds = RANDOM_SEEDS) {
   }
   return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 }
+function decisionDirection(signal) {
+  return signal && (signal.direction || signal.signalDirection);
+}
 function deriveWatchDirection(signal) {
+  if (signal && signal.watchDirection === "BUY") return "BUY";
+  if (signal && signal.watchDirection === "SELL") return "SELL";
   if (signal.trendBias === "bull") return "BUY";
   if (signal.trendBias === "bear") return "SELL";
   const bull = Number(signal.checks && signal.checks.bullN);
@@ -50,17 +55,22 @@ function deriveWatchDirection(signal) {
   return null;
 }
 function isNearMiss(signal) {
-  if (!signal || signal.direction !== "WAIT" || (signal.riskPlan && signal.riskPlan.tradable === false)) return false;
-  const failures = Array.isArray(signal.checklist) ? signal.checklist.filter(x => !x.ok).length : Infinity;
+  if (!signal || decisionDirection(signal) !== "WAIT" || (signal.riskPlan && signal.riskPlan.tradable === false)) return false;
+  if (signal.nearMiss === true) return !!deriveWatchDirection(signal);
+  const failures = Number.isFinite(Number(signal.failedGateCount))
+    ? Number(signal.failedGateCount)
+    : (Array.isArray(signal.checklist) ? signal.checklist.filter(x => !x.ok).length : Infinity);
   return failures <= 2 && !!deriveWatchDirection(signal);
 }
 function sampleGroup(signal) {
-  if (signal.direction === "BUY" || signal.direction === "SELL") return signal.direction;
+  const direction = decisionDirection(signal);
+  if (direction === "BUY" || direction === "SELL") return direction;
   return isNearMiss(signal) ? "WAIT_NEAR_MISS" : "WAIT_OTHER";
 }
 function buildOutcome(signal, horizonHours, futureClose, futureCloseTime) {
-  const direction = signal.direction === "BUY" || signal.direction === "SELL"
-    ? signal.direction : (isNearMiss(signal) ? deriveWatchDirection(signal) : null);
+  const recordedDirection = decisionDirection(signal);
+  const direction = recordedDirection === "BUY" || recordedDirection === "SELL"
+    ? recordedDirection : (isNearMiss(signal) ? deriveWatchDirection(signal) : null);
   if (!direction) return null;
   const entry = Number(signal.price);
   const future = Number(futureClose);
@@ -77,7 +87,7 @@ function buildOutcome(signal, horizonHours, futureClose, futureCloseTime) {
     candleCloseTimeUtc: signal.candleCloseTimeUtc,
     horizonHours,
     sampleGroup: sampleGroup(signal),
-    signalDirection: signal.direction,
+    signalDirection: recordedDirection,
     evaluatedDirection: direction,
     watchDirection: signal.watchDirection,
     entryPrice: entry,
