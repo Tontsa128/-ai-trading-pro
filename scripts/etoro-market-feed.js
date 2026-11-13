@@ -4,7 +4,7 @@
 const API_BASE = "https://public-api.etoro.com/api/v1";
 const WS_URL = "wss://ws.etoro.com/ws";
 const DEFAULT_MAX_AGE_MS = 15000;
-const FORBIDDEN_PATH = /(?:^|\\/)(?:trading\\/execution|orders?|positions\\/open)(?:\\/|$)/i;
+const FORBIDDEN_PATH = /(?:^|\/)(?:trading\/execution|orders?|positions\/open)(?:\/|$)/i;
 
 function requestId() {
   return require("node:crypto").randomUUID();
