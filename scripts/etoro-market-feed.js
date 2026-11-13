@@ -36,7 +36,7 @@ function normalizeRate(row, now = Date.now(), maxAgeMs = DEFAULT_MAX_AGE_MS) {
   const timestamp = Date.parse(row.timestamp);
   const instrumentId = Number(row.instrumentId);
   if (!Number.isSafeInteger(instrumentId) || instrumentId <= 0 ||
-      !(bid > 0) || !(ask >= bid) || !(last > 0) || !Number.isFinite(timestamp) ||
+      ![bid, ask, last].every(Number.isFinite) || !(bid > 0) || !(ask >= bid) || !(last > 0) || !Number.isFinite(timestamp) ||
       timestamp > now || now - timestamp > maxAgeMs) return null;
   return {
     source: "ETORO", instrumentId,
@@ -175,7 +175,9 @@ function createPaperLedger(options = {}) {
   function validPaperQuote(quote, at, instrumentId) {
     const timestamp = quote && Number(quote.timestamp);
     return Boolean(quote && quote.source === "ETORO" &&
-      Number(quote.instrumentId) === Number(instrumentId) && Number(quote.bid) > 0 && Number(quote.ask) >= Number(quote.bid) &&
+      Number(quote.instrumentId) === Number(instrumentId) &&
+      Number.isFinite(Number(quote.bid)) && Number.isFinite(Number(quote.ask)) &&
+      Number(quote.bid) > 0 && Number(quote.ask) >= Number(quote.bid) &&
       Number.isFinite(timestamp) && timestamp <= at && at - timestamp <= maxQuoteAgeMs);
   }
 
