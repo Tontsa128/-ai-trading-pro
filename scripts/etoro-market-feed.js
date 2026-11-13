@@ -172,10 +172,10 @@ function createPaperLedger(options = {}) {
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 0.1) throw new RangeError("Invalid paper fee rate.");
   if (!Number.isFinite(maxQuoteAgeMs) || maxQuoteAgeMs < 0) throw new RangeError("Invalid paper quote age limit.");
 
-  function validPaperQuote(quote, at) {
+  function validPaperQuote(quote, at, instrumentId) {
     const timestamp = quote && Number(quote.timestamp);
     return Boolean(quote && quote.source === "ETORO" &&
-      Number(quote.bid) > 0 && Number(quote.ask) >= Number(quote.bid) &&
+      Number(quote.instrumentId) === Number(instrumentId) && Number(quote.bid) > 0 && Number(quote.ask) >= Number(quote.bid) &&
       Number.isFinite(timestamp) && timestamp <= at && at - timestamp <= maxQuoteAgeMs);
   }
 
@@ -211,7 +211,7 @@ function createPaperLedger(options = {}) {
 
   function open(signal, quote, units, at = Date.now()) {
     if (!signal || signal.action !== "BUY" || !Number.isFinite(at) ||
-        !validPaperQuote(quote, at) || !Number.isFinite(Number(units)) || Number(units) <= 0) {
+        !validPaperQuote(quote, at, signal.instrumentId) || !Number.isFinite(Number(units)) || Number(units) <= 0) {
       throw new Error("Only BUY paper entries with a fresh, valid eToro quote and positive units are allowed.");
     }
     const key = String(signal.instrumentId);
@@ -229,7 +229,7 @@ function createPaperLedger(options = {}) {
 
   function close(instrumentId, quote, at = Date.now()) {
     const key = String(instrumentId), position = positions.get(key);
-    if (!position || !Number.isFinite(at) || at < position.openedAt || !validPaperQuote(quote, at)) {
+    if (!position || !Number.isFinite(at) || at < position.openedAt || !validPaperQuote(quote, at, instrumentId)) {
       throw new Error("Invalid paper close; matching BUY position and fresh, valid eToro quote required.");
     }
     const exit = Number(quote.bid);
