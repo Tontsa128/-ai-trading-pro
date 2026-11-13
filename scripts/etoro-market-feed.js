@@ -22,7 +22,7 @@ function makeHeaders(apiKey, userKey) {
 
 function safePath(path) {
   if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//") ||
-      path.includes("\\") || /%(?:2e|2f|5c)/i.test(path) ||
+      path.includes("\\") || /%(?:25|2e|2f|5c)/i.test(path) ||
       path.split("/").some(segment => segment === "." || segment === "..") ||
       FORBIDDEN_PATH.test(path)) {
     throw new TypeError("Only approved read-only eToro API paths are allowed.");
@@ -91,7 +91,7 @@ function createEtoroClient(options = {}) {
   return Object.freeze({
     async searchInstruments(query) {
       if (typeof query !== "string" || !query.trim()) throw new TypeError("Instrument search query is required.");
-      return get("/market-data/search", { query: query.trim() });
+      return get("/market-data/search", { internalSymbolFull: query.trim() });
     },
     async getRates(instrumentIds, now = Date.now()) {
       if (!Array.isArray(instrumentIds) || !instrumentIds.length ||
@@ -129,7 +129,7 @@ function createEtoroClient(options = {}) {
 // Official WebSocket protocol message builders. Transport lifecycle is intentionally separate.
 function createWebSocketAuthMessage(apiKey, userKey) {
   if (!apiKey || !userKey) throw new Error("eToro WebSocket credentials are not configured.");
-  return { operation: "Authenticate", data: { userKey, apiKey } };
+  return { id: requestId(), operation: "Authenticate", data: { userKey, apiKey } };
 }
 
 function createWebSocketSubscribeMessage(instrumentIds, snapshot = false) {
@@ -137,13 +137,13 @@ function createWebSocketSubscribeMessage(instrumentIds, snapshot = false) {
       instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
     throw new TypeError("Valid eToro instrument IDs are required for WebSocket subscription.");
   }
-  return { operation: "Subscribe", data: {
+  return { id: requestId(), operation: "Subscribe", data: {
     topics: [...new Set(instrumentIds.map(id => "instrument:" + Number(id)))],
     snapshot: Boolean(snapshot)
   }};
 }
 
-function parseWebSocketMessage(input) {
+function createWebSocketUnsubscribeMessage(instrumentIds) {\n  if (!Array.isArray(instrumentIds) || !instrumentIds.length ||\n      instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {\n    throw new TypeError("Valid eToro instrument IDs are required for WebSocket unsubscription.");\n  }\n  return { id: requestId(), operation: "Unsubscribe", data: {\n    topics: [...new Set(instrumentIds.map(id => "instrument:" + Number(id)))]\n  }};\n}\n\nfunction parseWebSocketMessage(input) {
   let value = input;
   if (value && typeof value === "object" && value.data !== undefined && !Buffer.isBuffer(value)) value = value.data;
   if (Buffer.isBuffer(value)) value = value.toString("utf8");
@@ -203,4 +203,4 @@ function createPaperLedger(options = {}) {
   });
 }
 
-module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, parseWebSocketMessage };
+module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage };
