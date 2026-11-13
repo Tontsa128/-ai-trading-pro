@@ -119,6 +119,33 @@ function createEtoroClient(options = {}) {
   });
 }
 
+// Official WebSocket protocol message builders. Transport lifecycle is intentionally separate.
+function createWebSocketAuthMessage(apiKey, userKey) {
+  if (!apiKey || !userKey) throw new Error("eToro WebSocket credentials are not configured.");
+  return { operation: "Authenticate", data: { userKey, apiKey } };
+}
+
+function createWebSocketSubscribeMessage(instrumentIds, snapshot = false) {
+  if (!Array.isArray(instrumentIds) || !instrumentIds.length ||
+      instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+    throw new TypeError("Valid eToro instrument IDs are required for WebSocket subscription.");
+  }
+  return { operation: "Subscribe", data: {
+    topics: [...new Set(instrumentIds.map(id => "instrument:" + Number(id)))],
+    snapshot: Boolean(snapshot)
+  }};
+}
+
+function parseWebSocketMessage(input) {
+  let value = input;
+  if (value && typeof value === "object" && value.data !== undefined && !Buffer.isBuffer(value)) value = value.data;
+  if (Buffer.isBuffer(value)) value = value.toString("utf8");
+  if (typeof value === "string") {
+    try { value = JSON.parse(value); } catch { return null; }
+  }
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
 // Local-only long Spot-style paper ledger. SELL can only close an existing BUY.
 function createPaperLedger(options = {}) {
   const positions = new Map();
@@ -169,4 +196,4 @@ function createPaperLedger(options = {}) {
   });
 }
 
-module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath };
+module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, parseWebSocketMessage };
