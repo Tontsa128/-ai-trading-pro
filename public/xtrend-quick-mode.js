@@ -85,6 +85,27 @@
     return signalSeries.length ? line[line.length - 1] - signalSeries[signalSeries.length - 1] : null;
   }
 
+
+  function indicatorSeries(bars) {
+    if (!Array.isArray(bars)) return { ema9: [], ema20: [], ema21: [], bbUpper: [], bbMiddle: [], bbLower: [] };
+    var closes = bars.map(function (bar) { return Number(bar.close); });
+    var times = bars.map(function (bar) { return Math.floor(Number(bar.closeTime) / 1000); });
+    var e9 = emaSeries(closes, 9), e20 = emaSeries(closes, 20), e21 = emaSeries(closes, 21);
+    var output = { ema9: [], ema20: [], ema21: [], bbUpper: [], bbMiddle: [], bbLower: [] };
+    for (var i = 0; i < bars.length; i += 1) {
+      if (e9[i] !== null) output.ema9.push({ time: times[i], value: e9[i] });
+      if (e20[i] !== null) output.ema20.push({ time: times[i], value: e20[i] });
+      if (e21[i] !== null) output.ema21.push({ time: times[i], value: e21[i] });
+      var bands = bollinger(closes.slice(0, i + 1), 20, 2);
+      if (bands) {
+        output.bbUpper.push({ time: times[i], value: bands.upper });
+        output.bbMiddle.push({ time: times[i], value: bands.middle });
+        output.bbLower.push({ time: times[i], value: bands.lower });
+      }
+    }
+    return output;
+  }
+
   function validateBars(bars, timeframe, now, maxAge, minBars) {
     var interval = INTERVAL_MS[timeframe];
     if (!Array.isArray(bars) || bars.length < minBars) {
@@ -94,7 +115,7 @@
     var previousOpen = -Infinity;
     for (var i = 0; i < bars.length; i += 1) {
       var bar = bars[i];
-      if (!bar || bar.closed !== true ||
+      if (!bar || bar.closed !== true || bar.source !== "XTREND" ||
           ![bar.openTime, bar.closeTime, bar.open, bar.high, bar.low, bar.close].every(finite)) {
         return { ok: false, reason: timeframe + ": puuttuva tai keskeneräinen kynttilä" };
       }
@@ -255,6 +276,7 @@
     ema: ema,
     rsi: rsi,
     bollinger: bollinger,
+    indicatorSeries: indicatorSeries,
     aggregateTradeTicks: aggregateTradeTicks,
     validateBars: validateBars,
     defaults: DEFAULTS

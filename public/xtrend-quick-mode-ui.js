@@ -63,6 +63,44 @@
   function timeToSeconds(ms) { return Math.floor(ms / 1000); }
 
   // Called only by a future verified XTrend adapter; never by Binance data.
+
+  function drawBars(bars) {
+    if (!chart || !Array.isArray(bars) || !bars.length) return false;
+    if (bars.some(function (bar) { return !bar || bar.source !== "XTREND" || bar.closed !== true; })) {
+      setStatus("Kaavion kynttilöiden XTrend-lähdettä tai sulkeutumista ei voitu vahvistaa.", "error");
+      return false;
+    }
+    var rows = bars.map(function (bar) {
+      return { time: Math.floor(Number(bar.closeTime) / 1000), open: Number(bar.open), high: Number(bar.high), low: Number(bar.low), close: Number(bar.close) };
+    }).filter(function (bar) {
+      return Number.isFinite(bar.time) && bar.open > 0 && bar.high >= Math.max(bar.open, bar.close, bar.low) &&
+        bar.low > 0 && bar.close > 0 && bar.low <= Math.min(bar.open, bar.close);
+    });
+    if (!rows.length) return false;
+    candles.setData(rows);
+    var lines = XTrendQuickMode.indicatorSeries(bars);
+    ema9.setData(lines.ema9); ema20.setData(lines.ema20); ema21.setData(lines.ema21);
+    bbUpper.setData(lines.bbUpper); bbMiddle.setData(lines.bbMiddle); bbLower.setData(lines.bbLower);
+    chart.timeScale().fitContent();
+    return true;
+  }
+  function barsForSelectedInterval(data) {
+    if (activeInterval === "1M") return data.oneMinuteBars || [];
+    if (activeInterval === "5M") return data.fiveMinuteBars || [];
+    if (activeInterval === "1S" || activeInterval === "5S") {
+      var supplied = activeInterval === "1S" ? data.oneSecondBars : data.fiveSecondBars;
+      if (Array.isArray(supplied)) return supplied;
+      if (Array.isArray(data.ticks)) {
+        var aggregated = XTrendQuickMode.aggregateTradeTicks(data.ticks, activeInterval === "1S" ? 1 : 5, Date.now());
+        if (aggregated.bars.length) {
+          if (!aggregated.ok) setStatus(aggregated.reason + ". Aukkoja ei täytetty.", "warning");
+          return aggregated.bars;
+        }
+      }
+    }
+    return [];
+  }
+
   function acceptSnapshot(data, config) {
     if (!data || !data.quote || data.quote.source !== "XTREND") {
       setStatus("Virheellinen lähde: vain varmennettu XTrend-syöte hyväksytään.", "error");
@@ -71,6 +109,9 @@
     }
     var result = XTrendQuickMode.evaluate(data, config || {});
     snapshot = data;
+    var chartBars = barsForSelectedInterval(data);
+    if (chartBars.length) drawBars(chartBars);
+    else setStatus("XTrend-quote saatu, mutta valitun aikavälin kynttilöitä ei ole saatavilla.", "warning");
     var quote = data.quote;
     $("lastPrice").textContent = Number(((Number(quote.bid) + Number(quote.ask)) / 2)).toFixed(2);
     $("bidAsk").textContent = Number(quote.bid).toFixed(2) + " / " + Number(quote.ask).toFixed(2);
@@ -98,7 +139,13 @@
       button.classList.toggle("active", button.getAttribute("data-interval") === value);
     });
     if (chart) chart.applyOptions({ timeScale: { secondsVisible: value === "1S" || value === "5S" } });
-    setStatus("Valittu " + value + ". Tarvitaan XTrendin oma " + value + " -historia; Binance-kynttilöitä ei käytetä tässä näkymässä.", "warning");
+    if (snapshot) {
+      var bars = barsForSelectedInterval(snapshot);
+      if (bars.length) drawBars(bars);
+      else setStatus("Valittu " + value + ": varmennettuja XTrend-kynttilöitä ei ole saatavilla.", "warning");
+    } else {
+      setStatus("Valittu " + value + ". Odotetaan XTrendin omaa kynttilähistoriaa; Binance-kynttilöitä ei käytetä.", "warning");
+    }
   }
 
   document.querySelectorAll("[data-interval]").forEach(function (button) {

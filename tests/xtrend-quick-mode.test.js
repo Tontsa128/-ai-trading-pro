@@ -8,7 +8,7 @@ function bars(tf, direction) {
   return Array.from({ length: 80 }, (_, i) => {
     if (i > 0 && direction !== "flat") p += (i % 2 === 0 ? -0.04 : 0.08) * (direction === "down" ? -1 : 1);
     const t = now - (80 - i) * tf;
-    return { openTime: t, closeTime: t + tf - 1, open: p - 0.01, high: p + 0.03, low: p - 0.03, close: p, volume: 10, closed: true };
+    return { openTime: t, closeTime: t + tf - 1, open: p - 0.01, high: p + 0.03, low: p - 0.03, close: p, volume: 10, closed: true, source: "XTREND" };
   });
 }
 function data(direction) {
