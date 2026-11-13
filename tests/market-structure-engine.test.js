@@ -3,9 +3,10 @@ const assert=require("node:assert/strict");
 const M=require("../public/market-structure-engine.js");
 function b(o,h,l,c,i){return {open:o,high:h,low:l,close:c,closeTime:1700000000000+i*300000};}
 const rising=[
- b(10,11,9,10,0),b(10,12,9.5,11,1),b(11,11.5,8,9,2),b(9,13,8.5,12,3),
- b(12,12.5,9,10,4),b(10,14,9.5,13,5),b(13,13.5,10,11,6),b(11,15,10.5,14,7),
- b(14,14.5,11,12,8),b(12,13,10,12.5,9)
+ b(10,11,9,10,0),b(10,12,9.5,11,1),b(11,11.5,8.5,9,2),b(9,13,9,12,3),
+ b(12,12,8,10,4),b(10,11,9,10,5),b(10,12,9.5,11,6),b(11,14,10,13,7),
+ b(13,13,10.5,12,8),b(12,12,9.8,11,9),b(11,13,10.2,12,10),b(12,15,11,14,11),
+ b(14,14,11.5,13,12),b(13,13,10.5,12.5,13)
 ];
 const pivots=M.collectPivots(rising,2,2);
 assert.ok(pivots.highs.every(p=>p.confirmedAt===p.index+2),"swing highs publish only after right-side candles close");
