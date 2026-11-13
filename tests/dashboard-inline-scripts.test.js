@@ -12,6 +12,12 @@ while ((match = re.exec(html)) !== null) {
   if (match[2].trim()) scripts.push({ body: match[2], offset: match.index });
 }
 assert.ok(scripts.length > 0, "expected at least one inline script");
+assert.ok(html.includes('src="./liquidity-zone-engine.js"') && html.includes('src="./hybrid-decision-engine.js"'),
+  "dashboard must load the FVG/Order Block and hybrid decision engines");
+assert.ok(html.includes('id="liquidityResults"') && html.includes('id="hybridResults"') &&
+  html.includes("renderLiquidityZones(main,structure)") &&
+  html.includes("renderHybridDecision(signal,higher,patterns,structure,liquidity)"),
+  "liquidity zones and hybrid consensus must be rendered from the same closed-candle snapshot");
 assert.ok(html.includes('src="./price-action-engine.js"') && html.includes('src="./market-structure-engine.js"'),
   "dashboard must load the separate deterministic price action and market structure engines");
 assert.ok(html.includes('id="structureResults"') && html.includes('id="structureState"') &&
