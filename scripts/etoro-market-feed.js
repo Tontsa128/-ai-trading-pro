@@ -22,7 +22,9 @@ function makeHeaders(apiKey, userKey) {
 
 function safePath(path) {
   if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//") ||
-      path.includes("..") || FORBIDDEN_PATH.test(path)) {
+      path.includes("\\") || /%(?:2e|2f|5c)/i.test(path) ||
+      path.split("/").some(segment => segment === "." || segment === "..") ||
+      FORBIDDEN_PATH.test(path)) {
     throw new TypeError("Only approved read-only eToro API paths are allowed.");
   }
   return path;
@@ -64,6 +66,11 @@ function createEtoroClient(options = {}) {
   const baseUrl = options.baseUrl || API_BASE;
   const maxAgeMs = options.maxAgeMs == null ? DEFAULT_MAX_AGE_MS : options.maxAgeMs;
   if (typeof fetchImpl !== "function") throw new Error("A Fetch-compatible HTTP client is required.");
+  const parsedBaseUrl = new URL(baseUrl);
+  if (parsedBaseUrl.protocol !== "https:" ||
+      (parsedBaseUrl.hostname !== "public-api.etoro.com" && typeof options.fetch !== "function")) {
+    throw new Error("eToro credentials may only be sent to the official HTTPS API host.");
+  }
 
   async function get(path, query = {}) {
     const endpoint = safePath(path);
