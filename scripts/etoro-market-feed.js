@@ -72,12 +72,7 @@ function createEtoroClient(options = {}) {
     throw new Error("eToro credentials may only be sent to the official HTTPS API host.");
   }
 
-  async function get(path, query = {}) {
-    const endpoint = safePath(path);
-    const url = new URL(baseUrl + endpoint);
-    for (const [key, value] of Object.entries(query)) {
-      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
-    }
+  async function requestJson(url) {
     const response = await fetchImpl(url.toString(), { method: "GET", headers: makeHeaders(apiKey, userKey) });
     if (response.status === 429) {
       const retryAfter = response.headers && typeof response.headers.get === "function"
@@ -86,6 +81,46 @@ function createEtoroClient(options = {}) {
     }
     if (!response.ok) throw new Error("eToro API request failed with HTTP " + response.status + ".");
     return response.json();
+  }
+
+  async function get(path, query = {}) {
+    const endpoint = safePath(path);
+    const url = new URL(baseUrl + endpoint);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+    }
+    return requestJson(url);
+  }
+
+  async function getV2(path, query = {}) {
+    const endpoint = safePath(path);
+    if (!/^\/api\/v2\/portfolios\/(?:rankings|[A-Za-z0-9_.-]{1,50}\/copiers)$/.test(endpoint)) {
+      throw new TypeError("Only documented read-only eToro portfolio v2 paths are allowed.");
+    }
+    const url = new URL(endpoint, parsedBaseUrl.origin);
+    for (const [key, value] of Object.entries(query)) {
+      if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
+    }
+    return requestJson(url);
+  }
+
+  const rankingPeriods = new Set([
+    "CurrMonth", "OneMonthAgo", "TwoMonthsAgo", "CurrQuarter", "ThreeMonthsAgo",
+    "SixMonthsAgo", "CurrYear", "OneYearAgo", "LastYear", "LastTwoYears",
+    "AbsOneYear", "AbsTwoYears"
+  ]);
+  const userSearchPeriods = new Set([
+    "CurrMonth", "CurrQuarter", "CurrYear", "LastYear", "LastTwoYears",
+    "OneMonthAgo", "TwoMonthsAgo", "ThreeMonthsAgo", "SixMonthsAgo", "OneYearAgo"
+  ]);
+
+  async function fetchMarketFeed(instrumentId, take = 20, type) {
+    if (!Number.isSafeInteger(Number(instrumentId)) || Number(instrumentId) <= 0 ||
+        !Number.isInteger(take) || take < 1 || take > 100 ||
+        (type !== undefined && (typeof type !== "string" || !/^[A-Za-z_]{1,40}$/.test(type)))) {
+      throw new TypeError("Invalid social feed request.");
+    }
+    return get("/feeds/markets/" + Number(instrumentId), { take, type });
   }
 
   return Object.freeze({
@@ -114,11 +149,106 @@ function createEtoroClient(options = {}) {
       const rows = Array.isArray(payload) ? payload : (payload.candles || payload.items || []);
       return rows.map(row => normalizeCandle(row, now)).filter(Boolean).sort((a, b) => a.openTime - b.openTime);
     },
+    async getMarketFeed(instrumentId, take = 20, type) {
+      return fetchMarketFeed(instrumentId, take, type);
+    },
     async getInstrumentFeed(instrumentId, take = 20) {
-      if (!Number.isSafeInteger(Number(instrumentId)) || Number(instrumentId) <= 0 ||
-          !Number.isInteger(take) || take < 1 || take > 100) throw new TypeError("Invalid social feed request.");
-      const payload = await get("/feeds/markets/" + Number(instrumentId), { take });
-      return Array.isArray(payload.posts) ? payload.posts : [];
+      const payload = await fetchMarketFeed(instrumentId, take);
+      return Array.isArray(payload.posts) ? payload.posts : (Array.isArray(payload.items) ? payload.items : []);
+    },
+    async getUserFeed(userId, take = 20) {
+      if (!Number.isSafeInteger(Number(userId)) || Number(userId) <= 0 ||
+          !Number.isInteger(take) || take < 1 || take > 100) throw new TypeError("Invalid user feed request.");
+      return get("/feeds/users/" + Number(userId), { take });
+    },
+    async getUserProfiles(usernames) {
+      if (!Array.isArray(usernames) || usernames.length < 1 || usernames.length > 20 ||
+          usernames.some(name => typeof name !== "string" || !name.trim() || name.length > 50 || name.includes(","))) {
+        throw new TypeError("One to twenty valid public eToro usernames are required.");
+      }
+      const payload = await get("/user-info/people", { usernames: usernames.map(name => name.trim()).join(",") });
+      return Array.isArray(payload.users) ? payload.users : [];
+    },
+    async searchUsers(filters = {}) {
+      if (!filters || typeof filters !== "object" || Array.isArray(filters)) throw new TypeError("User search filters must be an object.");
+      const query = { ...filters, period: filters.period || "CurrYear" };
+      if (!userSearchPeriods.has(query.period)) throw new TypeError("Unsupported eToro user-search period.");
+      if (query.page !== undefined && (!Number.isInteger(query.page) || query.page < 1)) throw new TypeError("Invalid user-search page.");
+      if (query.pageSize !== undefined && (!Number.isInteger(query.pageSize) || query.pageSize < 1 || query.pageSize > 100)) throw new TypeError("Invalid user-search page size.");
+      for (const key of ["isTestAccount", "optIn", "blocked", "popularInvestor"]) {
+        if (query[key] !== undefined && typeof query[key] !== "boolean") throw new TypeError("Invalid boolean user-search filter: " + key);
+      }
+      const allowed = new Set(["period", "isTestAccount", "optIn", "blocked", "page", "pageSize", "sort",
+        "popularInvestor", "gainMax", "maxDailyRiskScoreMin", "maxDailyRiskScoreMax",
+        "maxMonthlyRiskScoreMin", "maxMonthlyRiskScoreMax", "weeksSinceRegistrationMin",
+        "countryId", "instrumentId", "instrumentPctMin", "instrumentPctMax"]);
+      if (Object.keys(query).some(key => !allowed.has(key))) throw new TypeError("Unsupported eToro user-search filter.");
+      for (const key of ["gainMax"]) {
+        if (query[key] !== undefined && !Number.isFinite(Number(query[key]))) throw new TypeError("Invalid numeric user-search filter: " + key);
+      }
+      for (const key of ["maxDailyRiskScoreMin", "maxDailyRiskScoreMax", "maxMonthlyRiskScoreMin", "maxMonthlyRiskScoreMax"]) {
+        if (query[key] !== undefined && (!Number.isInteger(Number(query[key])) || Number(query[key]) < 1 || Number(query[key]) > 10)) {
+          throw new TypeError("Invalid risk-score user-search filter: " + key);
+        }
+      }
+      for (const key of ["weeksSinceRegistrationMin", "countryId"]) {
+        if (query[key] !== undefined && (!Number.isInteger(Number(query[key])) || Number(query[key]) < 0)) {
+          throw new TypeError("Invalid integer user-search filter: " + key);
+        }
+      }
+      for (const key of ["instrumentId"]) {
+        if (query[key] !== undefined && (!Number.isSafeInteger(Number(query[key])) || Number(query[key]) === 0)) {
+          throw new TypeError("Invalid instrument user-search filter.");
+        }
+      }
+      for (const key of ["instrumentPctMin", "instrumentPctMax"]) {
+        if (query[key] !== undefined && (!Number.isFinite(Number(query[key])) || Number(query[key]) < 0 || Number(query[key]) > 100)) {
+          throw new TypeError("Invalid instrument percentage user-search filter.");
+        }
+      }
+      const payload = await get("/user-info/people/search", query);
+      return { totalItems: Number(payload.totalItems) || 0, items: Array.isArray(payload.items) ? payload.items : [] };
+    },
+    async getInvestorRankings(filters = {}) {
+      if (!filters || typeof filters !== "object" || Array.isArray(filters)) throw new TypeError("Ranking filters must be an object.");
+      const query = { ...filters, period: filters.period || "CurrYear" };
+      if (!rankingPeriods.has(query.period)) throw new TypeError("Unsupported eToro ranking period.");
+      if (query.page !== undefined && (!Number.isInteger(query.page) || query.page < 1)) throw new TypeError("Invalid ranking page.");
+      if (query.pageSize !== undefined && (!Number.isInteger(query.pageSize) || query.pageSize < 1 || query.pageSize > 100)) throw new TypeError("Invalid ranking page size.");
+      if (query.sort !== undefined && (typeof query.sort !== "string" || !/^-?[A-Za-z][A-Za-z0-9]*$/.test(query.sort))) throw new TypeError("Invalid ranking sort field.");
+      if (query.popularInvestor !== undefined && typeof query.popularInvestor !== "boolean") throw new TypeError("Invalid popularInvestor filter.");
+      const allowed = new Set(["period", "sort", "page", "pageSize", "country", "gainMin", "gainMax",
+        "copiersMin", "copiersMax", "riskScoreMin", "riskScoreMax", "popularInvestor", "aumTier"]);
+      if (Object.keys(query).some(key => !allowed.has(key))) throw new TypeError("Unsupported eToro ranking filter.");
+      if (query.country !== undefined && (typeof query.country !== "string" || !/^[A-Z]{2}$/.test(query.country))) {
+        throw new TypeError("Ranking country must be an ISO alpha-2 code.");
+      }
+      for (const key of ["gainMin", "gainMax"]) {
+        if (query[key] !== undefined && !Number.isFinite(Number(query[key]))) throw new TypeError("Invalid ranking gain filter: " + key);
+      }
+      for (const key of ["copiersMin", "copiersMax", "aumTier"]) {
+        if (query[key] !== undefined && (!Number.isInteger(Number(query[key])) || Number(query[key]) < 0)) {
+          throw new TypeError("Invalid ranking integer filter: " + key);
+        }
+      }
+      for (const key of ["riskScoreMin", "riskScoreMax"]) {
+        if (query[key] !== undefined && (!Number.isInteger(Number(query[key])) || Number(query[key]) < 1 || Number(query[key]) > 10)) {
+          throw new TypeError("Invalid ranking risk-score filter: " + key);
+        }
+      }
+      if (query.copiersMin !== undefined && query.copiersMax !== undefined && Number(query.copiersMin) > Number(query.copiersMax)) {
+        throw new TypeError("Ranking copier minimum exceeds maximum.");
+      }
+      if (query.gainMin !== undefined && query.gainMax !== undefined && Number(query.gainMin) > Number(query.gainMax)) {
+        throw new TypeError("Ranking gain minimum exceeds maximum.");
+      }
+      return getV2("/api/v2/portfolios/rankings", query);
+    },
+    async getInvestorCopierStats(username) {
+      if (typeof username !== "string" || !/^[A-Za-z0-9_.-]{1,50}$/.test(username)) {
+        throw new TypeError("A valid public eToro username is required.");
+      }
+      return getV2("/api/v2/portfolios/" + username + "/copiers");
     },
     async getReadOnly(path, query = {}) {
       return get(path, query);

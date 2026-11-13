@@ -71,6 +71,46 @@ const client = createEtoroClient({
   assert.ok(calls[0].init.headers["x-request-id"]);
   assert.equal(calls[0].url, "https://api.test/v1/market-data/instruments/rates?instrumentIds=1001");
   await assert.rejects(() => client.getRates([0], now), /instrument IDs/);
+
+  const socialCalls = [];
+  const socialClient = createEtoroClient({
+    apiKey: "public-test-key", userKey: "user-test-key", baseUrl: "https://api.test/api/v1",
+    fetch: async (url, init) => {
+      socialCalls.push({ url, init });
+      const parsed = new URL(url);
+      let payload = {};
+      if (parsed.pathname === "/api/v1/user-info/people") payload = { users: [{ username: "alice", isPi: true }] };
+      else if (parsed.pathname === "/api/v1/user-info/people/search") payload = { totalItems: 1, items: [{ userName: "alice", copiers: 123, riskScore: 4 }] };
+      else if (parsed.pathname === "/api/v1/feeds/markets/1001") payload = { posts: [{ postId: "p1" }], hasMore: true };
+      else if (parsed.pathname === "/api/v1/feeds/users/123") payload = { items: [{ postId: "p2" }] };
+      else if (parsed.pathname === "/api/v2/portfolios/rankings") payload = { results: [{ username: "alice", gain: 0.12, copiers: 123 }], pagination: { page: 1, hasNext: false } };
+      else if (parsed.pathname === "/api/v2/portfolios/alice/copiers") payload = { copiers: 123, aumTier: 3, aumTierDesc: "Gold" };
+      return { ok: true, status: 200, json: async () => payload };
+    }
+  });
+  const profiles = await socialClient.getUserProfiles(["alice", "bob"]);
+  assert.equal(profiles[0].isPi, true);
+  assert.equal(new URL(socialCalls[0].url).searchParams.get("usernames"), "alice,bob");
+  const foundUsers = await socialClient.searchUsers({ page: 2, pageSize: 10, popularInvestor: true });
+  assert.equal(foundUsers.totalItems, 1);
+  assert.equal(foundUsers.items[0].copiers, 123);
+  const marketPosts = await socialClient.getInstrumentFeed(1001, 10);
+  assert.equal(marketPosts[0].postId, "p1");
+  const userFeed = await socialClient.getUserFeed(123, 10);
+  assert.equal(userFeed.items[0].postId, "p2");
+  const rankings = await socialClient.getInvestorRankings({ period: "CurrYear", sort: "-copiers", pageSize: 5, popularInvestor: true });
+  assert.equal(rankings.results[0].username, "alice");
+  assert.equal(new URL(socialCalls.find(c => new URL(c.url).pathname === "/api/v2/portfolios/rankings").url).pathname, "/api/v2/portfolios/rankings");
+  const copierStats = await socialClient.getInvestorCopierStats("alice");
+  assert.equal(copierStats.copiers, 123);
+  assert.equal(copierStats.aumTierDesc, "Gold");
+  assert.ok(socialCalls.every(call => call.init.method === "GET"), "social and CopyTrader analytics must stay read-only");
+  await assert.rejects(() => socialClient.getInvestorCopierStats("../orders"), /username/);
+  await assert.rejects(() => socialClient.getInvestorRankings({ period: "not-a-period" }), /period/);
+  await assert.rejects(() => socialClient.searchUsers({ period: "AbsOneYear" }), /period/);
+  await assert.rejects(() => socialClient.getInvestorRankings({ country: "USA" }), /ISO alpha-2/);
+  await assert.rejects(() => socialClient.getInvestorRankings({ riskScoreMin: 11 }), /risk-score/);
+  await assert.rejects(() => socialClient.searchUsers({ maxDailyRiskScoreMin: 11 }), /risk-score/);
   const ledger = createPaperLedger({ feeRate: 0.001 });
   const quote = { source: "ETORO", instrumentId: 1001, bid: 99, ask: 101, timestamp: now - 500 };
   const opened = ledger.open({ action: "BUY", instrumentId: 1001 }, quote, 2, now);
