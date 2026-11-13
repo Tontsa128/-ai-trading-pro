@@ -456,7 +456,7 @@ function renderHybridDecision(signal,higher,patterns,structure,liquidity){
  var tone=result.researchBias==="BULLISH"?"good":result.researchBias==="BEARISH"?"bad":"neutral";
  var rows=['<div class="kv"><span>Yhdistetty tutkimusnäkemys</span><strong class="'+tone+'">'+label+'</strong></div>',
  '<div class="kv"><span>Evidenssin yhteensopivuus</span><strong>'+fmt(result.score,3)+'</strong></div>',
- '<div class="kv"><span>Vahvuusluokka</span><strong>'+result.strength+'</strong></div>',
+ '<div class="kv"><span>Vahvuusluokka</span><strong>'+(result.strength||"—")+'</strong></div>',
  '<div class="kv"><span>Analyysilähteitä</span><strong>'+result.evidenceCount+'</strong></div>',
  '<div class="kv"><span>Ristiriitaiset lähteet</span><strong>'+result.conflicts+'</strong></div>'];
  if(result.baseDisagreement)rows.push('<div class="sub bad">Hybridinäkemys poikkeaa nykyisestä '+esc(result.baseDirection)+'-perussignaalista. Signaalia ei muuteta.</div>');
