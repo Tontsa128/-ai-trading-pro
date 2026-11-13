@@ -12,6 +12,12 @@ while ((match = re.exec(html)) !== null) {
   if (match[2].trim()) scripts.push({ body: match[2], offset: match.index });
 }
 assert.ok(scripts.length > 0, "expected at least one inline script");
+assert.ok(html.includes('src="./price-action-engine.js"') && html.includes('src="./market-structure-engine.js"'),
+  "dashboard must load the separate deterministic price action and market structure engines");
+assert.ok(html.includes('id="structureResults"') && html.includes('id="structureState"') &&
+  html.includes("function renderMarketStructure(bars)") && html.includes("renderMarketStructure(main)"),
+  "market structure and liquidity findings must be rendered from the same closed-candle snapshot");
+
 for (const script of scripts) {
   try {
     new Function(script.body);
