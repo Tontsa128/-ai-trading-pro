@@ -168,13 +168,51 @@ function createPaperLedger(options = {}) {
   const positions = new Map();
   const trades = [];
   const feeRate = Number(options.feeRate || 0);
+  const maxQuoteAgeMs = options.maxQuoteAgeMs == null ? DEFAULT_MAX_AGE_MS : Number(options.maxQuoteAgeMs);
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 0.1) throw new RangeError("Invalid paper fee rate.");
+  if (!Number.isFinite(maxQuoteAgeMs) || maxQuoteAgeMs < 0) throw new RangeError("Invalid paper quote age limit.");
+
+  function validPaperQuote(quote, at) {
+    const timestamp = quote && Number(quote.timestamp);
+    return Boolean(quote && quote.source === "ETORO" &&
+      Number(quote.bid) > 0 && Number(quote.ask) >= Number(quote.bid) &&
+      Number.isFinite(timestamp) && timestamp <= at && at - timestamp <= maxQuoteAgeMs);
+  }
+
+  const initial = options.initialSnapshot;
+  if (initial !== undefined) {
+    if (!initial || initial.execution !== "LOCAL_PAPER_ONLY" ||
+        !Array.isArray(initial.openPositions) || !Array.isArray(initial.closedTrades)) {
+      throw new TypeError("Invalid eToro paper ledger snapshot; refusing to restore.");
+    }
+    for (const p of initial.openPositions) {
+      if (!p || !Number.isSafeInteger(Number(p.instrumentId)) || Number(p.instrumentId) <= 0 ||
+          p.action !== "BUY" || !(Number(p.units) > 0) || !(Number(p.entryPrice) > 0) ||
+          !Number.isFinite(Number(p.entryFee)) || Number(p.entryFee) < 0 ||
+          !Number.isFinite(Number(p.openedAt)) || p.source !== "ETORO_PAPER") {
+        throw new TypeError("Invalid open position in eToro paper snapshot.");
+      }
+      const key = String(p.instrumentId);
+      if (positions.has(key)) throw new TypeError("Duplicate position in eToro paper snapshot.");
+      positions.set(key, { ...p, instrumentId: key, units: Number(p.units), entryPrice: Number(p.entryPrice),
+        entryFee: Number(p.entryFee), openedAt: Number(p.openedAt) });
+    }
+    for (const t of initial.closedTrades) {
+      if (!t || !Number.isSafeInteger(Number(t.instrumentId)) || Number(t.instrumentId) <= 0 ||
+          t.action !== "BUY" || t.status !== "CLOSED" || t.source !== "ETORO_PAPER" ||
+          !(Number(t.units) > 0) || !(Number(t.entryPrice) > 0) || !(Number(t.exitPrice) > 0) ||
+          !Number.isFinite(Number(t.openedAt)) || !Number.isFinite(Number(t.closedAt)) ||
+          Number(t.closedAt) < Number(t.openedAt) || !Number.isFinite(Number(t.netPnl))) {
+        throw new TypeError("Invalid closed trade in eToro paper snapshot.");
+      }
+      trades.push({ ...t });
+    }
+  }
 
   function open(signal, quote, units, at = Date.now()) {
-    if (!signal || signal.action !== "BUY" || !quote || quote.source !== "ETORO" ||
-        !(Number(quote.bid) > 0) || !(Number(quote.ask) >= Number(quote.bid)) ||
-        !Number.isFinite(Number(units)) || Number(units) <= 0 || !Number.isFinite(at)) {
-      throw new Error("Only BUY paper entries are allowed; a valid eToro quote and positive units are required.");
+    if (!signal || signal.action !== "BUY" || !Number.isFinite(at) ||
+        !validPaperQuote(quote, at) || !Number.isFinite(Number(units)) || Number(units) <= 0) {
+      throw new Error("Only BUY paper entries with a fresh, valid eToro quote and positive units are allowed.");
     }
     const key = String(signal.instrumentId);
     if (!Number.isSafeInteger(Number(signal.instrumentId)) || Number(signal.instrumentId) <= 0) {
@@ -191,9 +229,8 @@ function createPaperLedger(options = {}) {
 
   function close(instrumentId, quote, at = Date.now()) {
     const key = String(instrumentId), position = positions.get(key);
-    if (!position || !quote || quote.source !== "ETORO" || !(Number(quote.bid) > 0) ||
-        !(Number(quote.ask) >= Number(quote.bid)) || !Number.isFinite(at) || at < position.openedAt) {
-      throw new Error("Invalid paper close; matching BUY position and valid eToro quote required.");
+    if (!position || !Number.isFinite(at) || at < position.openedAt || !validPaperQuote(quote, at)) {
+      throw new Error("Invalid paper close; matching BUY position and fresh, valid eToro quote required.");
     }
     const exit = Number(quote.bid);
     const gross = (exit - position.entryPrice) * position.units;
