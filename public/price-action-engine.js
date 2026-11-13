@@ -66,6 +66,7 @@
       time: Number.isFinite(bar.closeTime) ? bar.closeTime : Number.isFinite(bar.time) ? bar.time : null,
       evidence: reason,
       invalidation: invalidation,
+      trigger: direction === "bullish" ? bar.high : direction === "bearish" ? bar.low : null,
       confirmation: null
     };
   }
@@ -79,7 +80,7 @@
     if (!(g.range > EPS) || g.bodyRatio < MIN_BODY_RANGE) {
       if (g.range > EPS && g.bodyRatio <= 0.10) {
         out.push(makePattern("DOJI", "neutral", current, index,
-          "Runko on enintään 10 % kynttilän koko vaihteluvälistä.", current.high + " / " + current.low));
+          "Runko on enintään 10 % kynttilän koko vaihteluvälistä.", null));
       }
     }
     var smallBody = g.bodyRatio <= 0.38;
@@ -130,8 +131,8 @@
 
   function confirmPattern(pattern, nextBar) {
     if (!pattern || !validBar(nextBar)) return Object.assign({}, pattern, { state: "PENDING", confirmation: "Seuraavan sulkeutuneen kynttilän tiedot puuttuvat." });
-    var confirmed = pattern.direction === "bullish" ? nextBar.close > nextBar.high - (nextBar.high - nextBar.low) * 0.25 :
-      pattern.direction === "bearish" ? nextBar.close < nextBar.low + (nextBar.high - nextBar.low) * 0.25 : false;
+    var confirmed = pattern.direction === "bullish" ? nextBar.close > Number(pattern.trigger) :
+      pattern.direction === "bearish" ? nextBar.close < Number(pattern.trigger) : false;
     var broken = pattern.direction === "bullish" ? nextBar.close < Number(pattern.invalidation) :
       pattern.direction === "bearish" ? nextBar.close > Number(pattern.invalidation) : false;
     if (broken) return Object.assign({}, pattern, { state: "INVALIDATED", confirmation: "Seuraava sulkeutunut kynttilä rikkoi kuvion mitätöintitason." });
