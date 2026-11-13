@@ -14,6 +14,10 @@ assert.equal(normalizeCandle({ timestamp: new Date(now + 1).toISOString(), open:
 assert.equal(normalizeCandle({ timestamp: new Date(now - 60000).toISOString(), open: 10, high: 8, low: 9, close: 11 }, now), null);
 assert.throws(() => safePath("/api/v2/trading/execution/orders"), /read-only/);
 assert.throws(() => safePath("/../secrets"), /read-only/);
+assert.throws(() => safePath("/%2e%2e/secrets"), /read-only/);
+assert.throws(() => safePath("/%2f%2fevil.example/path"), /read-only/);
+assert.throws(() => safePath("/\\\\evil.example/path"), /read-only/);
+assert.throws(() => createEtoroClient({ apiKey: "api", userKey: "user", baseUrl: "https://attacker.example" }), /official HTTPS API host/);
 assert.equal(WS_URL, "wss://ws.etoro.com/ws");
 assert.deepEqual(createWebSocketAuthMessage("api", "user"), {
   operation: "Authenticate", data: { userKey: "user", apiKey: "api" }
