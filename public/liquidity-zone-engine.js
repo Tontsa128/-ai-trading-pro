@@ -12,9 +12,13 @@
  function validSeries(bars){
   return Array.isArray(bars)&&bars.length>=3&&bars.every(validBar);
  }
+ function validationState(bars){
+  if(!Array.isArray(bars)||bars.length<3)return "INSUFFICIENT_DATA";
+  return bars.every(validBar)?"OK":"INVALID_DATA";
+ }
  function detectFvgs(bars,options){
   options=options||{};
-  if(!validSeries(bars))return {state:"INVALID_DATA",zones:[]};
+  if(!validSeries(bars))return {state:validationState(bars),zones:[]};
   var minGapPct=Number.isFinite(options.minGapPct)?Math.max(0,Math.min(2,options.minGapPct)):0.02;
   var zones=[];
   for(var i=2;i<bars.length;i++){
@@ -78,7 +82,7 @@
   return {state:"OK",zones:invalid?[]:[zone],reason:invalid?"INVALIDATED":null};
  }
  function analyze(bars,structure,options){
-  if(!validSeries(bars))return {state:"INVALID_DATA",fvgs:[],orderBlocks:[]};
+  if(!validSeries(bars)){var state=validationState(bars);return {state:state,fvgs:[],orderBlocks:[]};}
   var f=detectFvgs(bars,options),o=detectOrderBlocks(bars,structure,options);
   return {state:"OK",fvgs:f.zones,orderBlocks:o.zones,
    diagnostics:{fvgDetected:f.detected,orderBlockState:o.reason||o.state},
