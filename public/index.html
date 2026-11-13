@@ -53,6 +53,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div class="section-title"><div><strong>Hintakaavio</strong><div class="sub">Sulkeutuneet kynttilät · EMA 9 / 21 / 50 / 200</div></div><span id="timestamp" class="pill">—</span></div>
   <div id="chart"></div>
   <div class="sub">Kaavio näyttää valitun aikavälin. Analyysi vertaa myös kahta suurempaa aikaväliä.</div>
+  <div class="divider"></div><div class="section-title"><strong>Price Action -kuviot</strong><span id="patternState" class="pill">ODOTETAAN DATAA</span></div><div id="patternResults" class="sub">Kynttiläkuvioita ei ole vielä analysoitu.</div>
  </section>
  <aside class="panel">
   <div class="section-title"><h3 style="margin:0">Signaalin arvio</h3><span id="passed" class="pill">Ehdot —</span></div>
@@ -92,6 +93,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 </main>
 <script src="./number-format.js"></script>
 <script src="./trading-engine.js"></script>
+<script src="./price-action-engine.js"></script>
 <script>
 (function(){
 "use strict";
@@ -367,6 +369,20 @@ function renderChart(series,signal,symbol,chartCount){
   return renderNativeCandleChart(valid,signal,symbol,count,e&&e.message?e.message:"Plotly-piirto epäonnistui.");
  }
 }
+function renderPriceAction(bars){
+ var target=$("patternResults"),state=$("patternState");
+ if(!target||!state)return;
+ if(!window.PriceActionEngine){state.textContent="EI KÄYTÖSSÄ";target.textContent="Price Action -moduulia ei voitu ladata.";return;}
+ var found=PriceActionEngine.analyzeRecent(bars,3);
+ if(!found.length){state.textContent="EI KUVIOITA";target.textContent="Viimeisissä kolmessa sulkeutuneessa kynttilässä ei tunnistettu määriteltyjä kuvioita.";return;}
+ state.textContent=found.length+" HAVAITTOA";
+ target.innerHTML=found.slice(0,8).map(function(p){
+  var tone=p.direction==="bullish"?"good":p.direction==="bearish"?"bad":"neutral";
+  var status=p.state==="CONFIRMED"?"VAHVISTETTU":p.state==="INVALIDATED"?"MITÄTÖITY":"ODOTTAA VAHVISTUSTA";
+  var time=p.time?new Date(p.time).toLocaleString("fi-FI"):"aikaleima ei saatavilla";
+  return '<div class="kv"><span><strong>'+esc(p.name)+'</strong> · '+esc(time)+'<br><span class="sub">'+esc(p.evidence)+' '+esc(p.confirmation||"")+'</span></span><strong class="'+tone+'">'+status+'</strong></div>';
+ }).join("");
+}
 async function load(){
  if(busy)return;busy=true;var myToken=++refreshToken;$("update").disabled=true;status("Haetaan sulkeutuneita kynttilöitä, suurempia aikavälejä ja spot-hintaa…");
  try{
@@ -408,6 +424,7 @@ async function load(){
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+fmt(signal.priceAgeMs/1000,1)+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
+  renderPriceAction(main);
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää."+(chartOk?"":" Kaavio ei ole käytettävissä, koska Plotly ei latautunut."),chartOk?"ok":"error");
  }catch(e){
