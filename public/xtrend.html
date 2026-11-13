@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="fi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#07111f">
+<title>Rahasampo Radar — XTrend Quick Mode</title>
+<style>
+:root{color-scheme:dark;--bg:#07111f;--panel:#101d30;--line:#263750;--muted:#9db0c8;--green:#28d7a0;--red:#ff647c;--gold:#ffd166;--blue:#67b7ff}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at top,#132642 0,#07111f 55%);color:#edf5ff;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+main{max-width:1440px;margin:auto;padding:16px}.top,.row,.section-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.brand{font-size:25px;font-weight:850}.muted,small{color:var(--muted)}a{color:var(--blue);text-decoration:none}.tag,.pill{display:inline-block;background:#20334b;border:1px solid #35506d;border-radius:999px;padding:5px 10px;font-size:12px}
+.layout{display:grid;grid-template-columns:minmax(0,1.8fr) minmax(280px,1fr);gap:12px;margin-top:14px}.panel,.metric{background:linear-gradient(150deg,#122239,#0c1728);border:1px solid var(--line);border-radius:15px;padding:14px;min-width:0}
+.controls,.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:12px 0}.metric small{display:block}.metric strong{display:block;font-size:19px;overflow-wrap:anywhere}
+button{background:#0b1728;color:#eef6ff;border:1px solid #38506b;border-radius:9px;padding:9px 12px;font:inherit;cursor:pointer}button.active{background:#18446b;border-color:#67b7ff}
+#chart{height:410px;width:100%;min-height:300px}.status{padding:10px 12px;border-radius:9px;background:#392d17;color:#f8df9d;margin-top:10px}.status.ok{background:#10352f;color:#91f4d3}.status.error{background:#381c2a;color:#ffb4bd}
+.signal{font-size:38px;font-weight:900;letter-spacing:1px}.signal.buy{color:var(--green)}.signal.sell{color:var(--red)}.signal.wait{color:var(--gold)}
+.logrow{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}.logsignal{font-weight:900;min-width:54px}.logsignal.buy{color:var(--green)}.logsignal.sell{color:var(--red)}.logsignal.wait{color:var(--gold)}.logrow small{display:block;overflow-wrap:anywhere}
+.kv{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}.kv span{color:var(--muted)}
+.notice{border:1px solid #735d2f;background:#211c12;color:#f3dfaa;border-radius:11px;padding:12px;margin-top:12px}
+@media(max-width:850px){main{padding:10px}.layout{grid-template-columns:1fr}.controls{grid-template-columns:repeat(4,minmax(0,1fr))}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}#chart{height:340px}}
+@media(max-width:430px){.brand{font-size:20px}.controls button{padding:8px 3px;font-size:12px}.panel{padding:11px}}
+</style>
+<script src="https://unpkg.com/lightweight-charts@5.3.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body><main>
+<header class="top">
+ <div><div class="brand">◈ Rahasampo Radar</div><div class="muted">XTrend Lite · Quick Mode · päätöksenteon apuväline</div></div>
+ <a class="tag" href="/">Takaisin Binance Spot -näkymään</a>
+</header>
+<div class="notice">
+<strong>Credit Account -tila valittu.</strong> Tilin saldoa ei lueta XTrendistä vielä. Tämä näkymä ei kirjaudu käyttäjätilille, käytä luottoa eikä lähetä toimeksiantoja. Live-signaaleja ei muodosteta ennen varmennetun XTrend-hintasyötteen kytkemistä.
+<p><strong>Tärkeä XTrend-ehto:</strong> julkisesti saatavilla oleva Order Execution Policy (versio 2.0) mainitsee scalping-kaupat ja mielivaltaisen lyhyet positioiden pitoajat mahdollisena väärinkäyttönä. Varmista XTrendiltä kirjallisesti, että suunnittelemasi kaupankäyntitapa ja pitoajat ovat sallittuja ennen käyttöä. 1S/5S ovat tässä kaavion aikavälejä, eivät suositeltuja kaupan pitoaikoja.</p>
+<p>XTrendin julkiset ehdot kuvaavat sen omia vaihtelevia Bid/Ask-noteerauksia. Ne voivat poiketa muista kaavioista, spread vaihtelee ja toteutushinta voi poiketa viimeksi näytetystä hinnasta. Julkisesti saatavilla oleva Terms of Business kertoo myös oletus-Stop Loss -tasoksi -80 % käytetystä marginaalista, mutta sovelluksesi näkyvä asetus voi olla eri. Tarkista juuri oman tilisi ja Quick Moden ehdot sovelluksesta ennen laskentamallin lukitsemista.</p>
+<p><a href="https://oss.xtrendlite.com/product/aboutus/lite/pdf/Order_Execution_Policy.pdf" target="_blank" rel="noopener">XTrend Order Execution Policy</a> · <a href="https://oss.xtrendlite.com/product/aboutus/lite/pdf/Terms_of_Business.pdf" target="_blank" rel="noopener">XTrend Terms of Business</a></p>
+</div>
+<div class="layout">
+ <section class="panel">
+  <div class="section-head"><div><strong>BTCUSD</strong><div class="muted">XTrendin instrumenttikohtainen hinta vaaditaan</div></div><span class="pill">Credit Account · Quick Mode</span></div>
+  <div class="controls" aria-label="Aikaväli">
+   <button data-interval="1S">1S</button><button data-interval="5S">5S</button><button data-interval="1M" class="active">1M</button><button data-interval="5M">5M</button>
+  </div>
+  <div id="chart" aria-label="XTrend BTCUSD kynttiläkaavio"></div>
+  <div id="feedStatus" class="status">XTrend-hintasyöte ei ole kytketty.</div>
+ </section>
+ <aside class="panel">
+  <div class="section-head"><strong>Signal engine</strong><span class="pill">Ei toimeksiantoja</span></div>
+  <div id="signal" class="signal wait">WAIT</div>
+  <p id="signalReason" class="muted">Odotetaan XTrendin omaa markkinadataa.</p>
+  <div class="metrics">
+   <div class="metric"><small>BTCUSD</small><strong id="lastPrice">—</strong></div>
+   <div class="metric"><small>Bid / Ask</small><strong id="bidAsk">—</strong></div>
+   <div class="metric"><small>RSI 14</small><strong id="rsiValue">—</strong></div>
+   <div class="metric"><small>MACD hist.</small><strong id="macdValue">—</strong></div>
+   <div class="metric"><small>EMA 20</small><strong id="ema20Value">—</strong></div>
+   <div class="metric"><small>BB lower / mid / upper</small><strong id="bbValue">—</strong></div>
+  </div>
+  <div class="kv"><span>Hintatarjouksen ikä</span><strong id="quoteAge">—</strong></div>
+  <div class="kv"><span>Credit Account -saldo</span><strong id="creditValue">Ei yhteyttä</strong></div>
+  <button id="refreshSource" style="width:100%;margin-top:12px">Tarkista datalähteen tila</button>
+ </aside>
+ <section class="panel">
+  <div class="section-head"><strong>AI Trade Signals & Log</strong><span class="pill">Aikaleimatut havainnot</span></div>
+  <div id="signalLog"><div class="muted">Ei markkinahavaintoja vielä.</div></div>
+ </section>
+ <section class="panel">
+  <strong>Indikaattorit ja säännöt</strong>
+  <div class="kv"><span>EMA</span><strong>9 / 20 / 21</strong></div>
+  <div class="kv"><span>Bollinger Bands</span><strong>20 · 2σ</strong></div>
+  <div class="kv"><span>RSI</span><strong>14 · Wilder</strong></div>
+  <div class="kv"><span>Vahvistus</span><strong>1M + 5M sulkeutuneet kynttilät</strong></div>
+  <div class="kv"><span>Nopeat kynttilät</span><strong>1S / 5S aidosta tick-datasta</strong></div>
+  <p class="muted">Laskenta on deterministinen. AI-selityskerros lisätään vasta kun luotettava markkinadata ja riittävä testihistoria ovat käytettävissä. Prosenttiluottamusta ei keksitä.</p>
+ </section>
+</div>
+<footer class="muted" style="padding:18px 2px;font-size:12px">Kaaviokirjasto: TradingView Lightweight Charts™ · <a href="https://www.tradingview.com/">TradingView</a>. XTrend-markkinadataa ei ole vielä yhdistetty. Tämä sivu on tutkimus- ja päätöksentekonäkymä, ei sijoitusneuvo tai toimeksiantopalvelu.</footer>
+</main>
+<script src="/xtrend-quick-mode.js"></script><script src="/xtrend-quick-mode-ui.js"></script>
+</body></html>
