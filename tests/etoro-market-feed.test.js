@@ -55,11 +55,11 @@ const client = createEtoroClient({
   assert.equal(calls[0].url, "https://api.test/v1/market-data/instruments/rates?instrumentIds=1001");
   await assert.rejects(() => client.getRates([0], now), /instrument IDs/);
   const ledger = createPaperLedger({ feeRate: 0.001 });
-  const quote = { source: "ETORO", bid: 99, ask: 101 };
+  const quote = { source: "ETORO", bid: 99, ask: 101, timestamp: now - 500 };
   const opened = ledger.open({ action: "BUY", instrumentId: 1001 }, quote, 2, now);
   assert.equal(opened.entryPrice, 101, "BUY enters at ask");
   assert.throws(() => ledger.open({ action: "SELL", instrumentId: 1002 }, quote, 2, now), /Only BUY/);
-  const closed = ledger.close(1001, { source: "ETORO", bid: 103, ask: 104 }, now + 1000);
+  const closed = ledger.close(1001, { source: "ETORO", bid: 103, ask: 104, timestamp: now + 500 }, now + 1000);
   assert.equal(closed.exitPrice, 103, "BUY exits at bid");
   assert.ok(closed.netPnl < closed.grossPnl, "fees reduce paper PnL");
   assert.equal(ledger.snapshot().openPositions.length, 0);
