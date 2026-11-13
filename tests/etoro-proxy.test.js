@@ -1,6 +1,8 @@
 "use strict";
 
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const { createHandler } = require("../api/etoro");
 
 function response() {
@@ -107,6 +109,12 @@ function response() {
   await denied({ method: "GET", query: { action: "search", q: "BTC" } }, res);
   assert.equal(res.statusCode, 502);
   assert.equal(JSON.stringify(res.body).includes("test"), false, "credential values must never appear in proxy errors");
+
+  const html = fs.readFileSync(path.join(__dirname, "../public/index.html"), "utf8");
+  const panelScript = fs.readFileSync(path.join(__dirname, "../public/etoro-panel.js"), "utf8");
+  assert.ok(html.includes('id="etoroPanel"') && html.includes('src="/etoro-panel.js"'), "dashboard must load the separate eToro panel");
+  assert.ok(!panelScript.includes("ETORO_API_KEY") && !panelScript.includes("ETORO_USER_KEY"), "browser code must never contain server credentials");
+  assert.ok(!panelScript.includes("innerHTML"), "provider data must be rendered as text, not injected HTML");
 
   console.log("eToro read-only API proxy tests passed: GET-only routes, secret isolation, public data validation and no execution surface.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
