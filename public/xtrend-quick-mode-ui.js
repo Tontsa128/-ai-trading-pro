@@ -143,6 +143,7 @@
 
   function acceptSnapshot(data, config) {
     if (!data || !data.quote || data.quote.source !== "XTREND") {
+      snapshot = null;
       setStatus("Virheellinen lähde: vain varmennettu XTrend-syöte hyväksytään.", "error");
       showUnavailable();
       return { accepted: false };
@@ -157,6 +158,7 @@
     if (!Number.isFinite(quoteAgeMs) || quoteAgeMs < 0 || quoteAgeMs > XTrendQuickMode.defaults.maxQuoteAgeMs ||
         !Number.isFinite(Number(quote.bid)) || !Number.isFinite(Number(quote.ask)) ||
         Number(quote.bid) <= 0 || Number(quote.ask) < Number(quote.bid)) {
+      snapshot = null;
       showUnavailable();
       $("signalReason").textContent = result.reasons.join(" · ") || "XTrendin hintatarjous ei ole tuore tai kelvollinen.";
       setStatus("Vanhentunutta tai virheellistä XTrend-hintaa ei näytetä.", "error");

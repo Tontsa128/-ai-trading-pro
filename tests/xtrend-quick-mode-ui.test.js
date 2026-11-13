@@ -15,6 +15,7 @@ for (const feature of [
 ]) assert.ok(html.includes(feature), "missing UI feature: " + feature);
 assert.ok(!html.toLowerCase().includes("mock price"), "mock price content is forbidden");
 assert.ok(ui.includes('quote.source !== "XTREND"'), "reject non-XTrend quote source");
+assert.ok(ui.includes("snapshot = null;"), "discard stale snapshots on invalid quotes");
 assert.ok(ui.includes('bar.source !== "XTREND"'), "reject non-XTrend candles");
 assert.ok(ui.includes("quoteAgeMs > XTrendQuickMode.defaults.maxQuoteAgeMs"), "reject stale quotes");
 assert.ok(ui.includes("createSeriesMarkers"), "use v5 chart markers API");
