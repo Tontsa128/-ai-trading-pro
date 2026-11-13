@@ -22,7 +22,7 @@ assert.ok(bear.zones.some(z=>z.type==="BEARISH_FVG"&&z.low===106&&z.high===108),
  "three-candle bearish imbalance is identified");
 assert.equal(L.detectFvgs([b(1,2,0,1,0),{open:1,high:0,low:2,close:1},b(1,2,0,1,2)]).state,"INVALID_DATA",
  "malformed OHLC data fails closed");
-assert.equal(L.detectFvgs([{open:1,high:2,low:0,close:1}]).state,"INVALID_DATA",
+assert.equal(L.detectFvgs([{open:1,high:2,low:0,close:1}]).state,"INSUFFICIENT_DATA",
  "insufficient history fails closed");
 const obBars=[
  b(100,102,99,101,0),b(101,103,100,102,1),b(102,104,101,103,2),
