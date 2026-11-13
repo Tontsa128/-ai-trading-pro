@@ -94,7 +94,8 @@ const client = createEtoroClient({
       return { ok: true, status: 206, json: async () => ({ results: [
         { instrumentId: 1001, bid: 99, ask: 101, date: new Date(now - 1000).toISOString(), quoteType: "realtime" },
         { instrumentId: 1002, bid: 199, ask: 201, date: new Date(now - 1000).toISOString(), quoteType: "delayed" },
-        { instrumentId: 1003, bid: 299, ask: 301, date: new Date(now - 30000).toISOString(), quoteType: "realtime" }
+        { instrumentId: 1003, bid: 299, ask: 301, date: new Date(now - 30000).toISOString(), quoteType: "realtime" },
+        { instrumentId: 9999, bid: 399, ask: 401, date: new Date(now - 1000).toISOString(), quoteType: "realtime" }
       ] }) };
     }
   });
