@@ -61,10 +61,15 @@ function createHandler(options = {}) {
         const instrumentId = positiveInteger(query.instrumentId, Number.MAX_SAFE_INTEGER);
         const take = query.take == null ? 20 : positiveInteger(query.take, 100);
         if (!instrumentId || !take) return res.status(400).json({ error: "A valid instrument ID and feed limit are required." });
-        data = await client.getMarketFeed(instrumentId, take, query.type == null ? undefined : one(query.type));
+        const type = query.type == null ? undefined : one(query.type);
+        if (type !== undefined && !/^[A-Za-z_]{1,40}$/.test(type)) return res.status(400).json({ error: "Invalid social feed type." });
+        data = await client.getMarketFeed(instrumentId, take, type);
       } else if (action === "profiles") {
         const usernames = one(query.usernames).split(",").map(name => name.trim()).filter(Boolean);
-        if (!usernames.length || usernames.length > 20) return res.status(400).json({ error: "One to twenty public usernames are required." });
+        if (!usernames.length || usernames.length > 20 ||
+            usernames.some(name => !/^[A-Za-z0-9_.-]{1,50}$/.test(name))) {
+          return res.status(400).json({ error: "One to twenty valid public usernames are required." });
+        }
         data = await client.getUserProfiles(usernames);
       } else if (action === "copiers") {
         const username = one(query.username).trim();
@@ -81,12 +86,38 @@ function createHandler(options = {}) {
           if (value !== "true" && value !== "false") return res.status(400).json({ error: "popularInvestor must be true or false." });
           filters.popularInvestor = value === "true";
         }
-        if (filters.page !== undefined) filters.page = positiveInteger(filters.page, 1000000);
-        if (filters.pageSize !== undefined) filters.pageSize = positiveInteger(filters.pageSize, 100);
-        if (filters.gainMin !== undefined) filters.gainMin = Number(filters.gainMin);
-        if (filters.gainMax !== undefined) filters.gainMax = Number(filters.gainMax);
+        if (filters.page !== undefined) {
+          filters.page = positiveInteger(filters.page, 1000000);
+          if (filters.page === null) return res.status(400).json({ error: "Invalid ranking page." });
+        }
+        if (filters.pageSize !== undefined) {
+          filters.pageSize = positiveInteger(filters.pageSize, 100);
+          if (filters.pageSize === null) return res.status(400).json({ error: "Invalid ranking page size." });
+        }
+        if (filters.country !== undefined && !/^[A-Z]{2}$/.test(filters.country)) {
+          return res.status(400).json({ error: "Ranking country must be an ISO alpha-2 code." });
+        }
+        for (const key of ["gainMin", "gainMax"]) {
+          if (filters[key] !== undefined) {
+            filters[key] = Number(filters[key]);
+            if (!Number.isFinite(filters[key])) return res.status(400).json({ error: "Invalid ranking gain filter." });
+          }
+        }
         for (const key of ["copiersMin", "copiersMax", "riskScoreMin", "riskScoreMax", "aumTier"]) {
-          if (filters[key] !== undefined) filters[key] = Number(filters[key]);
+          if (filters[key] !== undefined) {
+            filters[key] = Number(filters[key]);
+            const min = key.startsWith("riskScore") ? 1 : 0;
+            const max = key.startsWith("riskScore") ? 10 : Number.MAX_SAFE_INTEGER;
+            if (!Number.isInteger(filters[key]) || filters[key] < min || filters[key] > max) {
+              return res.status(400).json({ error: "Invalid ranking numeric filter: " + key });
+            }
+          }
+        }
+        if (filters.copiersMin !== undefined && filters.copiersMax !== undefined && filters.copiersMin > filters.copiersMax) {
+          return res.status(400).json({ error: "Ranking copier minimum exceeds maximum." });
+        }
+        if (filters.gainMin !== undefined && filters.gainMax !== undefined && filters.gainMin > filters.gainMax) {
+          return res.status(400).json({ error: "Ranking gain minimum exceeds maximum." });
         }
         data = await client.getInvestorRankings(filters);
       } else {
