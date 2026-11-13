@@ -106,3 +106,16 @@ The isolated XTrend engine now exposes EMA, Wilder RSI, Bollinger Bands, signal 
 
 The UI exposes `window.XTrendQuickModeUI.acceptSnapshot(snapshot, config)` for a future reviewed adapter. It rejects snapshots whose quote source is not `XTREND`. No account login, credit read, order placement or credit simulation is implemented.
 
+
+
+## XTrend platform policy and integration blockers
+
+The publicly available XTrend Lite Order Execution Policy (version 2.0) describes the platform as a CFD execution platform, states that quoted spreads are variable, that platform prices are proprietary and may differ from underlying market bid/ask prices, and that price latency/slippage can affect fills. Its section 10.6.3(c) identifies scalping trades or entering/closing positions for an arbitrarily short period as potentially abusive conduct. The publicly available Terms of Business (version 1.1) says quote snapshots are indicative, execution prices may differ, opening/closing is confirmed through platform records/success notifications, and gives a default stop loss of -80% of used margin. The documents may not be the latest contract terms; verify the exact current Quick Mode and Credit Account terms in-app or with XTrend support before using signals.
+
+Accordingly:
+- 1S/5S are chart/market-context intervals only, never assumed to be permitted position holding periods.
+- Do not optimize or recommend ultra-short position holding/scalping until XTrend confirms the permitted holding style in writing.
+- Use XTrend's own bid/ask and actual execution/closure records; do not infer fills from Binance or the chart's indicative quote.
+- Variable spreads, slippage, maximum deviation, credit margin and actual account-specific Stop Loss/Take Profit settings must be recorded from the current client app before realistic simulation is enabled.
+- No real-money order execution or credit-account access is implemented.
+Official documents: https://oss.xtrendlite.com/product/aboutus/lite/pdf/Order_Execution_Policy.pdf and https://oss.xtrendlite.com/product/aboutus/lite/pdf/Terms_of_Business.pdf
