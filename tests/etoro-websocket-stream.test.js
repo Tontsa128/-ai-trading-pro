@@ -30,8 +30,30 @@ first.open();
 assert.equal(first.sent[0].operation, "Authenticate");
 assert.equal(first.sent[1].operation, "Subscribe");
 assert.deepEqual(first.sent[1].data.topics, ["instrument:1001", "instrument:1002"]);
-first.message({ topic: "instrument:1001", data: { bid: 10, ask: 11 } });
-assert.equal(received.length, 1);
+const rateContent = (bid, ask, last, date, priceRateId) => JSON.stringify({
+  Bid: String(bid), Ask: String(ask), LastExecution: String(last),
+  Date: new Date(date).toISOString(), PriceRateID: String(priceRateId)
+});
+const rateTime = Date.now() - 500;
+first.message({ messages: [
+  { topic: "instrument:1001", type: "Trading.Instrument.Rate", id: "push-1",
+    content: rateContent(10, 11, 10.5, rateTime, 1) },
+  { topic: "instrument:1002", type: "Trading.Instrument.Rate", id: "push-stale",
+    content: rateContent(20, 21, 20.5, rateTime - 30000, 2) },
+  { topic: "instrument:9999", type: "Trading.Instrument.Rate", id: "push-unsubscribed",
+    content: rateContent(30, 31, 30.5, rateTime, 3) },
+  { topic: "instrument:1001", type: "Trading.Instrument.MarketStatus", id: "push-status", content: "{}" }
+] });
+assert.equal(received.length, 1, "only fresh rates for subscribed instruments are delivered");
+assert.equal(received[0].instrumentId, 1001);
+assert.equal(received[0].bid, 10);
+assert.equal(received[0].ask, 11);
+assert.equal(received[0].lastPrice, 10.5);
+first.message({ messages: [
+  { topic: "instrument:1001", type: "Trading.Instrument.Rate", id: "push-duplicate",
+    content: rateContent(9, 10, 9.5, rateTime, 4) }
+] });
+assert.equal(received.length, 1, "duplicate/older timestamps cannot overwrite a newer quote");
 first.message({ operation: "Subscribe", success: true, id: first.sent[1].id });
 assert.equal(received.length, 1, "control acknowledgements are not market data");
 first.close();

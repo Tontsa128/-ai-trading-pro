@@ -1,6 +1,6 @@
 "use strict";
 
-const { WS_URL, createWebSocketAuthMessage, createWebSocketSubscribeMessage, parseWebSocketMessage } = require("./etoro-market-feed");
+const { WS_URL, DEFAULT_MAX_AGE_MS, createWebSocketAuthMessage, createWebSocketSubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates } = require("./etoro-market-feed");
 
 /**
  * Managed eToro market-data socket.
@@ -18,6 +18,10 @@ function createEtoroStream(options = {}) {
   }
   const apiKey = options.apiKey || process.env.ETORO_API_KEY;
   const userKey = options.userKey || process.env.ETORO_USER_KEY;
+  const maxQuoteAgeMs = options.maxQuoteAgeMs == null ? DEFAULT_MAX_AGE_MS : Number(options.maxQuoteAgeMs);
+  if (!Number.isFinite(maxQuoteAgeMs) || maxQuoteAgeMs < 0) throw new RangeError("Invalid eToro WebSocket quote age limit.");
+  const instrumentIdSet = new Set(instrumentIds.map(Number));
+  const latestQuoteByInstrument = new Map();
   if (Boolean(apiKey) !== Boolean(userKey)) throw new Error("Both eToro API credentials must be supplied together.");
   const url = options.url || WS_URL;
   if (url !== WS_URL && options.allowCustomUrl !== true) throw new Error("Only the official eToro WebSocket URL is allowed.");
@@ -53,17 +57,24 @@ function createEtoroStream(options = {}) {
       }
     };
     socket.onmessage = event => {
-      const message = parseWebSocketMessage(event && event.data !== undefined ? event.data : event);
-      if (!message) return;
-      if (message.success === false) {
-        onError(new Error(message.errorMessage || message.errorCode || "eToro WebSocket request rejected."));
+      const raw = event && event.data !== undefined ? event.data : event;
+      const control = parseWebSocketMessage(raw);
+      if (!control) return; // Includes eToro's binary heartbeat frame.
+      if (control.success === false) {
+        onError(new Error(control.errorMessage || control.errorCode || "eToro WebSocket request rejected."));
         return;
       }
-      // Ignore binary heartbeat frames and control acknowledgements; only pass
-      // parsed object messages through. Downstream validates quote schema/time.
-      if (message.operation || message.success !== undefined) return;
-      attempts = 0; // A real stream event proves the connection is healthy.
-      onMessage(message);
+      if (control.operation || control.success !== undefined) return; // Control acknowledgement.
+      const quotes = parseWebSocketRateUpdates(raw, Date.now(), maxQuoteAgeMs);
+      for (const quote of quotes) {
+        if (!instrumentIdSet.has(quote.instrumentId)) continue;
+        const previous = latestQuoteByInstrument.get(quote.instrumentId);
+        // Do not let duplicate or older exchange timestamps overwrite a newer quote.
+        if (previous && quote.timestamp <= previous.timestamp) continue;
+        latestQuoteByInstrument.set(quote.instrumentId, quote);
+        attempts = 0; // A validated fresh quote proves the connection is healthy.
+        onMessage(quote);
+      }
     };
     socket.onerror = event => onError(event instanceof Error ? event : new Error("eToro WebSocket transport error."));
     socket.onclose = () => {

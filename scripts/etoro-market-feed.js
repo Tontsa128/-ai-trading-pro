@@ -163,6 +163,41 @@ function parseWebSocketMessage(input) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : null;
 }
 
+// eToro rate pushes are batched in { messages: [...] }; each message.content
+// is itself a JSON string containing the Trading.Instrument.Rate fields.
+function parseWebSocketRateUpdates(input, now = Date.now(), maxAgeMs = DEFAULT_MAX_AGE_MS) {
+  const envelope = parseWebSocketMessage(input);
+  if (!envelope || !Array.isArray(envelope.messages) || !Number.isFinite(now) ||
+      !Number.isFinite(maxAgeMs) || maxAgeMs < 0) return [];
+  const updates = [];
+  for (const item of envelope.messages) {
+    if (!item || item.type !== "Trading.Instrument.Rate" ||
+        typeof item.topic !== "string" || typeof item.content !== "string") continue;
+    const topicMatch = /^instrument:(\d+)$/.exec(item.topic);
+    if (!topicMatch) continue;
+    let content;
+    try { content = JSON.parse(item.content); } catch { continue; }
+    if (!content || typeof content !== "object" || Array.isArray(content)) continue;
+    const quote = normalizeRate({
+      instrumentId: Number(topicMatch[1]),
+      symbol: "",
+      bid: content.Bid,
+      ask: content.Ask,
+      lastPrice: content.LastExecution,
+      timestamp: content.Date
+    }, now, maxAgeMs);
+    if (!quote) continue;
+    updates.push({
+      ...quote,
+      priceRateId: typeof content.PriceRateID === "string" ? content.PriceRateID : null,
+      topic: item.topic,
+      messageId: typeof item.id === "string" ? item.id : null,
+      messageType: item.type
+    });
+  }
+  return updates;
+}
+
 // Local-only long Spot-style paper ledger. SELL can only close an existing BUY.
 function createPaperLedger(options = {}) {
   const positions = new Map();
@@ -252,4 +287,4 @@ function createPaperLedger(options = {}) {
   });
 }
 
-module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage };
+module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates };
