@@ -428,6 +428,7 @@ function renderPriceAction(bars){
   var time=p.time?new Date(p.time).toLocaleString("fi-FI"):"aikaleima ei saatavilla";
   return '<div class="kv"><span><strong>'+esc(p.name)+'</strong> · '+esc(time)+'<br><span class="sub">'+esc(p.evidence)+' '+esc(p.confirmation||"")+'</span></span><strong class="'+tone+'">'+status+'</strong></div>';
  }).join("");
+ return found;
 }
 function renderHybridDecision(signal,higher,patterns,structure,liquidity){
  var target=$("hybridResults"),state=$("hybridState");
