@@ -54,7 +54,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div id="chart"></div>
   <div class="sub">Kaavio näyttää valitun aikavälin. Analyysi vertaa myös kahta suurempaa aikaväliä.</div>
   <div class="divider"></div><div class="section-title"><strong>Price Action -kuviot</strong><span id="patternState" class="pill">ODOTETAAN DATAA</span></div><div id="patternResults" class="sub">Kynttiläkuvioita ei ole vielä analysoitu.</div>
-  <div class="divider"></div><div class="section-title"><strong>Market Structure &amp; Liquidity</strong><span id="structureState" class="pill">ODOTETAAN DATAA</span></div><div id="structureResults" class="sub">Markkinarakennetta ei ole vielä analysoitu.</div>
+  <div class="divider"></div><div class="section-title"><strong>Market Structure</strong><span id="structureState" class="pill">ODOTETAAN DATAA</span></div><div id="structureResults" class="sub">Markkinarakennetta ei ole vielä analysoitu.</div><div class="divider"></div><div class="section-title"><strong>FVG &amp; Order Blocks</strong><span id="liquidityState" class="pill">ODOTETAAN DATAA</span></div><div id="liquidityResults" class="sub">Likviditeettialueita ei ole vielä analysoitu.</div>
  </section>
  <aside class="panel">
   <div class="section-title"><h3 style="margin:0">Signaalin arvio</h3><span id="passed" class="pill">Ehdot —</span></div>
@@ -96,6 +96,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 <script src="./trading-engine.js"></script>
 <script src="./price-action-engine.js"></script>
 <script src="./market-structure-engine.js"></script>
+<script src="./liquidity-zone-engine.js"></script>
 <script>
 (function(){
 "use strict";
@@ -390,6 +391,27 @@ function renderMarketStructure(bars){
  rows.push('<div class="sub">Swing-pisteet vahvistetaan vasta '+result.parameters.rightBars+' myöhemmän sulkeutuneen kynttilän jälkeen. Ei ennakoivia pivot-merkintöjä.</div>');
  state.textContent=result.events.length?result.events.length+" TAPAHTUMAA":trend;
  target.innerHTML=rows.join("");
+ return result;
+}
+function renderLiquidityZones(bars,structure){
+ var target=$("liquidityResults"),state=$("liquidityState");
+ if(!target||!state)return;
+ if(!window.LiquidityZoneEngine){state.textContent="EI KÄYTÖSSÄ";target.textContent="FVG/Order Block -moduulia ei voitu ladata.";return;}
+ var result=LiquidityZoneEngine.analyze(bars,structure,{minGapPct:0.02,lookback:8});
+ if(result.state!=="OK"){state.textContent="DATA VIRHE";target.textContent="Likviditeettianalyysi keskeytettiin: "+result.state;return;}
+ var rows=[];
+ result.fvgs.forEach(function(z){
+  var tone=z.direction==="BULLISH"?"good":"bad";
+  rows.push('<div class="kv"><span><strong>'+z.type.replace(/_/g," ")+'</strong><br><span class="sub">'+z.state.replace(/_/g," ")+' · '+fmt(z.gapPct,3)+'%</span></span><strong class="'+tone+'">'+fmtPrice(z.low)+' – '+fmtPrice(z.high)+'</strong></div>');
+ });
+ result.orderBlocks.forEach(function(z){
+  var tone=z.direction==="BULLISH"?"good":"bad";
+  rows.push('<div class="kv"><span><strong>'+z.type.replace(/_/g," ")+'</strong><br><span class="sub">'+z.state+' · '+z.breakType+'</span></span><strong class="'+tone+'">'+fmtPrice(z.low)+' – '+fmtPrice(z.high)+'</strong></div>');
+ });
+ if(!rows.length)rows.push('<div class="sub">Aktiivisia FVG-alueita tai vahvistettuun rakenteen murtoon perustuvia Order Block -alueita ei tunnistettu.</div>');
+ rows.push('<div class="sub">FVG = kolmen kynttilän hintaimbalance. Order Block näytetään vain vahvistetun BOS/CHoCH-tapahtuman yhteydessä. Alueet ovat tutkimushavaintoja, eivät toimeksiantosignaaleja.</div>');
+ state.textContent=result.fvgs.length+" FVG · "+result.orderBlocks.length+" OB";
+ target.innerHTML=rows.join("");
 }
 function renderPriceAction(bars){
  var target=$("patternResults"),state=$("patternState");
@@ -446,7 +468,7 @@ async function load(){
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+fmt(signal.priceAgeMs/1000,1)+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
-  renderPriceAction(main);renderMarketStructure(main);
+  renderPriceAction(main);var structure=renderMarketStructure(main);renderLiquidityZones(main,structure);
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää."+(chartOk?"":" Kaavio ei ole käytettävissä, koska Plotly ei latautunut."),chartOk?"ok":"error");
  }catch(e){
