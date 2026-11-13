@@ -54,10 +54,12 @@ function response() {
   res = response();
   await handler({ method: "GET", query: { action: "rates", instrumentIds: "1001" } }, res);
   assert.equal(res.body.data[0].quoteType, "realtime");
+  assert.match(res.headers["Cache-Control"], /no-store/);
 
   res = response();
   await handler({ method: "GET", query: { action: "feed", instrumentId: "1001", take: "10" } }, res);
   assert.equal(res.body.data.posts[0].id, "post-1");
+  assert.match(res.headers["Cache-Control"], /s-maxage=30/);
 
   res = response();
   await handler({ method: "GET", query: { action: "profiles", usernames: "alice" } }, res);
@@ -75,6 +77,10 @@ function response() {
 
   res = response();
   await handler({ method: "GET", query: { action: "rates", instrumentIds: "1,nope" } }, res);
+  assert.equal(res.statusCode, 400);
+
+  res = response();
+  await handler({ method: "GET", query: { action: "rankings", page: "zero" } }, res);
   assert.equal(res.statusCode, 400);
 
   res = response();
