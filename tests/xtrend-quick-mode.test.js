@@ -5,7 +5,7 @@ const now=1800000000000;
 function bars(tf,dir){
  let p=dir==="down"?200:100;
  return Array.from({length:80},(_,i)=>{
-  if(i>0){const d=(i%2===0?0.12:-0.10)*(dir==="down"?-1:1);p+=dir==="flat"?(i%2===0?0.1:-0.1):d;}
+  if(i>0){const d=(i%2===0?-0.04:0.08)*(dir==="down"?-1:1);p+=dir==="flat"?(i%2===0?0.1:-0.1):d;}
   const t=now-(80-i)*tf;
   return{openTime:t,closeTime:t+tf-1,open:p-0.01,high:p+0.03,low:p-0.03,close:p,volume:10,closed:true};
  });
