@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "source": "Binance public Spot REST klines",
-  "generated_at_utc": "2026-11-13T02:38:09.972Z",
+  "generated_at_utc": "2026-11-13T10:57:16.376Z",
   "lookback_days_target_for_all_files": 600,
   "symbols": [
     "BTCUSDT",
@@ -24,30 +24,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BTCUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "BTCUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BTCUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "BTCUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/BTCUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
@@ -57,30 +57,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/ETHUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "ETHUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/ETHUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "ETHUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/ETHUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
@@ -90,30 +90,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/SOLUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "SOLUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/SOLUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "SOLUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/SOLUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
@@ -123,30 +123,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BNBUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "BNBUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/BNBUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "BNBUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/BNBUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
@@ -156,30 +156,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/XRPUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "XRPUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/XRPUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "XRPUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/XRPUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
@@ -189,30 +189,30 @@
       "interval": "1h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/DOGEUSDT/1h.csv",
-      "rows_total": 14412,
-      "rows_added": 5,
+      "rows_total": 14420,
+      "rows_added": 8,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T14:00:00.000Z",
-      "last_open_utc": "2026-11-13T01:00:00.000Z"
+      "last_open_utc": "2026-11-13T09:00:00.000Z"
     },
     {
       "symbol": "DOGEUSDT",
       "interval": "4h",
       "mode": "backfill_and_incremental",
       "file": "../paper-data/historical-data/binance/DOGEUSDT/4h.csv",
-      "rows_total": 3603,
-      "rows_added": 1,
+      "rows_total": 3605,
+      "rows_added": 2,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T12:00:00.000Z",
-      "last_open_utc": "2026-11-12T20:00:00.000Z"
+      "last_open_utc": "2026-11-13T04:00:00.000Z"
     },
     {
       "symbol": "DOGEUSDT",
       "interval": "1d",
-      "mode": "backfill_and_incremental",
+      "mode": "incremental",
       "file": "../paper-data/historical-data/binance/DOGEUSDT/1d.csv",
       "rows_total": 601,
-      "rows_added": 1,
+      "rows_added": 0,
       "pages_fetched": 1,
       "first_open_utc": "2025-03-22T00:00:00.000Z",
       "last_open_utc": "2026-11-12T00:00:00.000Z"
