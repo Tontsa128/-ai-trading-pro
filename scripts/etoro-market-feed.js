@@ -114,6 +114,15 @@ function createEtoroClient(options = {}) {
     "OneMonthAgo", "TwoMonthsAgo", "ThreeMonthsAgo", "SixMonthsAgo", "OneYearAgo"
   ]);
 
+  async function fetchMarketFeed(instrumentId, take = 20, type) {
+    if (!Number.isSafeInteger(Number(instrumentId)) || Number(instrumentId) <= 0 ||
+        !Number.isInteger(take) || take < 1 || take > 100 ||
+        (type !== undefined && (typeof type !== "string" || !/^[A-Za-z_]{1,40}$/.test(type)))) {
+      throw new TypeError("Invalid social feed request.");
+    }
+    return get("/feeds/markets/" + Number(instrumentId), { take, type });
+  }
+
   return Object.freeze({
     async searchInstruments(query) {
       if (typeof query !== "string" || !query.trim()) throw new TypeError("Instrument search query is required.");
@@ -141,15 +150,10 @@ function createEtoroClient(options = {}) {
       return rows.map(row => normalizeCandle(row, now)).filter(Boolean).sort((a, b) => a.openTime - b.openTime);
     },
     async getMarketFeed(instrumentId, take = 20, type) {
-      if (!Number.isSafeInteger(Number(instrumentId)) || Number(instrumentId) <= 0 ||
-          !Number.isInteger(take) || take < 1 || take > 100 ||
-          (type !== undefined && (typeof type !== "string" || !/^[A-Za-z_]{1,40}$/.test(type)))) {
-        throw new TypeError("Invalid social feed request.");
-      }
-      return get("/feeds/markets/" + Number(instrumentId), { take, type });
+      return fetchMarketFeed(instrumentId, take, type);
     },
     async getInstrumentFeed(instrumentId, take = 20) {
-      const payload = await this.getMarketFeed(instrumentId, take);
+      const payload = await fetchMarketFeed(instrumentId, take);
       return Array.isArray(payload.posts) ? payload.posts : (Array.isArray(payload.items) ? payload.items : []);
     },
     async getUserFeed(userId, take = 20) {
