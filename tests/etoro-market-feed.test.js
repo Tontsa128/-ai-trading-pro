@@ -36,6 +36,22 @@ assert.match(unsubscribeMessage.id, /^[0-9a-f-]{36}$/i);
 assert.deepEqual(unsubscribeMessage.data.topics, ["instrument:1001"]);
 assert.equal(parseWebSocketMessage("{bad json"), null);
 assert.deepEqual(parseWebSocketMessage(Buffer.from('{"operation":"Test"}')), { operation: "Test" });
+const ratePush = { messages: [
+  { topic: "instrument:1001", type: "Trading.Instrument.Rate", id: "rate-1",
+    content: JSON.stringify({ Ask: "101", Bid: "99", LastExecution: "100", Date: new Date(now - 1000).toISOString(), PriceRateID: "123" }) },
+  { topic: "instrument:1002", type: "Trading.Instrument.Rate", id: "rate-2",
+    content: JSON.stringify({ Ask: "201", Bid: "199", LastExecution: "200", Date: new Date(now - 20000).toISOString(), PriceRateID: "124" }) },
+  { topic: "instrument:1003", type: "Trading.Instrument.MarketStatus", id: "status-1", content: "{}" },
+  { topic: "instrument:1004", type: "Trading.Instrument.Rate", id: "bad-1", content: "{bad json" }
+] };
+const parsedRates = parseWebSocketRateUpdates(ratePush, now, 15000);
+assert.equal(parsedRates.length, 1, "only fresh, valid rate messages are emitted");
+assert.equal(parsedRates[0].instrumentId, 1001);
+assert.equal(parsedRates[0].bid, 99);
+assert.equal(parsedRates[0].ask, 101);
+assert.equal(parsedRates[0].lastPrice, 100);
+assert.equal(parsedRates[0].priceRateId, "123");
+assert.equal(parseWebSocketRateUpdates({ messages: [{ topic: "private", type: "Trading.Instrument.Rate", content: "{}" }] }, now).length, 0);
 assert.throws(() => createWebSocketSubscribeMessage([0]), /instrument IDs/);
 
 const calls = [];
