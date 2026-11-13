@@ -136,6 +136,35 @@ Priority order:
 - Do not convert a checklist pass percentage or a pattern score into a win probability.
 - Keep strategy experiments research-only until reproducible out-of-sample evidence supports a change.
 
+
+## 7. Implemented research engines (2026-11-13)
+
+The research branch now contains separate, deterministic modules:
+
+- `public/price-action-engine.js`: ten descriptive candle-pattern detectors.
+- `public/market-structure-engine.js`: confirmed swing pivots, HH/HL/LH/LL trend classification, BOS/CHoCH candidates, Equal Highs/Equal Lows and sweep observations.
+- `public/liquidity-zone-engine.js`: three-candle bullish/bearish FVGs, open/partial/filled status, and candidate Order Blocks associated with a current confirmed BOS/CHoCH event. Invalidated blocks are suppressed.
+- `public/hybrid-decision-engine.js`: weighted directional evidence aggregation with explicit conflict counts and hard gates for stale data, risk veto, excessive spread and higher-timeframe disagreement.
+
+The dashboard displays these findings beside the canonical signal. The hybrid module reports a research bias and agreement score; the score is not a probability, forecast accuracy, or win rate. The module does not place orders and does not override the canonical BUY/SELL/WAIT engine or risk sizing.
+
+Regression tests are registered in `npm test`:
+- `tests/price-action-engine.test.js`
+- `tests/market-structure-engine.test.js`
+- `tests/liquidity-zone-engine.test.js`
+- `tests/hybrid-decision-engine.test.js`
+
+The four focused engine test files and the dashboard inline-script integration test were executed against the GitHub branch snapshots in an isolated JavaScript runner and passed. This is not a substitute for the complete repository `npm test`, CI, Vercel preview, browser interaction testing, or historical out-of-sample validation. Do not merge until the full checks are green.
+
+## 8. Remaining hybrid-engine roadmap
+
+1. Add component-level evidence diagnostics and traceability to each source candle.
+2. Validate FVG/Order Block definitions against a labelled historical dataset; avoid implying institutional order flow from OHLC candles alone.
+3. Add multi-timeframe zone confluence without counting correlated timeframes as independent evidence.
+4. Build a walk-forward backtest with fees, spread, slippage, survivorship controls and out-of-sample periods.
+5. Compare hybrid research bias against the unchanged canonical strategy; measure expectancy, drawdown, turnover and calibration before any signal integration.
+6. Only after repeatable validation, evaluate an ML model. A language model may explain evidence but must not fabricate prices, probabilities or override deterministic risk gates.
+
 ## 6. Official product references
 
 - XTB platforms: https://www.xtb.com/en/help-center/our-platforms/what-trading-platforms-are-available-at-xtb
@@ -150,4 +179,4 @@ Priority order:
 
 ---
 
-**Implementation status:** this branch adds the research/architecture specification only. No production trading rules or user-facing signals have been changed. The next code change should be a separately tested, research-only pattern detector module, then wire its descriptive output into the dashboard without changing BUY/SELL/WAIT decisions.
+**Implementation status:** research-only Price Action, Market Structure, FVG/Order Block, and deterministic Hybrid Research Consensus modules are implemented on this branch. The canonical production BUY/SELL/WAIT rules and order execution remain unchanged.
