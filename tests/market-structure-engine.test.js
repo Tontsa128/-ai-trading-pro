@@ -14,7 +14,7 @@ assert.ok(pivots.lows.every(p=>p.confirmedAt===p.index+2),"swing lows publish on
 assert.ok(!pivots.highs.some(p=>p.index===rising.length-1),"latest unconfirmed candles cannot become pivots");
 assert.ok(pivots.highs.length>=2&&pivots.lows.length>=2,"the synthetic series contains enough confirmed swing points");
 assert.equal(M.analyze(rising).trend,"BULLISH","higher confirmed highs and higher confirmed lows define bullish structure");
-const invalid=M.analyze([b(1,2,.5,1,0),{open:1,high:0,low:2,close:1},b(1,2,.5,1,2)]);
+const invalid=M.analyze([b(1,2,.5,1,0),b(1,2,.5,1,1),{open:1,high:0,low:2,close:1},b(1,2,.5,1,3),b(1,2,.5,1,4)]);
 assert.equal(invalid.state,"INVALID_DATA","malformed OHLC series fails closed");
 const insufficient=M.analyze([b(1,2,.5,1,0),b(1,2,.5,1,1)]);
 assert.equal(insufficient.state,"INSUFFICIENT_DATA");
