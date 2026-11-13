@@ -119,3 +119,25 @@ Accordingly:
 - Variable spreads, slippage, maximum deviation, credit margin and actual account-specific Stop Loss/Take Profit settings must be recorded from the current client app before realistic simulation is enabled.
 - No real-money order execution or credit-account access is implemented.
 Official documents: https://oss.xtrendlite.com/product/aboutus/lite/pdf/Order_Execution_Policy.pdf and https://oss.xtrendlite.com/product/aboutus/lite/pdf/Terms_of_Business.pdf
+
+
+## eToro read-only market and social data integration
+
+A separate adapter is available in `scripts/etoro-market-feed.js`. It uses the official eToro Public API base URL and read-only GET requests only. Configure `ETORO_API_KEY` and `ETORO_USER_KEY` as server-side environment secrets; never commit them or expose them to browser code. eToro's official docs require both keys and a unique `x-request-id` header. API keys can be created under Settings → Trading → API Key Management; select read-only permissions. Access is available to eligible verified accounts and subject to endpoint-specific scopes and rate limits.
+
+Supported read-only surfaces:
+- Market-data instrument search and rates (Bid/Ask/last price with timestamp freshness validation).
+- OHLC candle history with timestamp/OHLC validation.
+- Instrument social feed posts for sentiment/research context.
+- A constrained generic GET helper for future documented read-only profile/Pro Investor endpoints; execution/order paths are rejected.
+- Local paper ledger with BUY-at-Ask / SELL-at-Bid (and reverse for short paper positions), configurable fees, and no network execution.
+
+The official Market Data product documents REST rates/candles and WebSocket `wss://ws.etoro.com/ws`; the official Social & Discovery product documents feeds, user profiles, performance, portfolio/trade-history views and Pro Investor statistics. The WebSocket transport is documented, but its message schema and reconnect lifecycle must be validated with the account's actual entitled feed before enabling production streaming. Copy-trader profile/PI endpoint paths and scopes must be confirmed in the API Portal before wiring them; the adapter deliberately does not guess them.
+
+No eToro order endpoint, trading execution, demo/live order route, balance mutation, or real-money flow is included. Paper fills exist only in local memory for tests; persistent paper storage and a live data session require account credentials and runtime deployment configuration. The adapter does not change Binance strategy thresholds or paper portfolios.
+
+Official docs:
+- https://builders.etoro.com/products/market-data-realtime
+- https://builders.etoro.com/products/social-discovery
+- https://builders.etoro.com/get-started
+- https://builders.etoro.com/faq

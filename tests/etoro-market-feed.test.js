@@ -1,0 +1,47 @@
+"use strict";
+const assert = require("node:assert/strict");
+const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath } = require("../scripts/etoro-market-feed");
+
+const now = Date.parse("2026-11-13T10:00:00Z");
+const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
+assert.equal(normalizeRate(validRate, now).source, "ETORO");
+assert.equal(normalizeRate({ ...validRate, bid: 0 }, now), null);
+assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now + 1).toISOString() }, now), null);
+assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now - 20000).toISOString() }, now), null);
+assert.equal(normalizeCandle({ timestamp: new Date(now - 60000).toISOString(), open: 10, high: 12, low: 9, close: 11 }, now).closed, true);
+assert.equal(normalizeCandle({ timestamp: new Date(now + 1).toISOString(), open: 10, high: 12, low: 9, close: 11 }, now), null);
+assert.equal(normalizeCandle({ timestamp: new Date(now - 60000).toISOString(), open: 10, high: 8, low: 9, close: 11 }, now), null);
+assert.throws(() => safePath("/api/v2/trading/execution/orders"), /read-only/);
+assert.throws(() => safePath("/../secrets"), /read-only/);
+assert.equal(WS_URL, "wss://ws.etoro.com/ws");
+
+const calls = [];
+const client = createEtoroClient({
+  apiKey: "public-test-key", userKey: "user-test-key", baseUrl: "https://api.test/v1",
+  fetch: async (url, init) => {
+    calls.push({ url, init });
+    return { ok: true, status: 200, json: async () => ({ rates: [validRate] }) };
+  }
+});
+(async () => {
+  const rates = await client.getRates([1001], now);
+  assert.equal(rates.length, 1);
+  assert.equal(rates[0].spreadPct, 2);
+  assert.equal(calls[0].init.method, "GET");
+  assert.equal(calls[0].init.headers["x-api-key"], "public-test-key");
+  assert.ok(calls[0].init.headers["x-request-id"]);
+  assert.equal(calls[0].url, "https://api.test/v1/market-data/instruments/rates?instrumentIds=1001");
+  await assert.rejects(() => client.getRates([0], now), /instrument IDs/);
+  const ledger = createPaperLedger({ feeRate: 0.001 });
+  const quote = { source: "ETORO", bid: 99, ask: 101 };
+  const opened = ledger.open({ action: "BUY", instrumentId: 1001 }, quote, 2, now);
+  assert.equal(opened.entryPrice, 101, "BUY enters at ask");
+  const closed = ledger.close(1001, { source: "ETORO", bid: 103, ask: 104 }, now + 1000);
+  assert.equal(closed.exitPrice, 103, "BUY exits at bid");
+  assert.ok(closed.netPnl < closed.grossPnl, "fees reduce paper PnL");
+  assert.equal(ledger.snapshot().openPositions.length, 0);
+  assert.equal(ledger.snapshot().closedTrades.length, 1);
+  assert.equal(ledger.snapshot().execution, "LOCAL_PAPER_ONLY");
+  await assert.rejects(async () => client.getReadOnly("/api/v2/trading/execution/orders"), /read-only/);
+  console.log("eToro read-only adapter tests passed: quote/candle validation, auth headers, endpoint safety, and local paper fills/fees.");
+})().catch(error => { console.error(error); process.exitCode = 1; });
