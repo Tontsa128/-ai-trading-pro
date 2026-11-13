@@ -85,5 +85,22 @@ function response() {
   await handler({ method: "GET", query: { action: "unknown" } }, res);
   assert.equal(res.statusCode, 400);
 
+  const limited = createHandler({
+    env: { ETORO_API_KEY: "test", ETORO_USER_KEY: "test" },
+    createClient: () => ({ searchInstruments: async () => { throw new Error("eToro API rate limit reached (429). Retry with backoff."); } })
+  });
+  res = response();
+  await limited({ method: "GET", query: { action: "search", q: "BTC" } }, res);
+  assert.equal(res.statusCode, 429);
+
+  const denied = createHandler({
+    env: { ETORO_API_KEY: "test", ETORO_USER_KEY: "test" },
+    createClient: () => ({ searchInstruments: async () => { throw new Error("eToro API request failed with HTTP 403."); } })
+  });
+  res = response();
+  await denied({ method: "GET", query: { action: "search", q: "BTC" } }, res);
+  assert.equal(res.statusCode, 502);
+  assert.equal(JSON.stringify(res.body).includes("test"), false, "credential values must never appear in proxy errors");
+
   console.log("eToro read-only API proxy tests passed: GET-only routes, secret isolation, public data validation and no execution surface.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
