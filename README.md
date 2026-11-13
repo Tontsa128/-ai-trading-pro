@@ -90,3 +90,8 @@ The archive workflow evaluates the canonical 1h signal engine against the last c
 The eToro adapter in `scripts/etoro-market-feed.js` supports read-only instrument search, rate snapshots, candle validation, and instrument social feeds. It includes a local-only long paper ledger; it does not submit orders or call trading execution endpoints. Configure `ETORO_API_KEY` and `ETORO_USER_KEY` only in server-side secret storage. Use an eToro API key with **Read** permission. The optional WebSocket helpers build documented Authenticate and Subscribe messages; they do not yet implement a persistent connection, reconnection, or validated live tick ingestion. CopyTrader / Pro Investor analytics and persistent paper ledger storage are not yet implemented.
 
 Run adapter regression tests with `npm test`. The tests use injected test fetch responses and do not represent live eToro account verification. See the [eToro WebSocket and market data documentation](https://builders.etoro.com/reference).
+
+
+### Managed eToro WebSocket stream
+
+`scripts/etoro-websocket-stream.js` provides an injectable WebSocket transport for public instrument topics. It sends Authenticate when both read-only credentials are configured, subscribes to instrument topics, ignores control acknowledgements, forwards parsed messages to a caller-supplied handler, and reconnects with bounded exponential backoff. It never subscribes to the private topic and has no order methods. Stream payloads are passed through for downstream schema, timestamp, bid/ask and stale-data validation; a live eToro account/market session is still required to validate the provider's actual payloads.
