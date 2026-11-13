@@ -2,10 +2,11 @@
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
-  var chart = null, candles = null, ema9 = null, ema20 = null, ema21 = null, bbUpper = null, bbMiddle = null, bbLower = null;
+  var chart = null, candles = null, ema9 = null, ema20 = null, ema21 = null, bbUpper = null, bbMiddle = null, bbLower = null, signalMarkers = null;
   var activeInterval = "1M";
   var snapshot = null;
   var log = [];
+  var lastLogKey = null;
 
   function setStatus(message, kind) {
     var el = $("feedStatus");
@@ -30,6 +31,7 @@
       upColor: "#19c995", downColor: "#f05270", borderVisible: false,
       wickUpColor: "#19c995", wickDownColor: "#f05270"
     });
+    if (typeof LightweightCharts.createSeriesMarkers === "function") signalMarkers = LightweightCharts.createSeriesMarkers(candles, []);
     ema9 = chart.addSeries(LightweightCharts.LineSeries, { color: "#4fc3f7", lineWidth: 1, title: "EMA 9" });
     ema20 = chart.addSeries(LightweightCharts.LineSeries, { color: "#ffd166", lineWidth: 1, title: "EMA 20" });
     ema21 = chart.addSeries(LightweightCharts.LineSeries, { color: "#a78bfa", lineWidth: 1, title: "EMA 21" });
@@ -38,7 +40,15 @@
     bbLower = chart.addSeries(LightweightCharts.LineSeries, { color: "#52769d", lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, title: "BB lower" });
     setStatus("Kaavio valmis. Odotetaan varmennettua XTrend-hintasyötettä; tyhjää kaaviota ei täytetä esimerkkihinnoilla.", "warning");
   }
+  function clearChart() {
+    if (!chart) return;
+    [candles, ema9, ema20, ema21, bbUpper, bbMiddle, bbLower].forEach(function (series) {
+      if (series) series.setData([]);
+    });
+    if (signalMarkers) signalMarkers.setMarkers([]);
+  }
   function showUnavailable() {
+    clearChart();
     ["lastPrice", "bidAsk", "quoteAge", "rsiValue", "macdValue", "ema20Value", "bbValue", "creditValue"].forEach(function (id) {
       var el = $(id); if (el) el.textContent = "—";
     });
@@ -69,6 +79,20 @@
     if (bars.some(function (bar) { return !bar || bar.source !== "XTREND" || bar.closed !== true; })) {
       setStatus("Kaavion kynttilöiden XTrend-lähdettä tai sulkeutumista ei voitu vahvistaa.", "error");
       return false;
+    }
+    var previousTime = -Infinity;
+    for (var checkIndex = 0; checkIndex < bars.length; checkIndex += 1) {
+      var checked = bars[checkIndex];
+      var checkedTime = Number(checked && checked.closeTime);
+      var valid = checked && [checked.openTime, checked.closeTime, checked.open, checked.high, checked.low, checked.close].every(function (value) { return Number.isFinite(Number(value)); });
+      if (!valid || checkedTime <= previousTime || Number(checked.open) <= 0 || Number(checked.close) <= 0 ||
+          Number(checked.low) <= 0 || Number(checked.high) < Math.max(Number(checked.open), Number(checked.close), Number(checked.low)) ||
+          Number(checked.low) > Math.min(Number(checked.open), Number(checked.close))) {
+        setStatus("Kaavion kynttilöiden arvot tai aikajärjestys eivät kelpaa.", "error");
+        clearChart();
+        return false;
+      }
+      previousTime = checkedTime;
     }
     var rows = bars.map(function (bar) {
       return { time: Math.floor(Number(bar.closeTime) / 1000), open: Number(bar.open), high: Number(bar.high), low: Number(bar.low), close: Number(bar.close) };
@@ -101,6 +125,21 @@
     return [];
   }
 
+
+  function updateMarker(result, bars) {
+    if (!signalMarkers || !Array.isArray(bars) || !bars.length || result.signal === "WAIT") {
+      if (signalMarkers) signalMarkers.setMarkers([]);
+      return;
+    }
+    signalMarkers.setMarkers([{
+      time: Math.floor(Number(bars[bars.length - 1].closeTime) / 1000),
+      position: result.signal === "BUY" ? "belowBar" : "aboveBar",
+      color: result.signal === "BUY" ? "#28d7a0" : "#ff647c",
+      shape: result.signal === "BUY" ? "arrowUp" : "arrowDown",
+      text: result.signal
+    }]);
+  }
+
   function acceptSnapshot(data, config) {
     if (!data || !data.quote || data.quote.source !== "XTREND") {
       setStatus("Virheellinen lähde: vain varmennettu XTrend-syöte hyväksytään.", "error");
@@ -113,6 +152,15 @@
     if (chartBars.length) drawBars(chartBars);
     else setStatus("XTrend-quote saatu, mutta valitun aikavälin kynttilöitä ei ole saatavilla.", "warning");
     var quote = data.quote;
+    var quoteAgeMs = Date.now() - Number(quote.receivedAt);
+    if (!Number.isFinite(quoteAgeMs) || quoteAgeMs < 0 || quoteAgeMs > XTrendQuickMode.defaults.maxQuoteAgeMs ||
+        !Number.isFinite(Number(quote.bid)) || !Number.isFinite(Number(quote.ask)) ||
+        Number(quote.bid) <= 0 || Number(quote.ask) < Number(quote.bid)) {
+      showUnavailable();
+      $("signalReason").textContent = result.reasons.join(" · ") || "XTrendin hintatarjous ei ole tuore tai kelvollinen.";
+      setStatus("Vanhentunutta tai virheellistä XTrend-hintaa ei näytetä.", "error");
+      return { accepted: true, result: result };
+    }
     $("lastPrice").textContent = Number(((Number(quote.bid) + Number(quote.ask)) / 2)).toFixed(2);
     $("bidAsk").textContent = Number(quote.bid).toFixed(2) + " / " + Number(quote.ask).toFixed(2);
     $("quoteAge").textContent = Math.max(0, Date.now() - Number(quote.receivedAt)) + " ms";
@@ -127,8 +175,12 @@
       $("bbValue").textContent = bb.lower.toFixed(2) + " / " + bb.middle.toFixed(2) + " / " + bb.upper.toFixed(2);
     }
     setStatus(result.signal === "WAIT" ? "XTrend-data vastaanotettu. Kauppaehtoja ei täytetty." : "XTrend-data vastaanotettu. Tutkimussignaali, ei toimeksiantoa.", result.signal === "WAIT" ? "warning" : "ok");
-    if (result.signal !== "WAIT" || !log.length || log[0].signal !== result.signal) {
-      addLog({ signal: result.signal, symbol: result.symbol, time: new Date(quote.receivedAt).toLocaleTimeString("fi-FI"), reason: result.reasons.join("; ") });
+    updateMarker(result, chartBars);
+    var signalBar = Array.isArray(data.oneMinuteBars) && data.oneMinuteBars.length ? data.oneMinuteBars[data.oneMinuteBars.length - 1] : null;
+    var logKey = [result.symbol || data.symbol, signalBar ? signalBar.closeTime : quote.receivedAt, result.signal].join("|");
+    if (logKey !== lastLogKey) {
+      lastLogKey = logKey;
+      addLog({ signal: result.signal, symbol: result.symbol || data.symbol, time: new Date(quote.receivedAt).toLocaleTimeString("fi-FI"), reason: result.reasons.join("; ") });
     }
     return { accepted: true, result: result };
   }
