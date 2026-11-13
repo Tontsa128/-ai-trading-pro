@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-12T21:30:06.608Z",
+  "generatedAtUtc": "2026-11-13T02:42:36.422Z",
   "mode": "forward_signal_evaluation",
   "metricType": "signal_value_not_executable_trade_pnl",
   "symbols": [
@@ -18,10 +18,10 @@
   ],
   "feesPerSidePct": 0.1,
   "randomBaselineSeeds": 100,
-  "signalCount": 12,
-  "maturedOutcomeCount": 2,
+  "signalCount": 18,
+  "maturedOutcomeCount": 10,
   "newSignals": 6,
-  "newOutcomes": 2,
+  "newOutcomes": 8,
   "errors": [],
   "metrics": {
     "1h": {
@@ -48,15 +48,15 @@
         "sellCount": 0
       },
       "WAIT_NEAR_MISS": {
-        "samples": 1,
-        "hitRatePct": 0,
-        "avgNetDirectionalReturnPct": -0.024965556529343846,
-        "avgBuyAndHoldNetReturnPct": -0.37452834645670396,
-        "avgRandomDirectionNetReturnPct": -0.1962513235937503,
-        "excessVsBuyAndHoldPct": 0.3495627899273601,
-        "excessVsRandomPct": 0.17128576706440646,
+        "samples": 5,
+        "hitRatePct": 60,
+        "avgNetDirectionalReturnPct": 0.11324429951316883,
+        "avgBuyAndHoldNetReturnPct": -0.5117584559609978,
+        "avgRandomDirectionNetReturnPct": -0.17809032503732067,
+        "excessVsBuyAndHoldPct": 0.6250027554741666,
+        "excessVsRandomPct": 0.29133462455048953,
         "buyCount": 0,
-        "sellCount": 1
+        "sellCount": 5
       }
     },
     "4h": {
@@ -83,15 +83,15 @@
         "sellCount": 0
       },
       "WAIT_NEAR_MISS": {
-        "samples": 1,
-        "hitRatePct": 0,
-        "avgNetDirectionalReturnPct": -0.3161832508010609,
-        "avgBuyAndHoldNetReturnPct": -0.08348110236219286,
-        "avgRandomDirectionNetReturnPct": -0.18819706915968318,
-        "excessVsBuyAndHoldPct": -0.23270214843886805,
-        "excessVsRandomPct": -0.12798618164137773,
+        "samples": 5,
+        "hitRatePct": 60,
+        "avgNetDirectionalReturnPct": 0.1779123806249694,
+        "avgBuyAndHoldNetReturnPct": -0.5747246790654681,
+        "avgRandomDirectionNetReturnPct": -0.21299799499878427,
+        "excessVsBuyAndHoldPct": 0.7526370596904375,
+        "excessVsRandomPct": 0.39091037562375364,
         "buyCount": 0,
-        "sellCount": 1
+        "sellCount": 5
       }
     },
     "24h": {
