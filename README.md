@@ -83,3 +83,16 @@ Signals, matured outcomes and summaries are stored separately from paper trades 
 ## Historical strategy diagnostics (research only)
 
 The archive workflow evaluates the canonical 1h signal engine against the last closed 4h and 1d candles available at each 1h close. It reports BUY/SELL/WAIT and WAIT-near-miss counts, long/short core setup counts, every failed checklist gate, the unchanged long-only Spot backtest, and fee-adjusted buy-and-hold / deterministic 100-seed random-direction reference returns. It requires at least 220 candles on all three timeframes and fails if any archived interval contains a gap. The report is saved to `paper-data/historical-data/diagnostics/latest.json`. The backtest's trade count is long-only executable Spot simulation; SELL signal counts are directional research observations, not short trades. Historical spread is assumed at 0.10% because historical order-book snapshots are not archived. No thresholds, strategy rules or production behavior are changed by this diagnostics workflow.
+
+
+## XTrend Lite Quick Mode foundation (separate, research-only engine)
+
+`public/xtrend-quick-mode.js` is a separate first-stage signal engine. It accepts caller-supplied XTrend bid/ask quotes and closed 1m/5m candles only; Binance quotes are explicitly rejected as XTrend prices. It checks quote and candle freshness, OHLC validity, closed-candle flags, timestamp order, EMA(9/21), RSI(14), MACD histogram alignment and spread. Missing or unverified inputs fail closed to WAIT.
+
+Boundaries:
+- No XTrend connection or official live quote/order API has been verified; this module does not fetch data.
+- `maxSpreadPct` must be explicitly supplied from verified XTrend instrument terms, otherwise WAIT.
+- RSI bands are provisional research defaults, not approved profitability settings.
+- Signals are never executable: no order submission, account login, credit use, deposits, or real-money trading.
+- No XTrend payout, fee, stop, target or fill simulation until actual contract terms and trade-history fields are verified.
+- Binance Spot logic, strategy limits and paper portfolios are unchanged.
