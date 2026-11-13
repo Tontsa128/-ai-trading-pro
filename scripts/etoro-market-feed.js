@@ -4,7 +4,7 @@
 const API_BASE = "https://public-api.etoro.com/api/v1";
 const WS_URL = "wss://ws.etoro.com/ws";
 const DEFAULT_MAX_AGE_MS = 15000;
-const FORBIDDEN_PATH = /(?:^|\/)(?:trading\/execution|orders?|positions\/open)(?:\/|$)/i;
+const FORBIDDEN_PATH = /(?:^|\\/)(?:trading\\/execution|orders?|positions\\/open)(?:\\/|$)/i;
 
 function requestId() {
   return require("node:crypto").randomUUID();
@@ -32,10 +32,12 @@ function normalizeRate(row, now = Date.now(), maxAgeMs = DEFAULT_MAX_AGE_MS) {
   if (!row || typeof row !== "object") return null;
   const bid = Number(row.bid), ask = Number(row.ask), last = Number(row.lastPrice);
   const timestamp = Date.parse(row.timestamp);
-  if (!(bid > 0) || !(ask >= bid) || !(last > 0) || !Number.isFinite(timestamp) ||
+  const instrumentId = Number(row.instrumentId);
+  if (!Number.isSafeInteger(instrumentId) || instrumentId <= 0 ||
+      !(bid > 0) || !(ask >= bid) || !(last > 0) || !Number.isFinite(timestamp) ||
       timestamp > now || now - timestamp > maxAgeMs) return null;
   return {
-    source: "ETORO", instrumentId: Number(row.instrumentId),
+    source: "ETORO", instrumentId,
     symbol: String(row.symbol || ""), bid, ask, lastPrice: last,
     spreadPct: ((ask - bid) / ((ask + bid) / 2)) * 100,
     timestamp, receivedAt: now
@@ -70,7 +72,11 @@ function createEtoroClient(options = {}) {
       if (value !== undefined && value !== null) url.searchParams.set(key, String(value));
     }
     const response = await fetchImpl(url.toString(), { method: "GET", headers: makeHeaders(apiKey, userKey) });
-    if (response.status === 429) throw new Error("eToro API rate limit reached (429); retry with backoff.");
+    if (response.status === 429) {
+      const retryAfter = response.headers && typeof response.headers.get === "function"
+        ? response.headers.get("retry-after") : null;
+      throw new Error("eToro API rate limit reached (429)." + (retryAfter ? " Retry-After: " + retryAfter + "." : " Retry with backoff."));
+    }
     if (!response.ok) throw new Error("eToro API request failed with HTTP " + response.status + ".");
     return response.json();
   }
@@ -113,7 +119,7 @@ function createEtoroClient(options = {}) {
   });
 }
 
-// Local-only paper ledger. It never calls eToro and never sends orders.
+// Local-only long Spot-style paper ledger. SELL can only close an existing BUY.
 function createPaperLedger(options = {}) {
   const positions = new Map();
   const trades = [];
@@ -121,16 +127,19 @@ function createPaperLedger(options = {}) {
   if (!Number.isFinite(feeRate) || feeRate < 0 || feeRate > 0.1) throw new RangeError("Invalid paper fee rate.");
 
   function open(signal, quote, units, at = Date.now()) {
-    if (!signal || !["BUY", "SELL"].includes(signal.action) || !quote || quote.source !== "ETORO" ||
+    if (!signal || signal.action !== "BUY" || !quote || quote.source !== "ETORO" ||
         !(Number(quote.bid) > 0) || !(Number(quote.ask) >= Number(quote.bid)) ||
         !Number.isFinite(Number(units)) || Number(units) <= 0 || !Number.isFinite(at)) {
-      throw new Error("Invalid paper fill; a fresh validated eToro quote and BUY/SELL are required.");
+      throw new Error("Only BUY paper entries are allowed; a valid eToro quote and positive units are required.");
     }
     const key = String(signal.instrumentId);
+    if (!Number.isSafeInteger(Number(signal.instrumentId)) || Number(signal.instrumentId) <= 0) {
+      throw new Error("A valid eToro instrument ID is required.");
+    }
     if (positions.has(key)) throw new Error("A paper position already exists for this instrument.");
-    const entry = signal.action === "BUY" ? Number(quote.ask) : Number(quote.bid);
+    const entry = Number(quote.ask);
     const notional = entry * Number(units);
-    const position = { instrumentId: key, action: signal.action, units: Number(units), entryPrice: entry,
+    const position = { instrumentId: key, action: "BUY", units: Number(units), entryPrice: entry,
       entryFee: notional * feeRate, openedAt: at, source: "ETORO_PAPER" };
     positions.set(key, position);
     return { ...position };
@@ -140,10 +149,10 @@ function createPaperLedger(options = {}) {
     const key = String(instrumentId), position = positions.get(key);
     if (!position || !quote || quote.source !== "ETORO" || !(Number(quote.bid) > 0) ||
         !(Number(quote.ask) >= Number(quote.bid)) || !Number.isFinite(at) || at < position.openedAt) {
-      throw new Error("Invalid paper close; matching position and valid eToro quote required.");
+      throw new Error("Invalid paper close; matching BUY position and valid eToro quote required.");
     }
-    const exit = position.action === "BUY" ? Number(quote.bid) : Number(quote.ask);
-    const gross = (exit - position.entryPrice) * position.units * (position.action === "BUY" ? 1 : -1);
+    const exit = Number(quote.bid);
+    const gross = (exit - position.entryPrice) * position.units;
     const exitFee = exit * position.units * feeRate;
     const trade = { ...position, exitPrice: exit, closedAt: at, exitFee,
       fees: position.entryFee + exitFee, grossPnl: gross, netPnl: gross - position.entryFee - exitFee,
