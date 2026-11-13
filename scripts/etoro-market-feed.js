@@ -173,7 +173,7 @@ function parseWebSocketRateUpdates(input, now = Date.now(), maxAgeMs = DEFAULT_M
   for (const item of envelope.messages) {
     if (!item || item.type !== "Trading.Instrument.Rate" ||
         typeof item.topic !== "string" || typeof item.content !== "string") continue;
-    const topicMatch = /^instrument:(\\d+)$/.exec(item.topic);
+    const topicMatch = /^instrument:(\d+)$/.exec(item.topic);
     if (!topicMatch) continue;
     let content;
     try { content = JSON.parse(item.content); } catch { continue; }
