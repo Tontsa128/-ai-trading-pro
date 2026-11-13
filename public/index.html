@@ -58,7 +58,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
  </section>
  <aside class="panel">
   <div class="section-title"><h3 style="margin:0">Signaalin arvio</h3><span id="passed" class="pill">Ehdot —</span></div>
-  <p id="summary" class="sub">Odotetaan dataa.</p>
+  <p id="summary" class="sub">Odotetaan dataa.</p><div class="divider"></div><div class="section-title"><strong>Hybrid Research Consensus</strong><span id="hybridState" class="pill">ODOTETAAN DATAA</span></div><div id="hybridResults" class="sub">Hybridianalyysi odottaa vahvistettuja lähteitä.</div>
   <div class="divider"></div>
   <h3>Moniaikavälivahvistus</h3><p class="sub">Kaikki aikavälit päivitetty samasta datasta klo <span id="snapshotTime">—</span>.</p><div id="timeframes" class="sub">Odotetaan dataa.</div>
   <div class="divider"></div>
@@ -97,6 +97,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 <script src="./price-action-engine.js"></script>
 <script src="./market-structure-engine.js"></script>
 <script src="./liquidity-zone-engine.js"></script>
+<script src="./hybrid-decision-engine.js"></script>
 <script>
 (function(){
 "use strict";
@@ -412,13 +413,14 @@ function renderLiquidityZones(bars,structure){
  rows.push('<div class="sub">FVG = kolmen kynttilän hintaimbalance. Order Block näytetään vain vahvistetun BOS/CHoCH-tapahtuman yhteydessä. Alueet ovat tutkimushavaintoja, eivät toimeksiantosignaaleja.</div>');
  state.textContent=result.fvgs.length+" FVG · "+result.orderBlocks.length+" OB";
  target.innerHTML=rows.join("");
+ return result;
 }
 function renderPriceAction(bars){
  var target=$("patternResults"),state=$("patternState");
  if(!target||!state)return;
  if(!window.PriceActionEngine){state.textContent="EI KÄYTÖSSÄ";target.textContent="Price Action -moduulia ei voitu ladata.";return;}
  var found=PriceActionEngine.analyzeRecent(bars,3);
- if(!found.length){state.textContent="EI KUVIOITA";target.textContent="Viimeisissä kolmessa sulkeutuneessa kynttilässä ei tunnistettu määriteltyjä kuvioita.";return;}
+ if(!found.length){state.textContent="EI KUVIOITA";target.textContent="Viimeisissä kolmessa sulkeutuneessa kynttilässä ei tunnistettu määriteltyjä kuvioita.";return found;}
  state.textContent=found.length+" HAVAITTOA";
  target.innerHTML=found.slice(0,8).map(function(p){
   var tone=p.direction==="bullish"?"good":p.direction==="bearish"?"bad":"neutral";
@@ -426,6 +428,41 @@ function renderPriceAction(bars){
   var time=p.time?new Date(p.time).toLocaleString("fi-FI"):"aikaleima ei saatavilla";
   return '<div class="kv"><span><strong>'+esc(p.name)+'</strong> · '+esc(time)+'<br><span class="sub">'+esc(p.evidence)+' '+esc(p.confirmation||"")+'</span></span><strong class="'+tone+'">'+status+'</strong></div>';
  }).join("");
+}
+function renderHybridDecision(signal,higher,patterns,structure,liquidity){
+ var target=$("hybridResults"),state=$("hybridState");
+ if(!target||!state)return;
+ if(!window.HybridDecisionEngine){state.textContent="EI KÄYTÖSSÄ";target.textContent="Hybridimoottoria ei voitu ladata.";return;}
+ var evidence=[];
+ function add(source,direction,strength,reliability,weight){if(direction==="BULLISH"||direction==="BEARISH")evidence.push({source:source,direction:direction,strength:strength,reliability:reliability,weight:weight});}
+ var bias=signal.main&&signal.main.checks?signal.main.checks.bias:"";
+ add("TECHNICAL",bias==="bull"?"BULLISH":bias==="bear"?"BEARISH":"NEUTRAL",1,.8,2);
+ var tf=[higher[1]&&higher[1].checks?higher[1].checks.bias:"",higher[2]&&higher[2].checks?higher[2].checks.bias:""];
+ var tfBull=tf.filter(function(x){return x==="bull";}).length,tfBear=tf.filter(function(x){return x==="bear";}).length;
+ if(tfBull===2)add("HIGHER_TIMEFRAME","BULLISH",1,.9,2.5);else if(tfBear===2)add("HIGHER_TIMEFRAME","BEARISH",1,.9,2.5);
+ if(structure&&structure.state==="OK")add("MARKET_STRUCTURE",structure.trend,1,.85,2);
+ var confirmed=(patterns||[]).filter(function(p){return p.state==="CONFIRMED"&&(p.direction==="bullish"||p.direction==="bearish");});
+ var pBull=confirmed.filter(function(p){return p.direction==="bullish";}).length,pBear=confirmed.filter(function(p){return p.direction==="bearish";}).length;
+ if(pBull!==pBear&&confirmed.length)add("PRICE_ACTION",pBull>pBear?"BULLISH":"BEARISH",Math.abs(pBull-pBear)/confirmed.length,.65,1);
+ var zones=[];if(liquidity){zones=(liquidity.fvgs||[]).concat(liquidity.orderBlocks||[]);}
+ var zBull=zones.filter(function(z){return z.direction==="BULLISH";}).length,zBear=zones.filter(function(z){return z.direction==="BEARISH";}).length;
+ if(zBull!==zBear&&zones.length)add("LIQUIDITY_ZONES",zBull>zBear?"BULLISH":"BEARISH",Math.abs(zBull-zBear)/zones.length,.55,1);
+ var volume=signal.main&&signal.main.bar?signal.main.bar.volumeRatio:0;
+ if(Number.isFinite(volume)&&volume>=.5&&bias)add("VOLUME_CONFIRMATION",bias==="bull"?"BULLISH":bias==="bear"?"BEARISH":"NEUTRAL",Math.min(1,volume/1.5),.55,1);
+ var aligned=!(tfBull>0&&tfBear>0);
+ var result=HybridDecisionEngine.analyze({baseDirection:signal.direction,evidence:evidence,risk:{dataFresh:Number.isFinite(signal.priceAgeMs)&&signal.priceAgeMs<=30000,riskAllowed:true,spreadPct:signal.spreadPct,maxSpreadPct:.15,timeframeAligned:aligned}});
+ var label=result.researchBias==="BULLISH"?"HYBRID: NOUSUPAINOTUS":result.researchBias==="BEARISH"?"HYBRID: LASKUPAINOTUS":result.researchBias==="NEUTRAL"?"HYBRID: RISTIRIITAINEN":"HYBRID: ODOTA";
+ var tone=result.researchBias==="BULLISH"?"good":result.researchBias==="BEARISH"?"bad":"neutral";
+ var rows=['<div class="kv"><span>Yhdistetty tutkimusnäkemys</span><strong class="'+tone+'">'+label+'</strong></div>',
+ '<div class="kv"><span>Evidenssin yhteensopivuus</span><strong>'+fmt(result.score,3)+'</strong></div>',
+ '<div class="kv"><span>Vahvuusluokka</span><strong>'+result.strength+'</strong></div>',
+ '<div class="kv"><span>Analyysilähteitä</span><strong>'+result.evidenceCount+'</strong></div>',
+ '<div class="kv"><span>Ristiriitaiset lähteet</span><strong>'+result.conflicts+'</strong></div>'];
+ if(result.baseDisagreement)rows.push('<div class="sub bad">Hybridinäkemys poikkeaa nykyisestä '+esc(result.baseDirection)+'-perussignaalista. Signaalia ei muuteta.</div>');
+ if(result.gates.length)rows.push('<div class="sub bad">Turvarajat: '+esc(result.gates.join(", "))+'</div>');
+ rows.push('<div class="sub">Painotettu tutkimuskonsensus – ei onnistumistodennäköisyys. Nykyinen BUY/SELL/WAIT ja riskimoottori säilyvät muuttumattomina.</div>');
+ state.textContent=result.state==="OK"?"TUTKIMUSNÄKEMYS":result.state;
+ target.innerHTML=rows.join("");
 }
 async function load(){
  if(busy)return;busy=true;var myToken=++refreshToken;$("update").disabled=true;status("Haetaan sulkeutuneita kynttilöitä, suurempia aikavälejä ja spot-hintaa…");
@@ -468,7 +505,7 @@ async function load(){
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+fmt(signal.priceAgeMs/1000,1)+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
-  renderPriceAction(main);var structure=renderMarketStructure(main);renderLiquidityZones(main,structure);
+  var patterns=renderPriceAction(main);var structure=renderMarketStructure(main);var liquidity=renderLiquidityZones(main,structure);renderHybridDecision(signal,higher,patterns,structure,liquidity);
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää."+(chartOk?"":" Kaavio ei ole käytettävissä, koska Plotly ei latautunut."),chartOk?"ok":"error");
  }catch(e){
