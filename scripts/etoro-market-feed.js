@@ -113,7 +113,7 @@ function createEtoroClient(options = {}) {
   async function getV2(path, query = {}) {
     const endpoint = safePath(path);
     if (!/^\/api\/v2\/(?:market-data\/rates|portfolios\/(?:rankings|[A-Za-z0-9_.-]{1,50}\/copiers))$/.test(endpoint)) {
-      throw new TypeError("Only documented read-only eToro portfolio v2 paths are allowed.");
+      throw new TypeError("Only documented read-only eToro v2 paths are allowed.");
     }
     const url = new URL(endpoint, parsedBaseUrl.origin);
     for (const [key, value] of Object.entries(query)) {
