@@ -19,12 +19,19 @@ assert.throws(() => safePath("/%2f%2fevil.example/path"), /read-only/);\nassert.
 assert.throws(() => safePath("/\\\\evil.example/path"), /read-only/);
 assert.throws(() => createEtoroClient({ apiKey: "api", userKey: "user", baseUrl: "https://attacker.example" }), /official HTTPS API host/);
 assert.equal(WS_URL, "wss://ws.etoro.com/ws");
-assert.deepEqual(createWebSocketAuthMessage("api", "user"), {
+const authMessage = createWebSocketAuthMessage("api", "user");
+assert.match(authMessage.id, /^[0-9a-f-]{36}$/i);
+assert.deepEqual({ operation: authMessage.operation, data: authMessage.data }, {
   operation: "Authenticate", data: { userKey: "user", apiKey: "api" }
 });
-assert.deepEqual(createWebSocketSubscribeMessage([1001, 1002, 1001]), {
+const subscribeMessage = createWebSocketSubscribeMessage([1001, 1002, 1001]);
+assert.match(subscribeMessage.id, /^[0-9a-f-]{36}$/i);
+assert.deepEqual({ operation: subscribeMessage.operation, data: subscribeMessage.data }, {
   operation: "Subscribe", data: { topics: ["instrument:1001", "instrument:1002"], snapshot: false }
 });
+const unsubscribeMessage = createWebSocketUnsubscribeMessage([1001]);
+assert.match(unsubscribeMessage.id, /^[0-9a-f-]{36}$/i);
+assert.deepEqual(unsubscribeMessage.data.topics, ["instrument:1001"]);
 assert.equal(parseWebSocketMessage("{bad json"), null);
 assert.deepEqual(parseWebSocketMessage(Buffer.from('{"operation":"Test"}')), { operation: "Test" });
 assert.throws(() => createWebSocketSubscribeMessage([0]), /instrument IDs/);
