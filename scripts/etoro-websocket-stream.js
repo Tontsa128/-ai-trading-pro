@@ -43,7 +43,6 @@ function createEtoroStream(options = {}) {
 
     socket.onopen = () => {
       if (stopped) return socket.close();
-      attempts = 0;
       try {
         if (apiKey && userKey) send(createWebSocketAuthMessage(apiKey, userKey));
         send(createWebSocketSubscribeMessage(instrumentIds, true));
@@ -63,6 +62,7 @@ function createEtoroStream(options = {}) {
       // Ignore binary heartbeat frames and control acknowledgements; only pass
       // parsed object messages through. Downstream validates quote schema/time.
       if (message.operation || message.success !== undefined) return;
+      attempts = 0; // A real stream event proves the connection is healthy.
       onMessage(message);
     };
     socket.onerror = event => onError(event instanceof Error ? event : new Error("eToro WebSocket transport error."));
