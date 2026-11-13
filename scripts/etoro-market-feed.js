@@ -143,7 +143,17 @@ function createWebSocketSubscribeMessage(instrumentIds, snapshot = false) {
   }};
 }
 
-function createWebSocketUnsubscribeMessage(instrumentIds) {\n  if (!Array.isArray(instrumentIds) || !instrumentIds.length ||\n      instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {\n    throw new TypeError("Valid eToro instrument IDs are required for WebSocket unsubscription.");\n  }\n  return { id: requestId(), operation: "Unsubscribe", data: {\n    topics: [...new Set(instrumentIds.map(id => "instrument:" + Number(id)))]\n  }};\n}\n\nfunction parseWebSocketMessage(input) {
+function createWebSocketUnsubscribeMessage(instrumentIds) {
+  if (!Array.isArray(instrumentIds) || !instrumentIds.length ||
+      instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+    throw new TypeError("Valid eToro instrument IDs are required for WebSocket unsubscription.");
+  }
+  return { id: requestId(), operation: "Unsubscribe", data: {
+    topics: [...new Set(instrumentIds.map(id => "instrument:" + Number(id)))]
+  }};
+}
+
+function parseWebSocketMessage(input) {
   let value = input;
   if (value && typeof value === "object" && value.data !== undefined && !Buffer.isBuffer(value)) value = value.data;
   if (Buffer.isBuffer(value)) value = value.toString("utf8");
