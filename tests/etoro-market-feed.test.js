@@ -6,6 +6,7 @@ const now = Date.parse("2026-11-13T10:00:00Z");
 const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
 assert.equal(normalizeRate(validRate, now).source, "ETORO");
 assert.equal(normalizeRate({ ...validRate, bid: 0 }, now), null);
+assert.equal(normalizeRate({ ...validRate, instrumentId: 0 }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now + 1).toISOString() }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now - 20000).toISOString() }, now), null);
 assert.equal(normalizeCandle({ timestamp: new Date(now - 60000).toISOString(), open: 10, high: 12, low: 9, close: 11 }, now).closed, true);
@@ -36,6 +37,7 @@ const client = createEtoroClient({
   const quote = { source: "ETORO", bid: 99, ask: 101 };
   const opened = ledger.open({ action: "BUY", instrumentId: 1001 }, quote, 2, now);
   assert.equal(opened.entryPrice, 101, "BUY enters at ask");
+  assert.throws(() => ledger.open({ action: "SELL", instrumentId: 1002 }, quote, 2, now), /Only BUY/);
   const closed = ledger.close(1001, { source: "ETORO", bid: 103, ask: 104 }, now + 1000);
   assert.equal(closed.exitPrice, 103, "BUY exits at bid");
   assert.ok(closed.netPnl < closed.grossPnl, "fees reduce paper PnL");
@@ -43,5 +45,5 @@ const client = createEtoroClient({
   assert.equal(ledger.snapshot().closedTrades.length, 1);
   assert.equal(ledger.snapshot().execution, "LOCAL_PAPER_ONLY");
   await assert.rejects(async () => client.getReadOnly("/api/v2/trading/execution/orders"), /read-only/);
-  console.log("eToro read-only adapter tests passed: quote/candle validation, auth headers, endpoint safety, and local paper fills/fees.");
+  console.log("eToro read-only adapter tests passed: quote/candle validation, auth headers, endpoint safety, and long-only local paper fills/fees.");
 })().catch(error => { console.error(error); process.exitCode = 1; });
