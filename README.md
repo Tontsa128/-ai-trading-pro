@@ -83,3 +83,10 @@ Signals, matured outcomes and summaries are stored separately from paper trades 
 ## Historical strategy diagnostics (research only)
 
 The archive workflow evaluates the canonical 1h signal engine against the last closed 4h and 1d candles available at each 1h close. It reports BUY/SELL/WAIT and WAIT-near-miss counts, long/short core setup counts, every failed checklist gate, the unchanged long-only Spot backtest, and fee-adjusted buy-and-hold / deterministic 100-seed random-direction reference returns. It requires at least 220 candles on all three timeframes and fails if any archived interval contains a gap. The report is saved to `paper-data/historical-data/diagnostics/latest.json`. The backtest's trade count is long-only executable Spot simulation; SELL signal counts are directional research observations, not short trades. Historical spread is assumed at 0.10% because historical order-book snapshots are not archived. No thresholds, strategy rules or production behavior are changed by this diagnostics workflow.
+
+
+## eToro read-only market research (isolated integration)
+
+The eToro adapter in `scripts/etoro-market-feed.js` supports read-only instrument search, rate snapshots, candle validation, and instrument social feeds. It includes a local-only long paper ledger; it does not submit orders or call trading execution endpoints. Configure `ETORO_API_KEY` and `ETORO_USER_KEY` only in server-side secret storage. Use an eToro API key with **Read** permission. The optional WebSocket helpers build documented Authenticate and Subscribe messages; they do not yet implement a persistent connection, reconnection, or validated live tick ingestion. CopyTrader / Pro Investor analytics and persistent paper ledger storage are not yet implemented.
+
+Run adapter regression tests with `npm test`. The tests use injected test fetch responses and do not represent live eToro account verification. See the [eToro WebSocket and market data documentation](https://builders.etoro.com/reference).
