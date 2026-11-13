@@ -1,6 +1,6 @@
 "use strict";
 const assert = require("node:assert/strict");
-const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage } = require("../scripts/etoro-market-feed");
+const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates } = require("../scripts/etoro-market-feed");
 
 const now = Date.parse("2026-11-13T10:00:00Z");
 const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
