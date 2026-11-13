@@ -51,6 +51,32 @@ const confirmedBars = [bar(100, 101, 99, 100, 0), bar(100, 102, 98, 100.02, 1), 
 const confirmed = E.analyze(confirmedBars, 1).find(x => x.id === "DOJI");
 assert.equal(confirmed.state, "PENDING", "neutral doji never receives directional confirmation by itself");
 
+const bullishConfirmationBars = [
+  bar(100, 101, 99, 100, 0),
+  bar(100, 102, 98, 100.02, 1),
+  bar(100.5, 104, 100, 103, 2)
+];
+const bullishConfirmed = E.analyze(bullishConfirmationBars, 1).find(x => x.id === "DOJI");
+assert.equal(bullishConfirmed.state, "PENDING", "neutral doji remains non-directional even after a price breakout");
+
+const engulfingConfirmBars = [
+  ...trendBars("down", 5),
+  bar(100, 101, 99, 99.5, 5),
+  bar(99, 102, 98.5, 101.5, 6),
+  bar(101.5, 104, 101, 103.5, 7)
+];
+const engulfingConfirmed = E.analyze(engulfingConfirmBars, 6).find(x => x.id === "BULLISH_ENGULFING");
+assert.equal(engulfingConfirmed.state, "CONFIRMED", "bullish engulfing requires a later close above its signal candle high");
+
+const engulfingFailedBars = [
+  ...trendBars("down", 5),
+  bar(100, 101, 99, 99.5, 5),
+  bar(99, 102, 98.5, 101.5, 6),
+  bar(99, 100, 97, 98, 7)
+];
+const engulfingInvalidated = E.analyze(engulfingFailedBars, 6).find(x => x.id === "BULLISH_ENGULFING");
+assert.equal(engulfingInvalidated.state, "INVALIDATED", "close below the pattern low invalidates bullish engulfing");
+
 const invalid = E.detectAt([{open:1,high:2,low:0.5,close:1.5},{open:1,high:2,low:0.5,close:1.5,closed:false}],1);
 assert.deepEqual(invalid, [], "unfinished candles are excluded");
 assert.deepEqual(E.detectAt([bar(1,2,0.5,1.5,0)],0), [], "no prior candle means insufficient context");
