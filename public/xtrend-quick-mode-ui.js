@@ -77,6 +77,7 @@
   function drawBars(bars) {
     if (!chart || !Array.isArray(bars) || !bars.length) return false;
     if (bars.some(function (bar) { return !bar || bar.source !== "XTREND" || bar.closed !== true; })) {
+      clearChart();
       setStatus("Kaavion kynttilöiden XTrend-lähdettä tai sulkeutumista ei voitu vahvistaa.", "error");
       return false;
     }

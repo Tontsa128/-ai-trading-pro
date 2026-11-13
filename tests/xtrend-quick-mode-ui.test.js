@@ -10,7 +10,7 @@ assert.match(html, /EMA 20/);
 assert.match(html, /Bollinger Bands/);
 assert.match(html, /RSI 14/);
 assert.match(html, /MACD hist/);
-assert.match(html, /AI Trade Signals &amp; Log/);
+assert.match(html, /AI Trade Signals & Log/);
 assert.match(html, /TradingView/);
 assert.doesNotMatch(html, /\b(?:demo|sample|mock)\s+(?:price|candle|quote)\b/i);
 assert.match(ui, /quote\.source !== "XTREND"/, "reject non-XTrend quote source");
