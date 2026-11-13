@@ -54,6 +54,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
   <div id="chart"></div>
   <div class="sub">Kaavio näyttää valitun aikavälin. Analyysi vertaa myös kahta suurempaa aikaväliä.</div>
   <div class="divider"></div><div class="section-title"><strong>Price Action -kuviot</strong><span id="patternState" class="pill">ODOTETAAN DATAA</span></div><div id="patternResults" class="sub">Kynttiläkuvioita ei ole vielä analysoitu.</div>
+  <div class="divider"></div><div class="section-title"><strong>Market Structure &amp; Liquidity</strong><span id="structureState" class="pill">ODOTETAAN DATAA</span></div><div id="structureResults" class="sub">Markkinarakennetta ei ole vielä analysoitu.</div>
  </section>
  <aside class="panel">
   <div class="section-title"><h3 style="margin:0">Signaalin arvio</h3><span id="passed" class="pill">Ehdot —</span></div>
@@ -94,6 +95,7 @@ ul{padding-left:20px}li{margin:7px 0}.foot{font-size:12px;color:var(--muted);pad
 <script src="./number-format.js"></script>
 <script src="./trading-engine.js"></script>
 <script src="./price-action-engine.js"></script>
+<script src="./market-structure-engine.js"></script>
 <script>
 (function(){
 "use strict";
@@ -369,6 +371,26 @@ function renderChart(series,signal,symbol,chartCount){
   return renderNativeCandleChart(valid,signal,symbol,count,e&&e.message?e.message:"Plotly-piirto epäonnistui.");
  }
 }
+function renderMarketStructure(bars){
+ var target=$("structureResults"),state=$("structureState");
+ if(!target||!state)return;
+ if(!window.MarketStructureEngine){state.textContent="EI KÄYTÖSSÄ";target.textContent="Market Structure -moduulia ei voitu ladata.";return;}
+ var result=MarketStructureEngine.analyze(bars,{leftBars:2,rightBars:2});
+ if(result.state!=="OK"){state.textContent=result.state==="INVALID_DATA"?"DATA VIRHEELLINEN":"ODOTETAAN DATAA";target.textContent="Analyysi keskeytettiin: "+result.state;return;}
+ var trend=result.trend==="BULLISH"?"NOUSURAKENNE":result.trend==="BEARISH"?"LASKURAKENNE":result.trend==="RANGE"?"SIVUTTAISRAKENNE":"EI VAHVAA RAKENNETTA";
+ var rows=['<div class="kv"><span>Vahvistettu markkinarakenne</span><strong>'+trend+'</strong></div>'];
+ if(result.latestHigh)rows.push('<div class="kv"><span>Viimeisin vahvistettu swing high</span><strong>'+fmtPrice(result.latestHigh.price)+'</strong></div>');
+ if(result.latestLow)rows.push('<div class="kv"><span>Viimeisin vahvistettu swing low</span><strong>'+fmtPrice(result.latestLow.price)+'</strong></div>');
+ result.levels.forEach(function(level){rows.push('<div class="kv"><span>'+level.type.replace(/_/g," ")+'</span><strong>'+fmtPrice(level.price)+'</strong></div>');});
+ result.events.forEach(function(event){
+  var tone=event.direction==="BULLISH"?"good":"bad";
+  rows.push('<div class="kv"><span><strong>'+event.type.replace(/_/g," ")+'</strong><br><span class="sub">'+esc(event.description)+'</span></span><strong class="'+tone+'">'+fmtPrice(event.level)+'</strong></div>');
+ });
+ if(!result.events.length)rows.push('<div class="sub">Ei uutta BOS-, CHoCH- tai sweep-tapahtumaa viimeisimmässä sulkeutuneessa kynttilässä.</div>');
+ rows.push('<div class="sub">Swing-pisteet vahvistetaan vasta '+result.parameters.rightBars+' myöhemmän sulkeutuneen kynttilän jälkeen. Ei ennakoivia pivot-merkintöjä.</div>');
+ state.textContent=result.events.length?result.events.length+" TAPAHTUMAA":trend;
+ target.innerHTML=rows.join("");
+}
 function renderPriceAction(bars){
  var target=$("patternResults"),state=$("patternState");
  if(!target||!state)return;
@@ -424,7 +446,7 @@ async function load(){
    '<div class="kv"><span>Markkinahinnan ikä</span><strong>'+fmt(signal.priceAgeMs/1000,1)+' s</strong></div>';
   paintChecklist(signal);renderRisk(signal);
   var chartOk=renderChart(main,signal,symbol,Number($("chartCount").value));
-  renderPriceAction(main);
+  renderPriceAction(main);renderMarketStructure(main);
   $("timestamp").textContent="Kynttilä sulkeutui "+new Date(latest.closeTime).toLocaleString("fi-FI");
   status("Julkinen Binance Spot -data saatu. "+main.length+" sulkeutunutta kynttilää; signaali laskettiin ilman keskeneräistä kynttilää."+(chartOk?"":" Kaavio ei ole käytettävissä, koska Plotly ei latautunut."),chartOk?"ok":"error");
  }catch(e){
