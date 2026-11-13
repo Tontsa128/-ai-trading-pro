@@ -83,3 +83,39 @@ Signals, matured outcomes and summaries are stored separately from paper trades 
 ## Historical strategy diagnostics (research only)
 
 The archive workflow evaluates the canonical 1h signal engine against the last closed 4h and 1d candles available at each 1h close. It reports BUY/SELL/WAIT and WAIT-near-miss counts, long/short core setup counts, every failed checklist gate, the unchanged long-only Spot backtest, and fee-adjusted buy-and-hold / deterministic 100-seed random-direction reference returns. It requires at least 220 candles on all three timeframes and fails if any archived interval contains a gap. The report is saved to `paper-data/historical-data/diagnostics/latest.json`. The backtest's trade count is long-only executable Spot simulation; SELL signal counts are directional research observations, not short trades. Historical spread is assumed at 0.10% because historical order-book snapshots are not archived. No thresholds, strategy rules or production behavior are changed by this diagnostics workflow.
+
+
+## XTrend Lite Quick Mode foundation (separate, research-only engine)
+
+`public/xtrend-quick-mode.js` is a separate first-stage signal engine. It accepts caller-supplied XTrend bid/ask quotes and closed 1m/5m candles only; Binance quotes are explicitly rejected as XTrend prices. It checks quote and candle freshness, OHLC validity, closed-candle flags, timestamp order, EMA(9/21), RSI(14), MACD histogram alignment and spread. Missing or unverified inputs fail closed to WAIT.
+
+Boundaries:
+- No XTrend connection or official live quote/order API has been verified; this module does not fetch data.
+- `maxSpreadPct` must be explicitly supplied from verified XTrend instrument terms, otherwise WAIT.
+- RSI bands are provisional research defaults, not approved profitability settings.
+- Signals are never executable: no order submission, account login, credit use, deposits, or real-money trading.
+- No XTrend payout, fee, stop, target or fill simulation until actual contract terms and trade-history fields are verified.
+- Binance Spot logic, strategy limits and paper portfolios are unchanged.
+
+
+## XTrend Quick Mode UI and indicator foundation
+
+The separate `/xtrend.html` route provides a mobile-first Quick Mode workspace with 1S/5S/1M/5M controls, TradingView Lightweight Charts v5.3.0, EMA 9/20/21, Bollinger Bands (20, 2 population standard deviations), Wilder RSI(14), MACD histogram, a signal panel and a signal log. The view intentionally remains empty until a verified XTrend feed supplies data; it does not substitute Binance prices or generated example candles. TradingView attribution is included as required by the Lightweight Charts license.
+
+The isolated XTrend engine now exposes EMA, Wilder RSI, Bollinger Bands, signal analysis, closed-candle validation and a 1S/5S tick-to-OHLC aggregator. The aggregator accepts only timestamped `XTREND` trade ticks, omits incomplete buckets, reports gaps and never fills missing candles. It is a library function, not an active connection: the official XTrend market-data endpoint/feed has not been verified.
+
+The UI exposes `window.XTrendQuickModeUI.acceptSnapshot(snapshot, config)` for a future reviewed adapter. It rejects snapshots whose quote source is not `XTREND`. No account login, credit read, order placement or credit simulation is implemented.
+
+
+
+## XTrend platform policy and integration blockers
+
+The publicly available XTrend Lite Order Execution Policy (version 2.0) describes the platform as a CFD execution platform, states that quoted spreads are variable, that platform prices are proprietary and may differ from underlying market bid/ask prices, and that price latency/slippage can affect fills. Its section 10.6.3(c) identifies scalping trades or entering/closing positions for an arbitrarily short period as potentially abusive conduct. The publicly available Terms of Business (version 1.1) says quote snapshots are indicative, execution prices may differ, opening/closing is confirmed through platform records/success notifications, and gives a default stop loss of -80% of used margin. The documents may not be the latest contract terms; verify the exact current Quick Mode and Credit Account terms in-app or with XTrend support before using signals.
+
+Accordingly:
+- 1S/5S are chart/market-context intervals only, never assumed to be permitted position holding periods.
+- Do not optimize or recommend ultra-short position holding/scalping until XTrend confirms the permitted holding style in writing.
+- Use XTrend's own bid/ask and actual execution/closure records; do not infer fills from Binance or the chart's indicative quote.
+- Variable spreads, slippage, maximum deviation, credit margin and actual account-specific Stop Loss/Take Profit settings must be recorded from the current client app before realistic simulation is enabled.
+- No real-money order execution or credit-account access is implemented.
+Official documents: https://oss.xtrendlite.com/product/aboutus/lite/pdf/Order_Execution_Policy.pdf and https://oss.xtrendlite.com/product/aboutus/lite/pdf/Terms_of_Business.pdf
