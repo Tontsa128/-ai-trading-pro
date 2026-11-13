@@ -41,6 +41,11 @@ function createHandler(options = {}) {
 
     const query = req.query || {};
     const action = one(query.action);
+    if (action !== "rates") {
+      // Social/profile data changes more slowly; short CDN caching protects
+      // the provider's shared read quota. Live quotes remain no-store.
+      res.setHeader("Cache-Control", "public, s-maxage=30, stale-while-revalidate=60");
+    }
     let client;
     try {
       client = clientFactory({ apiKey, userKey });
