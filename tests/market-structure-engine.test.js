@@ -27,7 +27,7 @@ const sweep=M.analyze(sweepBars,{leftBars:1,rightBars:1});
 assert.equal(sweep.state,"OK","valid closed candle series is analyzed");
 assert.ok(Array.isArray(sweep.events)&&Array.isArray(sweep.levels),"analysis returns explicit events and liquidity levels");
 const equalHighSweep=[
- b(100,102,99,101,0),b(101,105,100,104,1),b(104,103,98,100,2),
+ b(100,102,99,101,0),b(101,105,100,104,1),b(104,104,98,100,2),
  b(100,105.04,99,103,3),b(103,104,100,102,4),b(102,106,100,104,5)
 ];
 const equalResult=M.analyze(equalHighSweep,{leftBars:1,rightBars:1,equalTolerancePct:0.001});
