@@ -9,7 +9,7 @@ function one(value) {
 
 function positiveInteger(value, max) {
   const text = one(value);
-  if (!/^\\d+$/.test(text)) return null;
+  if (!/^\d+$/.test(text)) return null;
   const number = Number(text);
   return Number.isSafeInteger(number) && number > 0 && number <= max ? number : null;
 }
