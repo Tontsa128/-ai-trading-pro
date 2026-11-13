@@ -8,7 +8,8 @@
     if (!node) return;
     node.className = "status" + (kind ? " " + kind : "");
     node.textContent = message;
-    $("etoroState").textContent = kind === "ok" ? "READ-ONLY" : kind === "error" ? "EI KÄYTETTÄVISSÄ" : "ETORO";
+    var lower = String(message || "").toLowerCase();
+    $("etoroState").textContent = lower.indexOf("not configured") >= 0 ? "EI KONFIGUROITU" : kind === "ok" ? "READ-ONLY" : kind === "error" ? "EI KÄYTETTÄVISSÄ" : "ETORO";
   }
 
   function show(value) {
