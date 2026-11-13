@@ -109,6 +109,10 @@ function createEtoroClient(options = {}) {
     "SixMonthsAgo", "CurrYear", "OneYearAgo", "LastYear", "LastTwoYears",
     "AbsOneYear", "AbsTwoYears"
   ]);
+  const userSearchPeriods = new Set([
+    "CurrMonth", "CurrQuarter", "CurrYear", "LastYear", "LastTwoYears",
+    "OneMonthAgo", "TwoMonthsAgo", "ThreeMonthsAgo", "SixMonthsAgo", "OneYearAgo"
+  ]);
 
   return Object.freeze({
     async searchInstruments(query) {
@@ -164,7 +168,7 @@ function createEtoroClient(options = {}) {
     async searchUsers(filters = {}) {
       if (!filters || typeof filters !== "object" || Array.isArray(filters)) throw new TypeError("User search filters must be an object.");
       const query = { ...filters, period: filters.period || "CurrYear" };
-      if (!rankingPeriods.has(query.period)) throw new TypeError("Unsupported eToro user-search period.");
+      if (!userSearchPeriods.has(query.period)) throw new TypeError("Unsupported eToro user-search period.");
       if (query.page !== undefined && (!Number.isInteger(query.page) || query.page < 1)) throw new TypeError("Invalid user-search page.");
       if (query.pageSize !== undefined && (!Number.isInteger(query.pageSize) || query.pageSize < 1 || query.pageSize > 100)) throw new TypeError("Invalid user-search page size.");
       for (const key of ["isTestAccount", "optIn", "blocked", "popularInvestor"]) {
