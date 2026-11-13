@@ -5,7 +5,7 @@ const M=require("../public/market-structure-engine.js");
 function b(o,h,l,c,i){return {open:o,high:h,low:l,close:c,closeTime:1700000000000+i*300000};}
 const bullishGap=[
  b(100,102,99,101,0),b(101,104,100,103,1),b(105,108,104,107,2),
- b(107,109,106,108,3),b(108,109,104,105,4)
+ b(107,109,106,108,3),b(108,109,103,105,4)
 ];
 const f=L.detectFvgs(bullishGap,{minGapPct:0});
 assert.equal(f.state,"OK");
