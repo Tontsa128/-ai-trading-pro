@@ -96,3 +96,12 @@ Boundaries:
 - Signals are never executable: no order submission, account login, credit use, deposits, or real-money trading.
 - No XTrend payout, fee, stop, target or fill simulation until actual contract terms and trade-history fields are verified.
 - Binance Spot logic, strategy limits and paper portfolios are unchanged.
+
+
+## XTrend Quick Mode UI and indicator foundation
+
+The separate `/xtrend.html` route provides a mobile-first Quick Mode workspace with 1S/5S/1M/5M controls, TradingView Lightweight Charts v5.3.0, EMA 9/20/21, Bollinger Bands (20, 2 population standard deviations), Wilder RSI(14), MACD histogram, a signal panel and a signal log. The view intentionally remains empty until a verified XTrend feed supplies data; it does not substitute Binance prices or generated example candles. TradingView attribution is included as required by the Lightweight Charts license.
+
+The isolated XTrend engine now exposes EMA, Wilder RSI, Bollinger Bands, signal analysis, closed-candle validation and a 1S/5S tick-to-OHLC aggregator. The aggregator accepts only timestamped `XTREND` trade ticks, omits incomplete buckets, reports gaps and never fills missing candles. It is a library function, not an active connection: the official XTrend market-data endpoint/feed has not been verified.
+
+The UI exposes `window.XTrendQuickModeUI.acceptSnapshot(snapshot, config)` for a future reviewed adapter. It rejects snapshots whose quote source is not `XTREND`. No account login, credit read, order placement or credit simulation is implemented.
