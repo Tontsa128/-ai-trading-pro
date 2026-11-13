@@ -1,6 +1,6 @@
 "use strict";
 const assert = require("node:assert/strict");
-const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, parseWebSocketMessage } = require("../scripts/etoro-market-feed");
+const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage } = require("../scripts/etoro-market-feed");
 
 const now = Date.parse("2026-11-13T10:00:00Z");
 const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
@@ -15,7 +15,7 @@ assert.equal(normalizeCandle({ timestamp: new Date(now - 60000).toISOString(), o
 assert.throws(() => safePath("/api/v2/trading/execution/orders"), /read-only/);
 assert.throws(() => safePath("/../secrets"), /read-only/);
 assert.throws(() => safePath("/%2e%2e/secrets"), /read-only/);
-assert.throws(() => safePath("/%2f%2fevil.example/path"), /read-only/);
+assert.throws(() => safePath("/%2f%2fevil.example/path"), /read-only/);\nassert.throws(() => safePath("/%252e%252e/secrets"), /read-only/);
 assert.throws(() => safePath("/\\\\evil.example/path"), /read-only/);
 assert.throws(() => createEtoroClient({ apiKey: "api", userKey: "user", baseUrl: "https://attacker.example" }), /official HTTPS API host/);
 assert.equal(WS_URL, "wss://ws.etoro.com/ws");
