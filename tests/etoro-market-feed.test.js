@@ -1,12 +1,20 @@
 "use strict";
 const assert = require("node:assert/strict");
-const { normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates } = require("../scripts/etoro-market-feed");
+const { normalizeRate, normalizeBidAskRate, normalizeCandle, createEtoroClient, createPaperLedger, WS_URL, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates } = require("../scripts/etoro-market-feed");
 
 const now = Date.parse("2026-11-13T10:00:00Z");
 const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
 assert.equal(normalizeRate(validRate, now).source, "ETORO");
 assert.equal(normalizeRate({ ...validRate, bid: 0 }, now), null);
 assert.equal(normalizeRate({ ...validRate, bid: Infinity, ask: Infinity }, now), null);
+const realtimeBidAsk = { instrumentId: 1001, bid: 99, ask: 101, date: new Date(now - 1000).toISOString(), quoteType: "realtime" };
+const normalizedBidAsk = normalizeBidAskRate(realtimeBidAsk, now, 15000);
+assert.equal(normalizedBidAsk.source, "ETORO");
+assert.equal(normalizedBidAsk.midPrice, 100);
+assert.equal(normalizedBidAsk.lastPrice, null, "bid/ask endpoint must not fabricate a last-trade price");
+assert.equal(normalizeBidAskRate({ ...realtimeBidAsk, quoteType: "delayed" }, now, 15000), null);
+assert.equal(normalizeBidAskRate({ ...realtimeBidAsk, date: new Date(now - 20000).toISOString() }, now, 15000), null);
+assert.equal(normalizeBidAskRate({ ...realtimeBidAsk, date: new Date(now + 1000).toISOString() }, now, 15000), null);
 assert.equal(normalizeRate({ ...validRate, instrumentId: 0 }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now + 1).toISOString() }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now - 20000).toISOString() }, now), null);
@@ -70,7 +78,34 @@ const client = createEtoroClient({
   assert.equal(calls[0].init.headers["x-api-key"], "public-test-key");
   assert.ok(calls[0].init.headers["x-request-id"]);
   assert.equal(calls[0].url, "https://api.test/v1/market-data/instruments/rates?instrumentIds=1001");
+  await client.searchInstruments("BTC");
+  const searchUrl = new URL(calls[1].url);
+  assert.equal(searchUrl.pathname, "/v1/market-data/search");
+  assert.equal(searchUrl.searchParams.get("internalSymbolFull"), "BTC");
+  assert.ok(searchUrl.searchParams.get("fields").includes("instrumentId"), "instrument search must include required fields");
+  assert.equal(searchUrl.searchParams.get("pageSize"), "100");
   await assert.rejects(() => client.getRates([0], now), /instrument IDs/);
+
+  const liveCalls = [];
+  const liveClient = createEtoroClient({
+    apiKey: "public-test-key", userKey: "user-test-key", baseUrl: "https://api.test/api/v1", maxAgeMs: 15000,
+    fetch: async (url, init) => {
+      liveCalls.push({ url, init });
+      return { ok: true, status: 206, json: async () => ({ results: [
+        { instrumentId: 1001, bid: 99, ask: 101, date: new Date(now - 1000).toISOString(), quoteType: "realtime" },
+        { instrumentId: 1002, bid: 199, ask: 201, date: new Date(now - 1000).toISOString(), quoteType: "delayed" },
+        { instrumentId: 1003, bid: 299, ask: 301, date: new Date(now - 30000).toISOString(), quoteType: "realtime" },
+        { instrumentId: 9999, bid: 399, ask: 401, date: new Date(now - 1000).toISOString(), quoteType: "realtime" }
+      ] }) };
+    }
+  });
+  const liveQuotes = await liveClient.getLiveBidAskRates([1001, 1002, 1003], now);
+  assert.equal(liveQuotes.length, 1, "delayed and stale quotes must be excluded");
+  assert.equal(liveQuotes[0].instrumentId, 1001);
+  assert.equal(liveQuotes[0].quoteType, "realtime");
+  assert.equal(new URL(liveCalls[0].url).pathname, "/api/v2/market-data/rates");
+  assert.equal(new URL(liveCalls[0].url).searchParams.get("instrumentIds"), "1001,1002,1003");
+  assert.equal(liveCalls[0].init.method, "GET");
 
   const socialCalls = [];
   const socialClient = createEtoroClient({

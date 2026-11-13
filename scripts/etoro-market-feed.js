@@ -46,6 +46,24 @@ function normalizeRate(row, now = Date.now(), maxAgeMs = DEFAULT_MAX_AGE_MS) {
   };
 }
 
+function normalizeBidAskRate(row, now = Date.now(), maxAgeMs = DEFAULT_MAX_AGE_MS) {
+  if (!row || typeof row !== "object" || row.quoteType !== "realtime" ||
+      !Number.isFinite(now) || !Number.isFinite(maxAgeMs) || maxAgeMs < 0) return null;
+  const instrumentId = Number(row.instrumentId);
+  const bid = Number(row.bid), ask = Number(row.ask);
+  const timestamp = Date.parse(row.date);
+  if (!Number.isSafeInteger(instrumentId) || instrumentId <= 0 ||
+      !Number.isFinite(bid) || !Number.isFinite(ask) || !(bid > 0) || !(ask >= bid) ||
+      !Number.isFinite(timestamp) || timestamp > now || now - timestamp > maxAgeMs) return null;
+  const midPrice = (bid + ask) / 2;
+  return {
+    source: "ETORO", instrumentId, bid, ask,
+    lastPrice: null, midPrice, spread: ask - bid,
+    spreadPct: ((ask - bid) / midPrice) * 100,
+    timestamp, receivedAt: now, quoteType: "realtime"
+  };
+}
+
 function normalizeCandle(row, now = Date.now()) {
   if (!row || typeof row !== "object") return null;
   const time = Date.parse(row.timestamp || row.time);
@@ -94,8 +112,8 @@ function createEtoroClient(options = {}) {
 
   async function getV2(path, query = {}) {
     const endpoint = safePath(path);
-    if (!/^\/api\/v2\/portfolios\/(?:rankings|[A-Za-z0-9_.-]{1,50}\/copiers)$/.test(endpoint)) {
-      throw new TypeError("Only documented read-only eToro portfolio v2 paths are allowed.");
+    if (!/^\/api\/v2\/(?:market-data\/rates|portfolios\/(?:rankings|[A-Za-z0-9_.-]{1,50}\/copiers))$/.test(endpoint)) {
+      throw new TypeError("Only documented read-only eToro v2 paths are allowed.");
     }
     const url = new URL(endpoint, parsedBaseUrl.origin);
     for (const [key, value] of Object.entries(query)) {
@@ -124,9 +142,23 @@ function createEtoroClient(options = {}) {
   }
 
   return Object.freeze({
-    async searchInstruments(query) {
-      if (typeof query !== "string" || !query.trim()) throw new TypeError("Instrument search query is required.");
-      return get("/market-data/search", { internalSymbolFull: query.trim() });
+    async searchInstruments(query, options = {}) {
+      if (typeof query !== "string" || !query.trim() || !options || typeof options !== "object" || Array.isArray(options)) throw new TypeError("Instrument search query is required.");
+      const pageSize = options.pageSize == null ? 100 : Number(options.pageSize);
+      const pageNumber = options.pageNumber == null ? 1 : Number(options.pageNumber);
+      if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 100 || !Number.isInteger(pageNumber) || pageNumber < 1) throw new TypeError("Invalid instrument search pagination.");
+      return get("/market-data/search", { fields: "instrumentId,internalSymbolFull,displayname,isCurrentlyTradable,isOpen,currentRate", internalSymbolFull: query.trim(), pageSize, pageNumber });
+    },
+    async getLiveBidAskRates(instrumentIds, now = Date.now()) {
+      if (!Array.isArray(instrumentIds) || !instrumentIds.length || instrumentIds.length > 1000 ||
+          instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
+        throw new TypeError("One to one thousand valid eToro instrument IDs are required.");
+      }
+      const requestedIds = new Set(instrumentIds.map(Number));
+      const payload = await getV2("/api/v2/market-data/rates", { instrumentIds: instrumentIds.join(",") });
+      const rows = Array.isArray(payload.results) ? payload.results : [];
+      return rows.map(row => normalizeBidAskRate(row, now, maxAgeMs))
+        .filter(quote => quote && requestedIds.has(quote.instrumentId));
     },
     async getRates(instrumentIds, now = Date.now()) {
       if (!Array.isArray(instrumentIds) || !instrumentIds.length ||
@@ -417,4 +449,4 @@ function createPaperLedger(options = {}) {
   });
 }
 
-module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates };
+module.exports = { API_BASE, WS_URL, DEFAULT_MAX_AGE_MS, normalizeRate, normalizeBidAskRate, normalizeCandle, createEtoroClient, createPaperLedger, safePath, createWebSocketAuthMessage, createWebSocketSubscribeMessage, createWebSocketUnsubscribeMessage, parseWebSocketMessage, parseWebSocketRateUpdates };
