@@ -154,9 +154,11 @@ function createEtoroClient(options = {}) {
           instrumentIds.some(id => !Number.isSafeInteger(Number(id)) || Number(id) <= 0)) {
         throw new TypeError("One to one thousand valid eToro instrument IDs are required.");
       }
+      const requestedIds = new Set(instrumentIds.map(Number));
       const payload = await getV2("/api/v2/market-data/rates", { instrumentIds: instrumentIds.join(",") });
       const rows = Array.isArray(payload.results) ? payload.results : [];
-      return rows.map(row => normalizeBidAskRate(row, now, maxAgeMs)).filter(Boolean);
+      return rows.map(row => normalizeBidAskRate(row, now, maxAgeMs))
+        .filter(quote => quote && requestedIds.has(quote.instrumentId));
     },
     async getRates(instrumentIds, now = Date.now()) {
       if (!Array.isArray(instrumentIds) || !instrumentIds.length ||
