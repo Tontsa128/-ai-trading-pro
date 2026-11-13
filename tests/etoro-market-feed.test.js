@@ -6,6 +6,7 @@ const now = Date.parse("2026-11-13T10:00:00Z");
 const validRate = { instrumentId: 1001, symbol: "BTC", bid: 99, ask: 101, lastPrice: 100, timestamp: new Date(now - 1000).toISOString() };
 assert.equal(normalizeRate(validRate, now).source, "ETORO");
 assert.equal(normalizeRate({ ...validRate, bid: 0 }, now), null);
+assert.equal(normalizeRate({ ...validRate, bid: Infinity, ask: Infinity }, now), null);
 assert.equal(normalizeRate({ ...validRate, instrumentId: 0 }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now + 1).toISOString() }, now), null);
 assert.equal(normalizeRate({ ...validRate, timestamp: new Date(now - 20000).toISOString() }, now), null);
@@ -59,6 +60,7 @@ const client = createEtoroClient({
   const opened = ledger.open({ action: "BUY", instrumentId: 1001 }, quote, 2, now);
   assert.equal(opened.entryPrice, 101, "BUY enters at ask");
   assert.throws(() => ledger.open({ action: "SELL", instrumentId: 1002 }, quote, 2, now), /Only BUY/);
+  assert.throws(() => ledger.open({ action: "BUY", instrumentId: 1002 }, quote, 2, now), /fresh, valid/);
   const closed = ledger.close(1001, { source: "ETORO", instrumentId: 1001, bid: 103, ask: 104, timestamp: now + 500 }, now + 1000);
   assert.equal(closed.exitPrice, 103, "BUY exits at bid");
   assert.ok(closed.netPnl < closed.grossPnl, "fees reduce paper PnL");
