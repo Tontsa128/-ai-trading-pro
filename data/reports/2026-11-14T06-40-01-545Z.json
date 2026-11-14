@@ -1,0 +1,274 @@
+{
+  "schema": 1,
+  "mode": "paper",
+  "cycleStartedAt": "2026-11-14T06:40:01.545Z",
+  "cycleHours": 2,
+  "source": "Binance public Spot API",
+  "symbols": [
+    {
+      "symbol": "BTCUSDT",
+      "price": 67324.01,
+      "change24hPct": -2.289,
+      "spreadPct": 0.000014853542944691586,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "neutral"
+      ],
+      "blockedBy": [
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 1224.94 hinnan yksikköä (1.93 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
+      ],
+      "supportDistanceAtr": 1.24,
+      "resistanceDistanceAtr": 6.789,
+      "passed": 11,
+      "total": 14,
+      "indicators": {
+        "rsi": 29.34086805594832,
+        "adx": 45.88337769974127,
+        "atr": 633.2348642389959,
+        "atrPct": 0.9417351514805797,
+        "ema9": 67735.13652802007,
+        "ema21": 68466.22568565789,
+        "ema50": 69928.41675555317,
+        "ema200": 73391.5250144007,
+        "macdHist": -60.37749947098598,
+        "volumeRatio": 0.7145524138265625
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "ETHUSDT",
+      "price": 1904.82,
+      "change24hPct": -1.607,
+      "spreadPct": 0.0005249853660324443,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "neutral"
+      ],
+      "blockedBy": [
+        "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
+      ],
+      "supportDistanceAtr": 1.265,
+      "resistanceDistanceAtr": 5.251,
+      "passed": 13,
+      "total": 14,
+      "indicators": {
+        "rsi": 37.21194424228265,
+        "adx": 35.54137658299286,
+        "atr": 21.959781759368944,
+        "atrPct": 1.1522666064660296,
+        "ema9": 1914.5854829601913,
+        "ema21": 1932.3070950965623,
+        "ema50": 1968.7891783934544,
+        "ema200": 2091.6552279981715,
+        "macdHist": -1.4108804672986253,
+        "volumeRatio": 0.6513297648958665
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "SOLUSDT",
+      "price": 75.64,
+      "change24hPct": -5.379,
+      "spreadPct": 0.01321964439157263,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "neutral"
+      ],
+      "blockedBy": [
+        "RSI 32–50 (ei ylikuumentunut)",
+        "Hinta on liian kaukana EMA 21:stä: 2.25 hinnan yksikköä (2.18 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
+      ],
+      "supportDistanceAtr": 1.112,
+      "resistanceDistanceAtr": 6.169,
+      "passed": 11,
+      "total": 14,
+      "indicators": {
+        "rsi": 31.49960193092477,
+        "adx": 30.75163841114829,
+        "atr": 1.0342456870889867,
+        "atrPct": 1.3608495882749825,
+        "ema9": 76.8669512842711,
+        "ema21": 78.25087965128397,
+        "ema50": 80.01167525160069,
+        "ema200": 85.0626127049793,
+        "macdHist": -0.33989711258918875,
+        "volumeRatio": 0.7234468276582293
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "BNBUSDT",
+      "price": 618.7,
+      "change24hPct": -2.372,
+      "spreadPct": 0.0016163052877412787,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "neutral"
+      ],
+      "blockedBy": [
+        "Hinta on liian kaukana EMA 21:stä: 10.29 hinnan yksikköä (1.68 ATR; sallittu enintään 1.60 ATR); ehto ei täyty",
+        "Moniaikavälivahvistus: 1 h LASKU, 4 h LASKU, 1 d EPÄSELVÄ; vahvistus vaatii 4 h ja 1 d: LASKU"
+      ],
+      "supportDistanceAtr": 1.384,
+      "resistanceDistanceAtr": 6.149,
+      "passed": 12,
+      "total": 14,
+      "indicators": {
+        "rsi": 34.1331222456641,
+        "adx": 35.603632165403134,
+        "atr": 6.106661376485526,
+        "atrPct": 0.9832009944430086,
+        "ema9": 625.0613865407742,
+        "ema21": 631.387549369569,
+        "ema50": 643.8568257441092,
+        "ema200": 673.3203052391758,
+        "macdHist": -0.7641529986370266,
+        "volumeRatio": 0.6612049046908981
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 0.9949,
+      "change24hPct": -2.699,
+      "spreadPct": 0.010050756319411928,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "WAIT",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "bear"
+      ],
+      "blockedBy": [
+        "Volyymi 0.41× (vaatimus ≥ 0.50× ei täyty)"
+      ],
+      "supportDistanceAtr": 1.057,
+      "resistanceDistanceAtr": 3.902,
+      "passed": 13,
+      "total": 14,
+      "indicators": {
+        "rsi": 35.880083044045875,
+        "adx": 24.079026756018727,
+        "atr": 0.01201835369996264,
+        "atrPct": 1.2054517251717796,
+        "ema9": 1.0035710025810338,
+        "ema21": 1.0122253876167397,
+        "ema50": 1.025666610523393,
+        "ema200": 1.0951852605028003,
+        "macdHist": -0.0020047560413887517,
+        "volumeRatio": 0.41270978485776894
+      },
+      "action": "NO_ACTION",
+      "reason": "ODOTA: kaikki vaaditut ehdot eivät täyty. Signaalia ei pakoteta.",
+      "position": null
+    },
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.06305,
+      "change24hPct": -1.99,
+      "spreadPct": 0.015861686097225988,
+      "timeframe": "1h",
+      "confirmations": [
+        "4h",
+        "1d"
+      ],
+      "lastClosedCandleAt": "2026-11-14T05:59:59.999Z",
+      "newClosedCandles": 7,
+      "signal": "SELL",
+      "trendBias": "bear",
+      "higherBias": [
+        "bear",
+        "bear"
+      ],
+      "blockedBy": [],
+      "supportDistanceAtr": 1.355,
+      "resistanceDistanceAtr": 4.262,
+      "passed": 14,
+      "total": 14,
+      "indicators": {
+        "rsi": 36.30272817302778,
+        "adx": 33.56932550851939,
+        "atr": 0.0008189514594167918,
+        "atrPct": 1.2956042705533803,
+        "ema9": 0.0637500647869601,
+        "ema21": 0.064413369452711,
+        "ema50": 0.06537653721330645,
+        "ema200": 0.06873640027895533,
+        "macdHist": -0.00018530964094097237,
+        "volumeRatio": 0.5263841766340117
+      },
+      "action": "NO_ACTION",
+      "reason": "Laskuehdot vahvistuivat. Spot-käytössä tämä tarkoittaa omistuksen vähentämistä tai ostamisen välttämistä, ei shorttausta.",
+      "position": null
+    }
+  ],
+  "errors": [],
+  "newTrades": [],
+  "portfolio": {
+    "initialCash": 1000,
+    "cash": 1000,
+    "equity": 1000,
+    "realizedPnl": 0,
+    "openPositions": 0,
+    "positions": {}
+  },
+  "notes": [
+    "Simulated paper trades only; no real exchange orders.",
+    "One decision per two-hour scheduled run, using 1h candles and 4h/1d confirmations.",
+    "Stops and targets are checked against every newly closed hourly candle since the previous successful cycle; if stop and target touch in the same candle, stop is assumed first. Intracandle fills remain approximate.",
+    "No automatic parameter tuning; strategy changes require out-of-sample validation."
+  ]
+}
