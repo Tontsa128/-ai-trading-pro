@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-14T23:06:29.551Z",
+  "generatedAtUtc": "2026-11-15T02:49:53.802Z",
   "mode": "forward_signal_evaluation",
   "metricType": "signal_value_not_executable_trade_pnl",
   "symbols": [
@@ -18,10 +18,10 @@
   ],
   "feesPerSidePct": 0.1,
   "randomBaselineSeeds": 100,
-  "signalCount": 60,
-  "maturedOutcomeCount": 63,
+  "signalCount": 66,
+  "maturedOutcomeCount": 66,
   "newSignals": 6,
-  "newOutcomes": 0,
+  "newOutcomes": 3,
   "errors": [],
   "metrics": {
     "1h": {
@@ -107,26 +107,26 @@
         "sellCount": 0
       },
       "SELL": {
-        "samples": 0,
-        "hitRatePct": null,
-        "avgNetDirectionalReturnPct": null,
-        "avgBuyAndHoldNetReturnPct": null,
-        "avgRandomDirectionNetReturnPct": null,
-        "excessVsBuyAndHoldPct": null,
-        "excessVsRandomPct": null,
+        "samples": 1,
+        "hitRatePct": 100,
+        "avgNetDirectionalReturnPct": 13.500219324181618,
+        "avgBuyAndHoldNetReturnPct": -12.246337325905287,
+        "avgRandomDirectionNetReturnPct": 0.369475432637295,
+        "excessVsBuyAndHoldPct": 25.746556650086905,
+        "excessVsRandomPct": 13.130743891544324,
         "buyCount": 0,
-        "sellCount": 0
+        "sellCount": 1
       },
       "WAIT_NEAR_MISS": {
-        "samples": 15,
-        "hitRatePct": 93.33333333333333,
-        "avgNetDirectionalReturnPct": 3.3289651677997805,
-        "avgBuyAndHoldNetReturnPct": -3.570749383054607,
-        "avgRandomDirectionNetReturnPct": -0.04909945675162649,
-        "excessVsBuyAndHoldPct": 6.899714550854387,
-        "excessVsRandomPct": 3.3780646245514068,
+        "samples": 17,
+        "hitRatePct": 94.11764705882352,
+        "avgNetDirectionalReturnPct": 4.249459965224055,
+        "avgBuyAndHoldNetReturnPct": -4.371097237646305,
+        "avgRandomDirectionNetReturnPct": -0.21490482525075982,
+        "excessVsBuyAndHoldPct": 8.62055720287036,
+        "excessVsRandomPct": 4.464364790474815,
         "buyCount": 0,
-        "sellCount": 15
+        "sellCount": 17
       }
     }
   },
