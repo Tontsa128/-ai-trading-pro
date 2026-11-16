@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-15T22:58:31.633Z",
+  "generatedAtUtc": "2026-11-16T02:52:00.913Z",
   "mode": "forward_signal_evaluation",
   "metricType": "signal_value_not_executable_trade_pnl",
   "symbols": [
@@ -18,10 +18,10 @@
   ],
   "feesPerSidePct": 0.1,
   "randomBaselineSeeds": 100,
-  "signalCount": 84,
-  "maturedOutcomeCount": 88,
+  "signalCount": 90,
+  "maturedOutcomeCount": 92,
   "newSignals": 6,
-  "newOutcomes": 10,
+  "newOutcomes": 4,
   "errors": [],
   "metrics": {
     "1h": {
@@ -48,15 +48,15 @@
         "sellCount": 2
       },
       "WAIT_NEAR_MISS": {
-        "samples": 30,
-        "hitRatePct": 43.333333333333336,
-        "avgNetDirectionalReturnPct": 0.17436584928582252,
-        "avgBuyAndHoldNetReturnPct": -0.5623540586197777,
-        "avgRandomDirectionNetReturnPct": -0.19920163899989646,
-        "excessVsBuyAndHoldPct": 0.7367199079056003,
-        "excessVsRandomPct": 0.37356748828571895,
+        "samples": 34,
+        "hitRatePct": 38.23529411764706,
+        "avgNetDirectionalReturnPct": 0.0801815936170991,
+        "avgBuyAndHoldNetReturnPct": -0.46924163174367645,
+        "avgRandomDirectionNetReturnPct": -0.20163826456127737,
+        "excessVsBuyAndHoldPct": 0.5494232253607756,
+        "excessVsRandomPct": 0.28181985817837646,
         "buyCount": 0,
-        "sellCount": 30
+        "sellCount": 34
       }
     },
     "4h": {
