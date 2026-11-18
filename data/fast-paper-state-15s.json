@@ -1522,8 +1522,24 @@
       "equity": 1000,
       "realizedPnl": 0,
       "openPositions": 0
+    },
+    {
+      "at": "2026-11-18T23:36:41.470Z",
+      "endedAt": "2026-11-18T23:40:11.471Z",
+      "intervalSeconds": 15,
+      "trades": 0,
+      "errors": 0,
+      "websocketMessages": 106944,
+      "websocketTradeMessages": 20675,
+      "websocketEndpointsTried": [
+        "wss://data-stream.binance.vision:443"
+      ],
+      "source": "Binance public Spot trade WebSocket + REST bid/ask monitoring",
+      "equity": 1000,
+      "realizedPnl": 0,
+      "openPositions": 0
     }
   ],
-  "lastSessionAt": "2026-11-18T17:40:19.687Z",
+  "lastSessionAt": "2026-11-18T23:40:11.471Z",
   "pendingExamples": {}
 }
