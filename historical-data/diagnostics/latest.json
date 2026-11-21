@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-21T02:13:23.026Z",
+  "generatedAtUtc": "2026-11-21T09:55:09.304Z",
   "source": "paper-data/historical-data/binance",
   "symbols": [
     "BTCUSDT",
@@ -22,40 +22,40 @@
       "symbol": "BTCUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 15,
-        "SELL": 216,
-        "WAIT": 9108,
-        "WAIT_NEAR_MISS": 3053
+        "SELL": 218,
+        "WAIT": 9113,
+        "WAIT_NEAR_MISS": 3055
       },
       "setupDiagnostics": {
         "longCoreBars": 510,
-        "shortCoreBars": 741,
+        "shortCoreBars": 743,
         "bothHigherBullBars": 420,
-        "bothHigherBearBars": 2503
+        "bothHigherBearBars": 2510
       },
       "gateFailures": {
         "Hinta EMA 200:n alapuolella": 732,
         "EMA 50 EMA 200:n alapuolella": 1325,
         "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 7291,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 809,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 812,
         "EMA 9 EMA 21:n yläpuolella": 415,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 1303,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 1422,
         "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 1962,
         "RSI 50–68 (ei ylikuumentunut)": 1020,
-        "Hinta ei ole liian kaukana EMA 21:stä": 2058,
-        "RSI 32–50 (ei ylikuumentunut)": 1196,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1611,
+        "Hinta ei ole liian kaukana EMA 21:stä": 2062,
+        "RSI 32–50 (ei ylikuumentunut)": 1200,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1612,
         "ADX vähintään 18 ja myyjien suunta vahvempi": 1270,
         "Hinta EMA 200:n yläpuolella": 1168,
         "EMA 50 EMA 200:n yläpuolella": 1796,
@@ -63,17 +63,17 @@
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 861
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9339,
-        "EMA 9 EMA 21:n alapuolella": 4505,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3277,
-        "RSI 32–50 (ei ylikuumentunut)": 3692,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3618,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7377,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7281,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4079,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9346,
+        "EMA 9 EMA 21:n alapuolella": 4512,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3283,
+        "RSI 32–50 (ei ylikuumentunut)": 3695,
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3625,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7384,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7284,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4083,
         "Hinta EMA 200:n yläpuolella": 3283,
         "EMA 50 EMA 200:n yläpuolella": 2655,
         "RSI 50–68 (ei ylikuumentunut)": 3431,
@@ -81,9 +81,9 @@
         "ADX vähintään 18 ja ostajien suunta vahvempi": 3029,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 3148,
         "EMA 9 EMA 21:n yläpuolella": 4036,
-        "Hinta EMA 200:n alapuolella": 4156,
-        "EMA 50 EMA 200:n alapuolella": 3563,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 2048
+        "Hinta EMA 200:n alapuolella": 4163,
+        "EMA 50 EMA 200:n alapuolella": 3570,
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 2055
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 6,
@@ -98,9 +98,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -48.47433401704443,
-        "randomDirectionMeanNetReturnPct": 26.25717641371042,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -49.54387552455949,
+        "randomDirectionMeanNetReturnPct": 27.91748277792772,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -122,39 +122,39 @@
       "symbol": "ETHUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 58,
         "SELL": 221,
-        "WAIT": 9060,
-        "WAIT_NEAR_MISS": 2888
+        "WAIT": 9067,
+        "WAIT_NEAR_MISS": 2892
       },
       "setupDiagnostics": {
         "longCoreBars": 506,
         "shortCoreBars": 667,
         "bothHigherBullBars": 504,
-        "bothHigherBearBars": 2211
+        "bothHigherBearBars": 2218
       },
       "gateFailures": {
         "Hinta EMA 200:n alapuolella": 699,
         "EMA 50 EMA 200:n alapuolella": 1325,
         "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 7407,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 2344,
-        "Hinta ei ole liian kaukana EMA 21:stä": 1956,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 618,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 2345,
+        "Hinta ei ole liian kaukana EMA 21:stä": 1960,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 620,
         "EMA 9 EMA 21:n yläpuolella": 459,
         "RSI 50–68 (ei ylikuumentunut)": 1214,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 1509,
-        "RSI 32–50 (ei ylikuumentunut)": 1205,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1667,
+        "RSI 32–50 (ei ylikuumentunut)": 1209,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1670,
         "Hinta EMA 200:n yläpuolella": 1219,
         "EMA 50 EMA 200:n yläpuolella": 1741,
         "EMA 9 EMA 21:n alapuolella": 405,
@@ -164,27 +164,27 @@
         "Ei poikkeuksellisen suuri ATR-volatiliteetti": 14
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9325,
-        "EMA 9 EMA 21:n alapuolella": 4404,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3142,
-        "RSI 32–50 (ei ylikuumentunut)": 3604,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3605,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 6995,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7383,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4191,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9332,
+        "EMA 9 EMA 21:n alapuolella": 4411,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3146,
+        "RSI 32–50 (ei ylikuumentunut)": 3607,
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3612,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7001,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7386,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4196,
         "Hinta EMA 200:n yläpuolella": 3311,
         "EMA 50 EMA 200:n yläpuolella": 2789,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 3137,
         "RSI 50–68 (ei ylikuumentunut)": 3316,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 3021,
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 3891,
-        "Hinta EMA 200:n alapuolella": 4110,
-        "EMA 50 EMA 200:n alapuolella": 3484,
+        "Hinta EMA 200:n alapuolella": 4117,
+        "EMA 50 EMA 200:n alapuolella": 3491,
         "EMA 9 EMA 21:n yläpuolella": 4071,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 1932
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 1939
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 15,
@@ -199,9 +199,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -60.69071201118403,
-        "randomDirectionMeanNetReturnPct": 45.83550998748346,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -60.63728787231564,
+        "randomDirectionMeanNetReturnPct": 45.69096596852924,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -223,26 +223,26 @@
       "symbol": "SOLUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 41,
-        "SELL": 279,
-        "WAIT": 9019,
-        "WAIT_NEAR_MISS": 3106
+        "SELL": 281,
+        "WAIT": 9024,
+        "WAIT_NEAR_MISS": 3108
       },
       "setupDiagnostics": {
         "longCoreBars": 454,
-        "shortCoreBars": 865,
+        "shortCoreBars": 867,
         "bothHigherBullBars": 396,
-        "bothHigherBearBars": 2779
+        "bothHigherBearBars": 2786
       },
       "gateFailures": {
         "Hinta EMA 200:n alapuolella": 675,
@@ -253,11 +253,11 @@
         "ADX vähintään 18 ja ostajien suunta vahvempi": 1415,
         "ADX vähintään 18 ja myyjien suunta vahvempi": 1359,
         "RSI 50–68 (ei ylikuumentunut)": 1038,
-        "Hinta ei ole liian kaukana EMA 21:stä": 1874,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 774,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 1856,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1681,
-        "RSI 32–50 (ei ylikuumentunut)": 1140,
+        "Hinta ei ole liian kaukana EMA 21:stä": 1877,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 777,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 1857,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1683,
+        "RSI 32–50 (ei ylikuumentunut)": 1143,
         "Hinta EMA 200:n yläpuolella": 1207,
         "EMA 50 EMA 200:n yläpuolella": 1803,
         "EMA 9 EMA 21:n alapuolella": 379,
@@ -265,17 +265,17 @@
         "Ei poikkeuksellisen suuri ATR-volatiliteetti": 22
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9317,
-        "EMA 9 EMA 21:n alapuolella": 4610,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3308,
-        "RSI 32–50 (ei ylikuumentunut)": 3849,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3630,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7483,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7465,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4215,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9324,
+        "EMA 9 EMA 21:n alapuolella": 4617,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3313,
+        "RSI 32–50 (ei ylikuumentunut)": 3853,
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3637,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7489,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7469,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4219,
         "Hinta EMA 200:n yläpuolella": 3143,
         "EMA 50 EMA 200:n yläpuolella": 2547,
         "RSI 50–68 (ei ylikuumentunut)": 3312,
@@ -283,9 +283,9 @@
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 3649,
         "EMA 9 EMA 21:n yläpuolella": 3947,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 3056,
-        "Hinta EMA 200:n alapuolella": 4314,
-        "EMA 50 EMA 200:n alapuolella": 3730,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 2252
+        "Hinta EMA 200:n alapuolella": 4321,
+        "EMA 50 EMA 200:n alapuolella": 3737,
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 2259
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 10,
@@ -300,9 +300,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -65.49512354687737,
-        "randomDirectionMeanNetReturnPct": 55.94264731866856,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -66.26200996426952,
+        "randomDirectionMeanNetReturnPct": 58.680698511938935,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -324,26 +324,26 @@
       "symbol": "BNBUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 55,
-        "SELL": 139,
-        "WAIT": 9145,
-        "WAIT_NEAR_MISS": 2929
+        "SELL": 140,
+        "WAIT": 9151,
+        "WAIT_NEAR_MISS": 2932
       },
       "setupDiagnostics": {
         "longCoreBars": 590,
-        "shortCoreBars": 634,
+        "shortCoreBars": 637,
         "bothHigherBullBars": 684,
-        "bothHigherBearBars": 1711
+        "bothHigherBearBars": 1718
       },
       "gateFailures": {
         "Hinta EMA 200:n alapuolella": 792,
@@ -353,11 +353,11 @@
         "EMA 9 EMA 21:n yläpuolella": 405,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 1354,
         "ADX vähintään 18 ja myyjien suunta vahvempi": 1252,
-        "Hinta ei ole liian kaukana EMA 21:stä": 1978,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 762,
+        "Hinta ei ole liian kaukana EMA 21:stä": 1984,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 765,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 1696,
         "RSI 50–68 (ei ylikuumentunut)": 1027,
-        "RSI 32–50 (ei ylikuumentunut)": 1092,
+        "RSI 32–50 (ei ylikuumentunut)": 1096,
         "MACD-histogrammi negatiivinen (laskupainotteinen)": 1484,
         "Hinta EMA 200:n yläpuolella": 1205,
         "EMA 50 EMA 200:n yläpuolella": 1753,
@@ -366,27 +366,27 @@
         "Ei poikkeuksellisen suuri ATR-volatiliteetti": 4
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9335,
-        "EMA 9 EMA 21:n alapuolella": 4350,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3226,
-        "RSI 32–50 (ei ylikuumentunut)": 3618,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3458,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7439,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7361,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 3948,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9342,
+        "EMA 9 EMA 21:n alapuolella": 4357,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3233,
+        "RSI 32–50 (ei ylikuumentunut)": 3621,
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3465,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7446,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7362,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 3952,
         "Hinta EMA 200:n yläpuolella": 3424,
         "EMA 50 EMA 200:n yläpuolella": 2876,
         "RSI 50–68 (ei ylikuumentunut)": 3602,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 2933,
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 3752,
-        "Hinta EMA 200:n alapuolella": 3918,
+        "Hinta EMA 200:n alapuolella": 3925,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 3275,
         "EMA 9 EMA 21:n yläpuolella": 4224,
-        "EMA 50 EMA 200:n alapuolella": 3251,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 1668
+        "EMA 50 EMA 200:n alapuolella": 3258,
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 1675
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 22,
@@ -401,9 +401,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -52.85686288283227,
-        "randomDirectionMeanNetReturnPct": 30.417594390692003,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -54.34533576847429,
+        "randomDirectionMeanNetReturnPct": 33.18709931912994,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -425,26 +425,26 @@
       "symbol": "XRPUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 4,
-        "SELL": 426,
-        "WAIT": 8909,
-        "WAIT_NEAR_MISS": 3122
+        "SELL": 428,
+        "WAIT": 8914,
+        "WAIT_NEAR_MISS": 3124
       },
       "setupDiagnostics": {
         "longCoreBars": 352,
-        "shortCoreBars": 879,
+        "shortCoreBars": 881,
         "bothHigherBullBars": 68,
-        "bothHigherBearBars": 4299
+        "bothHigherBearBars": 4306
       },
       "gateFailures": {
         "MACD-histogrammi positiivinen (nousupainotteinen)": 943,
@@ -456,10 +456,10 @@
         "EMA 50 EMA 200:n alapuolella": 1177,
         "ADX vähintään 18 ja myyjien suunta vahvempi": 1834,
         "EMA 9 EMA 21:n yläpuolella": 337,
-        "Hinta ei ole liian kaukana EMA 21:stä": 1918,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 951,
-        "RSI 32–50 (ei ylikuumentunut)": 1266,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1779,
+        "Hinta ei ole liian kaukana EMA 21:stä": 1921,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 954,
+        "RSI 32–50 (ei ylikuumentunut)": 1269,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1781,
         "Hinta EMA 200:n yläpuolella": 1408,
         "EMA 50 EMA 200:n yläpuolella": 2003,
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 627,
@@ -467,27 +467,27 @@
         "Ei poikkeuksellisen suuri ATR-volatiliteetti": 50
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9289,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9296,
         "Hinta EMA 200:n yläpuolella": 2444,
         "EMA 50 EMA 200:n yläpuolella": 1849,
         "EMA 9 EMA 21:n yläpuolella": 3515,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 2455,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7477,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7421,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 7484,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7425,
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 3225,
-        "EMA 9 EMA 21:n alapuolella": 5030,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3708,
-        "RSI 32–50 (ei ylikuumentunut)": 4221,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4536,
+        "EMA 9 EMA 21:n alapuolella": 5037,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3713,
+        "RSI 32–50 (ei ylikuumentunut)": 4225,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4540,
         "RSI 50–68 (ei ylikuumentunut)": 2922,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 2909,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3653,
-        "Hinta EMA 200:n alapuolella": 4889,
-        "EMA 50 EMA 200:n alapuolella": 4310,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 3185
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3660,
+        "Hinta EMA 200:n alapuolella": 4896,
+        "EMA 50 EMA 200:n alapuolella": 4317,
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 3192
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 2,
@@ -502,9 +502,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -65.55594533029613,
-        "randomDirectionMeanNetReturnPct": 43.47650999804701,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -66.4748063781321,
+        "randomDirectionMeanNetReturnPct": 46.34706846281792,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -526,39 +526,39 @@
       "symbol": "DOGEUSDT",
       "source": "Binance public Spot closed-candle CSV archive",
       "candleCounts": {
-        "1h": 14604,
-        "4h": 3651,
+        "1h": 14611,
+        "4h": 3653,
         "1d": 609
       },
-      "evaluatedHourlyBars": 9339,
+      "evaluatedHourlyBars": 9346,
       "eligibleWindowUtc": {
         "first": "2025-10-27T23:59:59.999Z",
-        "last": "2026-11-21T01:59:59.999Z"
+        "last": "2026-11-21T08:59:59.999Z"
       },
       "signalCounts": {
         "BUY": 0,
-        "SELL": 507,
-        "WAIT": 8832,
-        "WAIT_NEAR_MISS": 3131
+        "SELL": 509,
+        "WAIT": 8837,
+        "WAIT_NEAR_MISS": 3134
       },
       "setupDiagnostics": {
         "longCoreBars": 368,
-        "shortCoreBars": 901,
+        "shortCoreBars": 903,
         "bothHigherBullBars": 0,
-        "bothHigherBearBars": 4567
+        "bothHigherBearBars": 4574
       },
       "gateFailures": {
         "Hinta EMA 200:n alapuolella": 494,
         "EMA 50 EMA 200:n alapuolella": 1081,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 745,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 747,
         "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 6022,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 2466,
-        "Hinta ei ole liian kaukana EMA 21:stä": 1815,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 2467,
+        "Hinta ei ole liian kaukana EMA 21:stä": 1818,
         "EMA 9 EMA 21:n yläpuolella": 309,
         "RSI 50–68 (ei ylikuumentunut)": 862,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 1400,
-        "RSI 32–50 (ei ylikuumentunut)": 1279,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1868,
+        "RSI 32–50 (ei ylikuumentunut)": 1282,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 1870,
         "Hinta EMA 200:n yläpuolella": 1363,
         "EMA 50 EMA 200:n yläpuolella": 2087,
         "EMA 9 EMA 21:n alapuolella": 477,
@@ -568,27 +568,27 @@
         "Ei poikkeuksellisen suuri ATR-volatiliteetti": 20
       },
       "gatePasses": {
-        "Riittävästi historiadataa": 9339,
-        "Historiallinen kynttilä sulkeutunut": 9339,
-        "Osto/myyntihajonta enintään 0,15 %": 9339,
-        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9319,
-        "EMA 9 EMA 21:n alapuolella": 4939,
-        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3548,
-        "RSI 32–50 (ei ylikuumentunut)": 4137,
-        "ADX vähintään 18 ja myyjien suunta vahvempi": 3833,
-        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 6873,
-        "Hinta ei ole liian kaukana EMA 21:stä": 7524,
-        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4671,
-        "Hinta EMA 200:n alapuolella": 4922,
+        "Riittävästi historiadataa": 9346,
+        "Historiallinen kynttilä sulkeutunut": 9346,
+        "Osto/myyntihajonta enintään 0,15 %": 9346,
+        "Ei poikkeuksellisen suuri ATR-volatiliteetti": 9326,
+        "EMA 9 EMA 21:n alapuolella": 4946,
+        "MACD-histogrammi negatiivinen (laskupainotteinen)": 3553,
+        "RSI 32–50 (ei ylikuumentunut)": 4141,
+        "ADX vähintään 18 ja myyjien suunta vahvempi": 3840,
+        "Volyymi vähintään 0,5× edeltävän 20 kynttilän keskiarvo": 6879,
+        "Hinta ei ole liian kaukana EMA 21:stä": 7528,
+        "Myynnille tilaa tukeen vähintään 0,5 ATR": 4676,
+        "Hinta EMA 200:n alapuolella": 4929,
         "Hinta EMA 200:n yläpuolella": 2560,
         "EMA 50 EMA 200:n yläpuolella": 1836,
         "MACD-histogrammi positiivinen (nousupainotteinen)": 2909,
         "Ostolle tilaa vastukseen vähintään 0,5 ATR": 3293,
         "RSI 50–68 (ei ylikuumentunut)": 3061,
-        "EMA 50 EMA 200:n alapuolella": 4335,
+        "EMA 50 EMA 200:n alapuolella": 4342,
         "EMA 9 EMA 21:n yläpuolella": 3614,
         "ADX vähintään 18 ja ostajien suunta vahvempi": 2523,
-        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 3317
+        "Kaksi suurempaa aikaväliä vahvistaa samaa suuntaa": 3324
       },
       "canonicalLongOnlySpotBacktest": {
         "trades": 0,
@@ -603,9 +603,9 @@
       },
       "sameWindowBaselines": {
         "windowStartUtc": "2025-10-28T00:00:00.000Z",
-        "windowEndUtc": "2026-11-21T01:00:00.000Z",
-        "buyAndHoldNetReturnPct": -72.87567621519113,
-        "randomDirectionMeanNetReturnPct": 93.04076301920234,
+        "windowEndUtc": "2026-11-21T08:00:00.000Z",
+        "buyAndHoldNetReturnPct": -73.76540572911468,
+        "randomDirectionMeanNetReturnPct": 98.66470408610908,
         "randomSeeds": 100,
         "note": "Single entry-to-end directional baselines, not a trade-by-trade strategy simulation."
       },
@@ -626,9 +626,9 @@
   ],
   "totals": {
     "BUY": 173,
-    "SELL": 1788,
-    "WAIT": 54073,
-    "WAIT_NEAR_MISS": 18229,
+    "SELL": 1797,
+    "WAIT": 54106,
+    "WAIT_NEAR_MISS": 18245,
     "backtestTrades": 55
   }
 }
