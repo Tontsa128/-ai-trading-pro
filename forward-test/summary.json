@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-23T14:57:00.980Z",
+  "generatedAtUtc": "2026-11-24T02:21:56.830Z",
   "mode": "forward_signal_evaluation",
   "metricType": "signal_value_not_executable_trade_pnl",
   "symbols": [
@@ -18,10 +18,10 @@
   ],
   "feesPerSidePct": 0.1,
   "randomBaselineSeeds": 100,
-  "signalCount": 228,
+  "signalCount": 234,
   "maturedOutcomeCount": 279,
   "newSignals": 6,
-  "newOutcomes": 12,
+  "newOutcomes": 0,
   "errors": [],
   "metrics": {
     "1h": {
