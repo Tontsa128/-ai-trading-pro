@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "generatedAtUtc": "2026-11-24T00:52:16.274Z",
+  "generatedAtUtc": "2026-11-24T10:58:15.217Z",
   "source": "paper-data/historical-data/binance",
   "purpose": "Research-only signal-count sensitivity; not a production strategy change or profitability test.",
   "noProductionRuleChanges": true,
@@ -13,180 +13,180 @@
   "results": [
     {
       "symbol": "BTCUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 15,
-          "SELL": 220,
-          "WAIT": 9174,
+          "SELL": 222,
+          "WAIT": 9182,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 153,
-          "SELL": 346,
-          "WAIT": 8910,
+          "SELL": 348,
+          "WAIT": 8918,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 25,
-          "SELL": 266,
-          "WAIT": 9118,
+          "SELL": 268,
+          "WAIT": 9126,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 163,
-          "SELL": 392,
-          "WAIT": 8854,
+          "SELL": 394,
+          "WAIT": 8862,
           "CONFLICT": 0
         }
       }
     },
     {
       "symbol": "ETHUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 58,
-          "SELL": 221,
-          "WAIT": 9130,
+          "SELL": 223,
+          "WAIT": 9138,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 242,
-          "SELL": 398,
-          "WAIT": 8769,
+          "SELL": 400,
+          "WAIT": 8777,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 60,
-          "SELL": 250,
-          "WAIT": 9099,
+          "SELL": 254,
+          "WAIT": 9105,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 244,
-          "SELL": 427,
-          "WAIT": 8738,
+          "SELL": 431,
+          "WAIT": 8744,
           "CONFLICT": 0
         }
       }
     },
     {
       "symbol": "SOLUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 41,
           "SELL": 284,
-          "WAIT": 9084,
+          "WAIT": 9094,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 154,
           "SELL": 492,
-          "WAIT": 8763,
+          "WAIT": 8773,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 43,
-          "SELL": 307,
-          "WAIT": 9059,
+          "SELL": 308,
+          "WAIT": 9068,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 156,
-          "SELL": 515,
-          "WAIT": 8738,
+          "SELL": 516,
+          "WAIT": 8747,
           "CONFLICT": 0
         }
       }
     },
     {
       "symbol": "BNBUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 55,
-          "SELL": 141,
-          "WAIT": 9213,
+          "SELL": 144,
+          "WAIT": 9220,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 158,
-          "SELL": 323,
-          "WAIT": 8928,
+          "SELL": 326,
+          "WAIT": 8935,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 78,
-          "SELL": 162,
-          "WAIT": 9169,
+          "SELL": 165,
+          "WAIT": 9176,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 181,
-          "SELL": 344,
-          "WAIT": 8884,
+          "SELL": 347,
+          "WAIT": 8891,
           "CONFLICT": 0
         }
       }
     },
     {
       "symbol": "XRPUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 4,
           "SELL": 428,
-          "WAIT": 8977,
+          "WAIT": 8987,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 119,
           "SELL": 468,
-          "WAIT": 8822,
+          "WAIT": 8832,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 4,
           "SELL": 479,
-          "WAIT": 8926,
+          "WAIT": 8936,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 119,
           "SELL": 519,
-          "WAIT": 8771,
+          "WAIT": 8781,
           "CONFLICT": 0
         }
       }
     },
     {
       "symbol": "DOGEUSDT",
-      "evaluatedHourlyBars": 9409,
+      "evaluatedHourlyBars": 9419,
       "modes": {
         "strictBoth": {
           "BUY": 0,
           "SELL": 512,
-          "WAIT": 8897,
+          "WAIT": 8907,
           "CONFLICT": 0
         },
         "fourHourOnly": {
           "BUY": 124,
           "SELL": 528,
-          "WAIT": 8757,
+          "WAIT": 8767,
           "CONFLICT": 0
         },
         "dailyOnly": {
           "BUY": 0,
           "SELL": 566,
-          "WAIT": 8843,
+          "WAIT": 8853,
           "CONFLICT": 0
         },
         "eitherHigher": {
           "BUY": 124,
           "SELL": 582,
-          "WAIT": 8703,
+          "WAIT": 8713,
           "CONFLICT": 0
         }
       }
@@ -195,26 +195,26 @@
   "totals": {
     "strictBoth": {
       "BUY": 173,
-      "SELL": 1806,
-      "WAIT": 54475,
+      "SELL": 1813,
+      "WAIT": 54528,
       "CONFLICT": 0
     },
     "fourHourOnly": {
       "BUY": 950,
-      "SELL": 2555,
-      "WAIT": 52949,
+      "SELL": 2562,
+      "WAIT": 53002,
       "CONFLICT": 0
     },
     "dailyOnly": {
       "BUY": 210,
-      "SELL": 2030,
-      "WAIT": 54214,
+      "SELL": 2040,
+      "WAIT": 54264,
       "CONFLICT": 0
     },
     "eitherHigher": {
       "BUY": 987,
-      "SELL": 2779,
-      "WAIT": 52688,
+      "SELL": 2789,
+      "WAIT": 52738,
       "CONFLICT": 0
     }
   }
